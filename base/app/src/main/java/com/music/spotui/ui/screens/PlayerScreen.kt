@@ -611,7 +611,8 @@ fun PlayerScreen(navController: NavController) {
                 // A short window keeps the pill (32 dp) but not the gap under it.
                 // Over a Canvas: the line being sung, above the pill (a setting), and the pill at the
                 // start of the line, as in the official app.
-                Box(modifier = Modifier.fillMaxWidth().height(if (shortWindow) 36.dp else 52.dp), contentAlignment = if (pillAboveTitle) Alignment.TopStart else Alignment.TopCenter) {
+                // In line with the title (24 dp in), not against the screen's edge.
+                Box(modifier = Modifier.fillMaxWidth().height(if (shortWindow) 36.dp else 52.dp).padding(horizontal = 24.dp), contentAlignment = if (pillAboveTitle) Alignment.TopStart else Alignment.TopCenter) {
                     if (canvasUrl != null && !videoOn && com.music.spotui.data.preferences.LyricLinePref.on) Box(
                         Modifier.fillMaxWidth().height(64.dp).offset(y = if (pillIn > 0f) (-70).dp else (-34).dp),
                         contentAlignment = Alignment.BottomStart,

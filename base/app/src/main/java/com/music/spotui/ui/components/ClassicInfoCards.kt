@@ -146,7 +146,7 @@ private fun ArtistAbout(page: app.myspoti.api.ArtistPage, openArtist: (app.myspo
         Box(Modifier.fillMaxWidth().aspectRatio(1.25f).clickable { openArtist(app.myspoti.api.ArtistRef(a.uri, a.name)) }) {
             if (photo != null) GlideImage(model = photo, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             Box(Modifier.fillMaxWidth().height(80.dp).background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.55f), Color.Transparent))))
-            Text(stringResource(R.string.artist_subtitle), color = CardText, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
+            Text(stringResource(R.string.about_the_artist), color = CardText, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
         }
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
