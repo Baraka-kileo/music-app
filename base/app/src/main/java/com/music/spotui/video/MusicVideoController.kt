@@ -241,6 +241,11 @@ object MusicVideoController {
     @Volatile private var settledUntil = 0L
 
     /** Resolve and cache a track's video in the background, without touching the UI state. */
+    /** Whether a music video is known for [trackId], from what was already looked up (memory, then disk). */
+    suspend fun knownVideo(trackId: String): Boolean = trackId.isNotBlank() && withContext(Dispatchers.IO) {
+        (recentAnswer(trackId) ?: runCatching { readCache(trackId) }.getOrNull()) is State.Ready
+    }
+
     fun prefetch(trackId: String, title: String, artist: String, durationMs: Long) {
         if (com.music.spotui.data.DataSaver.active || !com.music.spotui.data.preferences.MusicVideoPref.on || !appVisible || !EnergySettings.state.value.policy.allowBackgroundLookups || trackId.isBlank() || trackId == currentTrackId) return
         if (trackId == settledId && SystemClock.elapsedRealtime() < settledUntil) return

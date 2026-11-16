@@ -149,6 +149,7 @@ fun AppNoticeHost() {
         }
     }
 
+    ShareCardSheet()
     val song = AppNotice.saveTo.value
     if (song != null) {
         val context = LocalContext.current

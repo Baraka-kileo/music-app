@@ -125,8 +125,10 @@ internal fun ImmersiveInfoCards(
     onOpenQueue: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val tint = LocalPlayerTint.current
     val info = rememberSongInfo(state)
+    // Solid cards with white words: over the moving backdrop the see-through ones were hard to read.
+    androidx.compose.runtime.CompositionLocalProvider(LocalPlayerTint provides Color.White, LocalSolidCards provides true) {
+    val tint = LocalPlayerTint.current
     Column(modifier) {
         val shape = RoundedCornerShape(20.dp)
         Row(
@@ -152,8 +154,16 @@ internal fun ImmersiveInfoCards(
             SectionTitle(stringResource(R.string.lyrics_meaning_about))
             GlassCard { Text(a, color = tint, fontSize = 15.sp, lineHeight = 22.sp, maxLines = 12, overflow = TextOverflow.Ellipsis) }
         }
+        GlassCard { com.music.spotui.ui.components.RelatedVideos(state.artist, state.title, Color.White, Color.White.copy(alpha = 0.65f)) }
+        info.credits?.let { c -> GlassCard { com.music.spotui.ui.components.Contributors(c, info.artist, Color.White, Color.White.copy(alpha = 0.65f)) { actions.openArtistRef(it) } } }
+    }
     }
 }
+
+internal val LocalSolidCards = androidx.compose.runtime.staticCompositionLocalOf { false }
+
+@Composable
+private fun cardGround(): Color = if (LocalSolidCards.current) Color(0xFF1E1E25) else LocalPlayerTint.current.copy(alpha = 0.08f)
 
 @Composable
 private fun SectionTitle(text: String) {
@@ -238,7 +248,7 @@ private fun GlassCard(content: @Composable () -> Unit) {
     val tint = LocalPlayerTint.current
     val shape = RoundedCornerShape(20.dp)
     Column(
-        Modifier.fillMaxWidth().clip(shape).background(tint.copy(alpha = 0.08f))
+        Modifier.fillMaxWidth().clip(shape).background(cardGround())
             .border(0.5.dp, tint.copy(alpha = 0.14f), shape).padding(16.dp),
     ) { content() }
     Spacer(Modifier.height(12.dp))
@@ -258,7 +268,7 @@ private fun ArtistCard(i: SongInfo, actions: ImmersivePlayerActions) {
     }
     val photo = (page.headerImages.ifEmpty { a.images }).maxByOrNull { it.width ?: 0 }?.url
     val shape = RoundedCornerShape(20.dp)
-    Column(Modifier.fillMaxWidth().clip(shape).background(tint.copy(alpha = 0.08f)).border(0.5.dp, tint.copy(alpha = 0.14f), shape)) {
+    Column(Modifier.fillMaxWidth().clip(shape).background(cardGround()).border(0.5.dp, tint.copy(alpha = 0.14f), shape)) {
         if (photo != null) GlideImage(
             model = photo, contentDescription = null, contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxWidth().aspectRatio(16f / 10f).clickable { actions.openArtistRef(app.myspoti.api.ArtistRef(a.uri, a.name)) },

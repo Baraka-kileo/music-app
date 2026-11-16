@@ -12,6 +12,7 @@
  */
 package com.music.spotui.ui.immersive.lyrics
 
+import androidx.compose.foundation.border
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.spring
@@ -192,7 +193,7 @@ fun ImmersiveQueuePanel(modifier: Modifier = Modifier, contentPadding: PaddingVa
     val current = queue.current
     val hasCurrent = song.title.value.isNotBlank() || current != null
     val topPad = contentPadding.calculateTopPadding() + 8.dp
-    val bottomPad = contentPadding.calculateBottomPadding() + 24.dp
+    val bottomPad = contentPadding.calculateBottomPadding() + 88.dp
     // The list runs toward an edge while a row is held there (a loop of ours below, not the
     // library's: its scroller read our pace per 100 ms where it is per second, multiplied it by up to
     // five again, and while it ran, even at no speed, it took no place under the finger and threw the
@@ -204,7 +205,7 @@ fun ImmersiveQueuePanel(modifier: Modifier = Modifier, contentPadding: PaddingVa
     val maxSpeed = with(density) { 360.dp.toPx() }
     val edgeZoneMax = with(density) { 72.dp.toPx() }
     val topPadPx = with(density) { (contentPadding.calculateTopPadding() + 8.dp).toPx() }
-    val bottomPadPx = with(density) { (contentPadding.calculateBottomPadding() + 24.dp).toPx() }
+    val bottomPadPx = with(density) { (contentPadding.calculateBottomPadding() + 88.dp).toPx() }
     // The list scrolls toward an edge only once the finger has gone that way: a row taken near the
     // bottom of the screen made the list run at once, the finger not having moved (reported).
     val gate = remember { EdgeScrollGate() }
@@ -321,9 +322,10 @@ fun ImmersiveQueuePanel(modifier: Modifier = Modifier, contentPadding: PaddingVa
     }
 
     val startPad = Immersive.Gutter + contentPadding.calculateStartPadding(direction)
+    Box(modifier) {
     LazyColumn(
         state = listState,
-        modifier = modifier
+        modifier = Modifier.fillMaxSize()
             .onSizeChanged { gate.height = it.height.toFloat() }
             .pointerInput(gate) {
                 // Where the finger is, seen before the rows take it (nothing is consumed).
@@ -342,6 +344,7 @@ fun ImmersiveQueuePanel(modifier: Modifier = Modifier, contentPadding: PaddingVa
     ) {
         item(key = "header") {
             QueueHeader(
+                dock = false,
                 shuffle = shuffle,
                 repeatMode = repeatMode,
                 onShuffle = {
@@ -438,6 +441,27 @@ fun ImmersiveQueuePanel(modifier: Modifier = Modifier, contentPadding: PaddingVa
                 )
             }
         }
+    }
+    // The glass dock: shuffle, repeat and the sleep timer, floating over the foot of the queue.
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.align(Alignment.BottomCenter)
+            .padding(bottom = contentPadding.calculateBottomPadding() + 16.dp)
+            .clip(RoundedCornerShape(50))
+            .background(Color(0xE61C1C22))
+            .border(0.6.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(50))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        QueueToggle(com.music.spotui.ui.design.AppIcons.Shuffle, stringResource(R.string.immersive_queue_shuffle), shuffle) {
+            SongPlayer.setShuffle(!shuffle); song.shuffle.value = !shuffle
+        }
+        QueueToggle(
+            when (repeatMode) { 2 -> com.music.spotui.ui.design.AppIcons.RepeatOne; 3 -> RepeatIcons.once; else -> com.music.spotui.ui.design.AppIcons.Repeat },
+            stringResource(R.string.immersive_queue_repeat), repeatMode != 0,
+        ) { SongPlayer.cycleRepeat() }
+        SleepToggle()
+    }
     }
 }
 
@@ -579,6 +603,7 @@ private fun QueueEntry(row: QRow, removed: SnapshotStateList<String>, dragging: 
             cover = item.song.coverUri,
             isCurrent = false,
             explicit = item.song.explicit,
+            video = com.music.spotui.ui.components.rememberHasVideo(item.song),
             onClick = { SongPlayer.skipTo(item) },
             handle = {
                 Icon(
@@ -594,6 +619,7 @@ private fun QueueEntry(row: QRow, removed: SnapshotStateList<String>, dragging: 
 
 @Composable
 private fun QueueHeader(
+    dock: Boolean,
     shuffle: Boolean,
     repeatMode: Int,
     onShuffle: () -> Unit,
@@ -605,7 +631,7 @@ private fun QueueHeader(
             style = Immersive.Title,
             modifier = Modifier.weight(1f),
         )
-        QueueToggle(com.music.spotui.ui.design.AppIcons.Shuffle, stringResource(R.string.immersive_queue_shuffle), shuffle, onShuffle)
+        if (dock) QueueToggle(com.music.spotui.ui.design.AppIcons.Shuffle, stringResource(R.string.immersive_queue_shuffle), shuffle, onShuffle)
         Spacer(Modifier.width(8.dp))
         QueueToggle(
             when (repeatMode) { 2 -> com.music.spotui.ui.design.AppIcons.RepeatOne; 3 -> RepeatIcons.once; else -> com.music.spotui.ui.design.AppIcons.Repeat },
@@ -613,8 +639,6 @@ private fun QueueHeader(
             repeatMode != 0,
             onRepeat,
         )
-        Spacer(Modifier.width(8.dp))
-        SleepToggle()
     }
 }
 
@@ -695,6 +719,7 @@ private fun QueueRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     handle: (@Composable () -> Unit)? = null,
+    video: Boolean = false,
 ) {
     Row(
         modifier = modifier
@@ -730,6 +755,10 @@ private fun QueueRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (explicit) {
                     ExplicitBadge()
+                    Spacer(Modifier.width(6.dp))
+                }
+                if (video) {
+                    com.music.spotui.ui.components.VideoBadge()
                     Spacer(Modifier.width(6.dp))
                 }
                 Text(

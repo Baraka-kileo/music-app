@@ -15,4 +15,11 @@
     <string name="notice_sleep_timer">Sleep timer</string>
     <string name="notice_end_of_song">End of song</string>
     <string name="notice_show_all">Show all</string>
+    <string name="notice_has_video">Has a music video</string>
+    <string name="notice_related_videos">Related videos</string>
+    <string name="notice_contributors">Contributors</string>
+    <string name="share_theme_glass">Glass</string>
+    <string name="share_theme_gradient">Gradient</string>
+    <string name="share_theme_solid">Solid</string>
+    <string name="share_card_send">Share</string>
 </resources>

@@ -423,7 +423,10 @@ fun ImmersivePlayer(
             val pageScroll = androidx.compose.foundation.rememberScrollState()
             LaunchedEffect(panel) { if (panel != Panel.NONE) pageScroll.animateScrollTo(0) }
             Column(Modifier.fillMaxSize().verticalScroll(pageScroll, enabled = panel == Panel.NONE)) {
-            Column(Modifier.fillMaxWidth().height(pageH).statusBarsPadding().navigationBarsPadding()) {
+            // The top of the lyrics card shows at the foot of the player (as the official app), so the
+            // page reads as one that scrolls; gone while a panel is open.
+            val peek by androidx.compose.animation.core.animateDpAsState(if (panel == Panel.NONE) 56.dp else 0.dp, tween(PANEL_TRAVEL_MS), label = "peek")
+            Column(Modifier.fillMaxWidth().height(pageH - peek).statusBarsPadding().then(if (panel == Panel.NONE) Modifier.padding(bottom = 8.dp) else Modifier.navigationBarsPadding())) {
                 // The handle: always hands its drags to the sheet.
                 PlayerDismissStrip(tint) { actions.close() }
 

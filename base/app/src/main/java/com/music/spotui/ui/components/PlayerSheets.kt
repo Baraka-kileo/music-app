@@ -1070,6 +1070,7 @@ private fun QueueSheetRow(
                 // Mixed in by smart shuffle: marked, as in the official app, not taken for one of the playlist's songs.
                 if (rec) { Icon(Icons.Outlined.AutoAwesome, contentDescription = stringResource(R.string.smart_shuffle_recommended), tint = Green, modifier = Modifier.size(14.dp)); Spacer(Modifier.width(4.dp)) }
                 if (song.explicit) { ExplicitBadge(); Spacer(Modifier.width(6.dp)) }
+                if (!current && rememberHasVideo(song)) { VideoBadge(); Spacer(Modifier.width(6.dp)) }
                 Text(song.singer, color = AppText.copy(alpha = 0.7f), fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
