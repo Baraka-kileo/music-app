@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notice_change">Change</string>
+    <string name="player_info_hint">Lyrics · Artist · Credits</string>
+    <string name="settings_mini_video_title">Big video in the mini player</string>
+    <string name="settings_mini_video_detail">With a music video on, show it large above the mini player instead of small inside it</string>
+</resources>

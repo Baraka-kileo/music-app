@@ -148,7 +148,7 @@ fun SongOptionsSheet(
     // (and only it) follows that key, everything else in this menu stays on the track id.
     val episodeKey = com.music.spotui.data.offline.episodeKeyOf(song)
     val downloadKey = episodeKey ?: song.spotifyTrackId
-    fun toast(text: String) = Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+    fun toast(text: String) = com.music.spotui.ui.components.AppNotice.text(text.trimEnd('.'))
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

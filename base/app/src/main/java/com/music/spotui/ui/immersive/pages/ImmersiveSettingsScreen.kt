@@ -961,6 +961,10 @@ private fun DisplayPage(open: (SettingsPage) -> Unit, back: () -> Unit) {
                     ImmersiveSwitchRow(stringResource(R.string.settings_player_volume_title), checked = com.music.spotui.data.preferences.PlayerVolumePref.on,
                         onChecked = { com.music.spotui.data.preferences.PlayerVolumePref.set(ctx, it) }, detail = stringResource(R.string.settings_player_volume_detail))
                 }
+                row {
+                    ImmersiveSwitchRow(stringResource(R.string.settings_mini_video_title), checked = com.music.spotui.data.preferences.MiniVideoBigPref.on,
+                        onChecked = { com.music.spotui.data.preferences.MiniVideoBigPref.set(ctx, it) }, detail = stringResource(R.string.settings_mini_video_detail))
+                }
             }
         }
         immersiveGroup("layout") {

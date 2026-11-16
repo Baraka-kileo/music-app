@@ -227,7 +227,20 @@ fun rememberImmersivePlayer(navController: NavController): ImmersivePlayerBridge
             toggleLike = {
                 val on = !vm.likeState.value
                 vm.updateLikeState(on)
-                if (on) Toast.makeText(context, context.getString(R.string.immersive_player_added_to_liked), Toast.LENGTH_SHORT).show()
+                val song = state.song
+                if (on) com.music.spotui.ui.components.AppNotice.show(
+                    title = context.getString(R.string.immersive_player_added_to_liked),
+                    subtitle = state.title.takeIf { it.isNotBlank() }?.let { t -> if (state.artist.isBlank()) t else "$t · ${state.artist}" },
+                    icon = com.music.spotui.ui.design.AppIcons.Star,
+                    coverUrl = state.coverUrl,
+                    tone = com.music.spotui.ui.components.AppNotice.Tone.LIKE,
+                    actionLabel = if (song != null) context.getString(R.string.notice_change) else null,
+                    onAction = song?.let { s -> { com.music.spotui.ui.components.AppNotice.openSaveTo(s) } },
+                ) else com.music.spotui.ui.components.AppNotice.show(
+                    title = context.getString(R.string.snackbar_removed_from_liked_songs).trimEnd('.'),
+                    subtitle = state.title.takeIf { it.isNotBlank() },
+                    coverUrl = state.coverUrl,
+                )
             },
             openAlbum = {
                 com.music.spotui.ui.screens.openNowPlayingAlbum(vm, vm.currentSongSinger.value, smartScope) { navController.navigate(it) }

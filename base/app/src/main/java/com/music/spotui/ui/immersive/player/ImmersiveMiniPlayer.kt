@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -39,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -94,9 +96,33 @@ fun ImmersiveMiniPlayer(modifier: Modifier = Modifier) {
     val buffering = SongPlayer.isBuffering
     val shape = RoundedCornerShape(MINI_HEIGHT / 2)
     val capsuleSource = remember { MutableInteractionSource() }
+    // How far the song is, for the thin line along the capsule's foot: read twice a second, drawn only.
+    val progress = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        while (true) {
+            val d = SongPlayer.getDuration()
+            progress.floatValue = if (d > 0) (SongPlayer.getCurrentPosition().toFloat() / d).coerceIn(0f, 1f) else 0f
+            kotlinx.coroutines.delay(500)
+        }
+    }
+    val lineColor = Immersive.Accent
+    // The music video keeps playing when the player is closed: small in the capsule, or big above it.
+    val miniVideo = com.music.spotui.video.MusicVideoController.on.value &&
+        com.music.spotui.video.MusicVideoController.player != null && !PlayerSheet.open.value && !adPlaying
+    val bigVideo = miniVideo && com.music.spotui.data.preferences.MiniVideoBigPref.on
 
+    Column(modifier.fillMaxWidth()) {
+    if (bigVideo) {
+        Box(
+            Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(18.dp)).background(Color.Black)
+                .clickable { PlayerSheet.show() },
+            contentAlignment = Alignment.Center,
+        ) {
+            com.music.spotui.ui.components.VideoSurface(modifier = Modifier.heightIn(max = 220.dp), fitHeight = true)
+        }
+    }
     Row(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .height(MINI_HEIGHT)
             // Where the Classic sheet rises from; kept up to date for the pages that read it.
@@ -104,11 +130,27 @@ fun ImmersiveMiniPlayer(modifier: Modifier = Modifier) {
             .miniPlayerGestures()
             .immersiveGlassSurface(shape, interactionSource = capsuleSource)
             .clip(shape)
+            .drawWithContent {
+                drawContent()
+                val f = progress.floatValue
+                if (f > 0f && !adPlaying) {
+                    val inset = size.height / 2
+                    val y = size.height - 1.5.dp.toPx()
+                    val w = size.width - inset * 2
+                    drawLine(Color.White.copy(alpha = 0.12f), androidx.compose.ui.geometry.Offset(inset, y), androidx.compose.ui.geometry.Offset(inset + w, y), strokeWidth = 2.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                    drawLine(lineColor, androidx.compose.ui.geometry.Offset(inset, y), androidx.compose.ui.geometry.Offset(inset + w * f, y), strokeWidth = 2.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                }
+            }
             .clickable(interactionSource = capsuleSource, indication = null) { PlayerSheet.show() }
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(40.dp).clip(RoundedCornerShape(ART_CORNER)).background(Color.Black.copy(alpha = 0.18f))) {
+        if (miniVideo && !bigVideo) Box(
+            Modifier.height(40.dp).width(64.dp).clip(RoundedCornerShape(ART_CORNER)).background(Color.Black),
+            contentAlignment = Alignment.Center,
+        ) {
+            com.music.spotui.ui.components.VideoSurface(modifier = Modifier.height(40.dp), fitHeight = true)
+        } else Box(Modifier.size(40.dp).clip(RoundedCornerShape(ART_CORNER)).background(Color.Black.copy(alpha = 0.18f))) {
             GlideImage(
                 model = cover.takeIf { it.isNotBlank() },
                 contentDescription = null,
@@ -180,6 +222,7 @@ fun ImmersiveMiniPlayer(modifier: Modifier = Modifier) {
                 modifier = Modifier.size(GLYPH_SIZE),
             )
         }
+    }
     }
 }
 

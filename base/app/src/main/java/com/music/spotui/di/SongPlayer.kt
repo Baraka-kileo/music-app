@@ -1347,7 +1347,7 @@ object SongPlayer {
                 } else {
                     app.myspoti.host.android.Logbook.log("audio: no extension plays ${song.title} and YouTube Music has no such song")
                     routingState.value = null; playing = false; bufferingState.value = false
-                    android.widget.Toast.makeText(Graph.app, app.myspoti.engine.R.string.why_source_none_chosen, android.widget.Toast.LENGTH_SHORT).show()
+                    com.music.spotui.ui.components.AppNotice.show(Graph.app.getString(app.myspoti.engine.R.string.why_source_none_chosen), song.title, tone = com.music.spotui.ui.components.AppNotice.Tone.ERROR)
                     pushNotification(null, boundState?.likeState?.value ?: false)
                 }
             }
@@ -1357,7 +1357,7 @@ object SongPlayer {
             "(${com.music.spotui.data.preferences.AccountProviderPref.id}) has no player in the app: not sent to Spotify")
         routeAsk.incrementAndGet(); routingState.value = null
         playing = false; bufferingState.value = false
-        main.post { android.widget.Toast.makeText(Graph.app, app.myspoti.engine.R.string.why_source_none_chosen, android.widget.Toast.LENGTH_SHORT).show() }
+        com.music.spotui.ui.components.AppNotice.show(Graph.app.getString(app.myspoti.engine.R.string.why_source_none_chosen), title, tone = com.music.spotui.ui.components.AppNotice.Tone.ERROR)
         pushNotification(null, boundState?.likeState?.value ?: false)
         return true
     }
@@ -2615,7 +2615,7 @@ object SongPlayer {
                         intentUntil = 0
                         onLibraryItem(uri, !on)
                         if (track) likedTaps.tryEmit(trackIdOf(uri) to !on)
-                        android.widget.Toast.makeText(Graph.app, app.myspoti.engine.R.string.library_change_failed, android.widget.Toast.LENGTH_SHORT).show()
+                        com.music.spotui.ui.components.AppNotice.show(Graph.app.getString(app.myspoti.engine.R.string.library_change_failed), tone = com.music.spotui.ui.components.AppNotice.Tone.ERROR)
                     }
                 }
             }

@@ -22,6 +22,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -219,6 +220,7 @@ internal fun CircleGlyph(
     contentDescription: String,
     onClick: () -> Unit,
     active: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val discAlpha by animateFloatAsState(
         targetValue = if (active) 0.34f else 0.18f,
@@ -230,9 +232,10 @@ internal fun CircleGlyph(
             .size(34.dp)
             // Glass is clearer than the flat disc: the page shows through it, the rim draws its edge.
             .playerGlass(CircleShape, glassAlpha = discAlpha * 0.6f, flatAlpha = discAlpha, interactionSource = source)
-            .clickable(
+            .combinedClickable(
                 interactionSource = source,
                 indication = null,
+                onLongClick = onLongClick?.let { l -> { Haptics.confirm(); l() } },
             ) {
                 Haptics.click()
                 onClick()
@@ -255,7 +258,7 @@ internal fun CircleGlyph(
 }
 
 /** The skip glyphs' touch box, beside the larger play button. */
-private val PLAYER_SKIP_TOUCH_SIZE = 64.dp
+private val PLAYER_SKIP_TOUCH_SIZE = 56.dp
 
 /**
  * The skip glyphs are drawn a little flatter than they are wide, so the pair reads lower and
@@ -273,8 +276,8 @@ internal fun TransportRow(
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
 ) {
-    val playSize = 88.dp
-    val playTouch = 92.dp
+    val playSize = 70.dp
+    val playTouch = 80.dp
     Row(
         modifier = Modifier.fillMaxWidth(),
         // SpaceAround, not SpaceEvenly: the outer margins take half a gap.
@@ -284,7 +287,7 @@ internal fun TransportRow(
         TransportGlyph(
             icon = com.music.spotui.ui.design.AppIcons.SkipPrevious,
             contentDescription = stringResource(R.string.immersive_player_previous),
-            size = 64.dp,
+            size = 50.dp,
             touchSize = PLAYER_SKIP_TOUCH_SIZE,
             heightScale = PLAYER_SKIP_HEIGHT_SCALE,
             onClick = onPrevious,

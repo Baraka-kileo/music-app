@@ -13,6 +13,8 @@
  */
 package com.music.spotui.ui.immersive.player
 
+import androidx.compose.foundation.gestures.detectTapGestures
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.ui.graphics.Brush
@@ -103,6 +105,13 @@ import androidx.compose.ui.unit.offset
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import app.myspoti.engine.R
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.OndemandVideo
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.material3.Icon
+import com.music.spotui.di.Haptics
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
@@ -156,6 +165,8 @@ private object Panel {
     const val NONE = 0
     const val LYRICS = 1
     const val QUEUE = 2
+    /** The info panel: lyrics, artist, credits, about, as chips. */
+    const val INFO = 3
 }
 
 /**
@@ -405,7 +416,14 @@ fun ImmersivePlayer(
                 onSource = { showQuality = true },
                 onSourceLong = { showNerd = true },
                 sidePane = sidePane,
-            ) else Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+            ) else BoxWithConstraints(Modifier.fillMaxSize()) {
+            // The player fills the screen; scrolling down shows the cards under it (lyrics, artist,
+            // credits, the song's story). Off while lyrics or the queue are open.
+            val pageH = maxHeight
+            val pageScroll = androidx.compose.foundation.rememberScrollState()
+            LaunchedEffect(panel) { if (panel != Panel.NONE) pageScroll.animateScrollTo(0) }
+            Column(Modifier.fillMaxSize().verticalScroll(pageScroll, enabled = panel == Panel.NONE)) {
+            Column(Modifier.fillMaxWidth().height(pageH).statusBarsPadding().navigationBarsPadding()) {
                 // The handle: always hands its drags to the sheet.
                 PlayerDismissStrip(tint) { actions.close() }
 
@@ -455,6 +473,7 @@ fun ImmersivePlayer(
                         when (shown) {
                             Panel.LYRICS -> ImmersiveLyricsPanel(Modifier.fillMaxSize(), inset)
                             Panel.QUEUE -> ImmersiveQueuePanel(Modifier.fillMaxSize(), inset)
+                            Panel.INFO -> ImmersiveInfoPanel(state, actions, Modifier.fillMaxSize(), inset)
                             else -> Box(Modifier.fillMaxSize())
                         }
                     }
@@ -478,11 +497,11 @@ fun ImmersivePlayer(
                                 scaleX = scale
                                 scaleY = scale
                                 alpha = 1f - opened
-                                shadowElevation = 10.dp.toPx() * (1f - p()) * (1f - opened)
+                                shadowElevation = if (showVideo) 0f else 10.dp.toPx() * (1f - p()) * (1f - opened)
                                 shape = ArtCorner
-                                clip = true
+                                clip = !showVideo
                             }
-                            .background(Color.Black.copy(alpha = 0.18f))
+                            .background(if (showVideo) Color.Transparent else Color.Black.copy(alpha = 0.18f))
                             .dragToClose()
                             .swipeToChangeTrack(enabled = panel == Panel.NONE, actions = actions)
                             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
@@ -495,15 +514,20 @@ fun ImmersivePlayer(
                             contentScale = ContentScale.Crop,
                             loading = placeholder(R.drawable.placeholder),
                             failure = placeholder(R.drawable.placeholder),
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (showVideo) 0f else 1f },
                             // The box shrinks to the 60dp header thumbnail and grows back: Glide sizes the
                             // request from the constraints it first sees, so without a fixed size a cover
                             // first measured (or reloaded) while collapsed stays a small bitmap.
                             requestBuilderTransform = { it.override(COVER_DECODE_PX) },
                         )
-                        SongBlendCover(blend, Modifier.fillMaxSize()) { it.override(COVER_DECODE_PX) }
-                        if (showVideo) Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-                            com.music.spotui.ui.components.VideoSurface(onTap = { mv.fullscreen.value = true })
+                        if (!showVideo) SongBlendCover(blend, Modifier.fillMaxSize()) { it.override(COVER_DECODE_PX) }
+                        // The clip at its own shape (wide, square or tall), centred where the cover was.
+                        if (showVideo) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            com.music.spotui.ui.components.VideoSurface(
+                                modifier = Modifier.clip(RoundedCornerShape(14.dp)),
+                                fitHeight = MusicVideoAspect.tall(),
+                                onTap = { mv.fullscreen.value = true },
+                            )
                         }
                     }
 
@@ -513,7 +537,7 @@ fun ImmersivePlayer(
                             .offset {
                                 // Inside the cover as it is drawn: it steps back while paused.
                                 val inset = artSize() * ((1f - pauseScale.value) / 2f) + 12.dp
-                                IntOffset((artStart() + inset).roundToPx(), (artTop() + artSize() - inset - 32.dp).roundToPx())
+                                IntOffset((artStart() + inset).roundToPx(), (artTop() + artSize() - inset - 32.dp + 18.dp).roundToPx())
                             }
                             .graphicsLayer { alpha = 1f - p() },
                     ) {
@@ -549,6 +573,7 @@ fun ImmersivePlayer(
                             onMore = if (navController != null && state.song != null) ({ showMenu = true }) else null,
                             onSource = { showQuality = true },
                             onSourceLong = { showNerd = true },
+                            onSaveTo = { state.song?.let { com.music.spotui.ui.components.AppNotice.openSaveTo(it) } },
                         )
                     }
                 }
@@ -578,6 +603,14 @@ fun ImmersivePlayer(
                     if (!showVolume) Spacer(Modifier.height(12.dp - 4.dp + VOLUME_ROW_HEIGHT + 6.dp))
                 }
                 }
+            }
+            ImmersiveInfoCards(
+                state, actions, onOpenLyrics = { panel = Panel.LYRICS },
+                modifier = Modifier.widthIn(max = PLAYER_MAX_WIDTH + PLAYER_GUTTER * 2).fillMaxWidth()
+                    .align(Alignment.CenterHorizontally).padding(horizontal = PLAYER_GUTTER)
+                    .navigationBarsPadding().padding(bottom = 32.dp),
+            )
+            }
             }
         }
         }
@@ -664,6 +697,8 @@ private fun RowScope.PlayerCredits(
     onMore: (() -> Unit)?,
     onSource: () -> Unit,
     onSourceLong: () -> Unit = {},
+    video: Boolean? = null,
+    onSaveTo: () -> Unit = {},
 ) {
     // The header is a fixed HEADER_HEIGHT: the three lines are set tighter, so none is
     // clipped at the bottom. The source line's room is kept from the start (it is only known
@@ -754,12 +789,23 @@ private fun RowScope.PlayerCredits(
         )
     }
     Spacer(Modifier.width(10.dp))
-    // Beside the credits rather than in the toggle row: liking is about this song.
+    // The music video, when one is ready: beside the like, not floating over the cover.
+    if (video != null) {
+        CircleGlyph(
+            icon = if (video) androidx.compose.material.icons.Icons.Default.MusicNote else androidx.compose.material.icons.Icons.Default.OndemandVideo,
+            contentDescription = stringResource(if (video) R.string.av_switch_to_audio else R.string.av_switch_to_video),
+            onClick = { com.music.spotui.video.MusicVideoController.setOn(!video) },
+            active = video,
+        )
+        Spacer(Modifier.width(8.dp))
+    }
+    // Beside the credits rather than in the toggle row: liking is about this song. Held: Save to.
     CircleGlyph(
         icon = if (state.liked) com.music.spotui.ui.design.AppIcons.Star else com.music.spotui.ui.design.AppIcons.StarBorder,
         contentDescription = stringResource(if (state.liked) R.string.immersive_player_unlike else R.string.immersive_player_like),
         onClick = actions.toggleLike,
         active = state.liked,
+        onLongClick = onSaveTo,
     )
     if (onMore != null) {
         Spacer(Modifier.width(8.dp))
@@ -921,3 +967,38 @@ private val SIDE_PANE_MIN_WIDTH = 1100.dp
 
 /** The right-hand column needs about this much height to show the volume bar as well. */
 private val LANDSCAPE_VOLUME_MIN_HEIGHT = 400.dp
+
+/**
+ * The hint under the controls: "Lyrics · Artist · Credits" and a chevron. A tap or a swipe up opens
+ * the info panel; open, it closes it.
+ */
+@Composable
+private fun InfoHint(open: Boolean, onToggle: () -> Unit) {
+    val tint = LocalPlayerTint.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp).height(30.dp)
+            .pointerInput(open) {
+                detectTapGestures { Haptics.tick(); onToggle() }
+            }
+            .pointerInput(open) {
+                var dy = 0f
+                detectVerticalDragGestures(
+                    onDragStart = { dy = 0f },
+                    onDragEnd = { if ((!open && dy < -20f) || (open && dy > 20f)) onToggle() },
+                    onVerticalDrag = { c: androidx.compose.ui.input.pointer.PointerInputChange, d: Float -> c.consume(); dy += d },
+                )
+            },
+    ) {
+        Icon(
+            imageVector = if (open) androidx.compose.material.icons.Icons.Default.KeyboardArrowDown else androidx.compose.material.icons.Icons.Default.KeyboardArrowUp,
+            contentDescription = null, tint = tint.copy(alpha = 0.6f), modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(stringResource(R.string.player_info_hint), style = Immersive.Caption, color = tint.copy(alpha = 0.6f))
+    }
+}
+
+/** Whether the music video is taller than wide (fitted to the height, not the width). */
+internal object MusicVideoAspect { fun tall() = com.music.spotui.video.MusicVideoController.aspect.floatValue < 1f }

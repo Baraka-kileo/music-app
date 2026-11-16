@@ -119,7 +119,7 @@ fun ImmersiveSongOptionsSheet(
     val isRadio = nowPlaying && com.music.spotui.radio.RadioPlayer.current() != null
     val episodeKey = com.music.spotui.data.offline.episodeKeyOf(song)
     val downloadKey = episodeKey ?: song.spotifyTrackId
-    fun toast(text: String) = Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+    fun toast(text: String) = com.music.spotui.ui.components.AppNotice.text(text.trimEnd('.'))
 
     ImmersiveSheet(onDismiss = onDismiss, imageUrl = song.coverUri) {
         ImmersiveSheetHeader(title = song.title, subtitle = song.singer, coverUrl = song.coverUri)
