@@ -109,7 +109,7 @@ class YtmPage(
         host.navigate(Ytm.ORIGIN + "/")
     }
 
-    private fun args(videoId: String?) = buildJsonObject { if (videoId != null) put("videoId", videoId) else put("videoId", JsonNull) }
+    private fun args(videoId: String?) = buildJsonObject { if (videoId != null) put("videoId", videoId) else put("videoId", JsonNull); put("heard", false) }
 
     private suspend fun call(method: String, videoId: String?) = bridge.call(method, args(videoId))
     private suspend fun call(method: String, a: JsonObject = JsonObject(emptyMap())) = bridge.call(method, a)

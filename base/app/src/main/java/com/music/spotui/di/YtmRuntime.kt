@@ -100,6 +100,9 @@ object YtmRuntime {
         }
     }
 
+    /** The page is about to play ([YtmPlayback]), whatever the music account: kept in the activity's window. Main thread. */
+    fun wake() { window?.get()?.let(host::attach) }
+
     /** The page kept in the activity's window, hidden (see [HiddenPageHost.attach]); only once it exists. */
     fun attach(container: ViewGroup) {
         window = java.lang.ref.WeakReference(container)

@@ -161,6 +161,43 @@ object CatalogRuntime {
      * Spotify's search failing, slow or resting) is tried again a few times ([SpotifyMatch.withRetries]) and is never
      * said to be absent from Spotify: reported, "not found on Spotify" on a search's song that played when tapped again.
      */
+    /** The song [uri] (another provider's) as YouTube Music's own; null when YouTube Music is turned off or has none. */
+    suspend fun ytmUriFor(uri: String): String? {
+        val c = chain()
+        // A slow answer (the app just started, a weak network) is asked again, never taken for "not there".
+        repeat(3) { n ->
+            val why = try {
+                val t = c.track(uri)
+                when (val a = c.counterpartAnswer("ytmusic", t.name, t.artists.firstOrNull()?.name.orEmpty(), t.durationMs)) {
+                    is app.myspoti.catalog.Counterpart.Found -> return a.hit.track.uri
+                    is app.myspoti.catalog.Counterpart.Absent -> return null
+                    else -> a.toString()
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message ?: e.javaClass.simpleName }
+            app.myspoti.host.android.Logbook.log("catalog: $uri on YouTube Music not known yet (try ${n + 1}): $why")
+            kotlinx.coroutines.delay(1_200)
+        }
+        return null
+    }
+
+    /** The song named [title] by [artist] on YouTube Music, null when it is not there or not answered after three asks. */
+    suspend fun ytmUriForSong(title: String, artist: String, durationMs: Long): String? {
+        val c = chain()
+        val first = artist.substringBefore(',').trim()
+        repeat(3) { n ->
+            val why = try {
+                when (val a = c.counterpartAnswer("ytmusic", title, first, durationMs)) {
+                    is app.myspoti.catalog.Counterpart.Found -> return a.hit.track.uri
+                    is app.myspoti.catalog.Counterpart.Absent -> return null
+                    else -> a.toString()
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message ?: e.javaClass.simpleName }
+            app.myspoti.host.android.Logbook.log("catalog: $title on YouTube Music not known yet (try ${n + 1}): $why")
+            kotlinx.coroutines.delay(1_200)
+        }
+        return null
+    }
+
     suspend fun spotifyMatchFor(uri: String): SpotifyMatch = SpotifyMatch.withRetries { lookUpOnSpotify(uri) }
 
     private suspend fun lookUpOnSpotify(uri: String): SpotifyMatch {

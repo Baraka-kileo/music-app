@@ -37,6 +37,10 @@ class AccountApi(private val base: MyspotiApi) : MyspotiApi by base {
     private val ytmHome by lazy { YtmHome(YtmRuntime.account.api) }
     private val ytmRecents by lazy { YtmRecents(YtmRuntime.account.library) }
 
+    /** Spotify's player, and YouTube Music's page for a song that is YouTube Music's own ([YtmPlayback]). */
+    private val engine by lazy { YtmPlayback.Engine(base.player) }
+    override val player: app.myspoti.api.Player get() = engine
+
     override val library: Library get() = if (ytm) ytmLibrary else base.library
     override val playlists: Playlists get() = if (ytm) ytmPlaylists else base.playlists
     override val home: Home get() = if (ytm) ytmHome else base.home

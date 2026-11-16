@@ -170,7 +170,7 @@ object SongPlayer {
             // Read again first: the page's last push can be lost on the way (its events buffer
             // drops the oldest when its main thread stalls), and the screen must not go back to
             // "paused" over a song that plays.
-            kotlinx.coroutines.withTimeoutOrNull(RECONCILE_READ_MS) { runCatching { MyspotiRuntime.spotify.player.refresh() } }
+            if (!YtmPlayback.active) kotlinx.coroutines.withTimeoutOrNull(RECONCILE_READ_MS) { runCatching { MyspotiRuntime.spotify.player.refresh() } }
             if (leftAlone()) return@launch
             val s = api.player.state.value
             if (s != null) { applyState(s); return@launch }
@@ -195,7 +195,7 @@ object SongPlayer {
      * Not heard yet: the page buffers, its sound stands still, or a play is wanted that the page
      * has not started. The clock waits and the screens show the song loading.
      */
-    private fun waiting(s: PlayerState) = s.isBuffering || soundStalled || (playing && s.isPaused)
+    private fun waiting(s: PlayerState) = s.isBuffering || (soundStalled && !YtmPlayback.active) || (playing && s.isPaused)
 
     /** Myspoti itself asked the engine to play lately (a pick, a play, a skip): not another device's doing. */
     fun engineIntended(): Boolean =
@@ -580,7 +580,11 @@ object SongPlayer {
             album = n.album?.name.orEmpty(),
             singer = artists,
             coverUri = n.imageUrl.orEmpty(),
-            url = if (n.kind == ItemKind.EPISODE) "episode:" + n.uri.substringAfterLast(':') else buildSpotifyPlayQuery(id, n.name, artists),
+            url = when {
+                n.kind == ItemKind.EPISODE -> "episode:" + n.uri.substringAfterLast(':')
+                n.uri.startsWith(YTM_TRACK_PREFIX) -> com.music.spotui.data.catalog.CatalogRuntime.PLAY_PREFIX + n.uri
+                else -> buildSpotifyPlayQuery(id, n.name, artists)
+            },
             spotifyTrackId = id,
             explicit = n.explicit,
             durationMs = n.durationMs.toInt(),
@@ -790,7 +794,7 @@ object SongPlayer {
         // Started or moved on without Myspoti asking (another device, a transfer back here): the
         // listen sync sends it back through the extensions. After this state's own follow-ups.
         val moved = trackChanged || (!wasPlaying && playing)
-        if (moved || AccountSync.listen.waitsBack) {
+        if ((moved || AccountSync.listen.waitsBack) && !uri.startsWith(YTM_TRACK_PREFIX)) {
             val intended = engineIntended()
             main.post { if (!LocalPlayer.active.value && !routing) AccountSync.listen.onProviderPlayback(s, moved, intended) }
         }
@@ -855,7 +859,7 @@ object SongPlayer {
             refreshCurrentLiked()
             refreshDevice()
             // The engine moved on by itself from a song no extension had: the new one is asked there.
-            if (playing && !adState.value) main.post {
+            if (playing && !adState.value && !uri.startsWith(YTM_TRACK_PREFIX)) main.post {
                 if (_nowPlaying.value.uri == uri) backToExtensions(song, leftId, upcomingSongs(song)) { intendPlaying(); playing = true; transport { api.player.resume() } }
             }
         }
@@ -1105,7 +1109,7 @@ object SongPlayer {
                     runningSince = SystemClock.elapsedRealtime()
                     // A tap while the page loads (cold start, a reload): sent once it is there,
                     // instead of failing at once with "not ready".
-                    if (waitReady && !api.ready.value && kotlinx.coroutines.withTimeoutOrNull(READY_WAIT_MS) { api.ready.first { it } } == null) {
+                    if (waitReady && !YtmPlayback.wanted && !api.ready.value && kotlinx.coroutines.withTimeoutOrNull(READY_WAIT_MS) { api.ready.first { it } } == null) {
                         Log.w(TAG, "transport dropped: the player page is not ready")
                         return@withLock
                     }
@@ -1113,7 +1117,7 @@ object SongPlayer {
                     // A listen sync just ended: the page is heard again before this command reaches it.
                     AccountSync.listen.awaitEnded()
                     val checkLater = pullBack && checkAfter && _activeDevice.value == null
-                    if (pullBack && !checkLater && api.ready.value) takeBackPlayback()
+                    if (pullBack && !checkLater && api.ready.value && !YtmPlayback.wanted) takeBackPlayback()
                     // Both may wait (a mirror's end, a device check): the session may have ended meanwhile.
                     if (session != sessionGen.get()) return@withLock
                     // A cancellation of the caller is never swallowed (it must unwind); only the
@@ -1129,7 +1133,7 @@ object SongPlayer {
                     } catch (e: Exception) {
                         Log.w(TAG, "transport failed: ${e.message}")
                     }
-                    if (checkLater && gen == transportGen.get() && api.ready.value) takeBackPlayback()
+                    if (checkLater && gen == transportGen.get() && api.ready.value && !YtmPlayback.wanted) takeBackPlayback()
                 }
             } finally {
                 // A newer transport may hold the lock already: only this one's own mark is cleared.
@@ -1258,7 +1262,7 @@ object SongPlayer {
             return
         }
         // A song of another provider (the catalog's): played as its Spotify recording once found, alone.
-        if (song.startsWith(com.music.spotui.data.catalog.CatalogRuntime.PLAY_PREFIX)) { playCatalogSong(song, context, askExtensions); return }
+        if (song.startsWith(com.music.spotui.data.catalog.CatalogRuntime.PLAY_PREFIX)) { playCatalogSong(song, context, askExtensions, contextUri ?: contextRegistry[song], songs?.firstOrNull { it.url == song }, positionMs); return }
         val routedId = if (song.startsWith("episode:")) null else spotifyTrackIdForPlayback(song)
         if (askExtensions && com.music.spotui.extensions.AudioRoute.asks(routedId, com.music.spotui.extensions.Extensions.hasAudioSource())) {
             val ctx = if (alone) "" else (contextUri ?: contextRegistry[song]).orEmpty()
@@ -1268,11 +1272,12 @@ object SongPlayer {
             }
             return
         }
-        if (routedId != null && refusedWithoutAccountPlayer(songs?.firstOrNull { it.spotifyTrackId == routedId }?.title, routedId)) return
+        if (routedId != null && refusedWithoutAccountPlayer(songs?.firstOrNull { it.spotifyTrackId == routedId }?.title, routedId, songs?.firstOrNull { it.spotifyTrackId == routedId })) return
         if (askExtensions && routedId != null) com.music.spotui.extensions.Extensions.audioSkipped()?.let {
             app.myspoti.host.android.Logbook.log("audio: $it, Spotify plays $routedId")
         }
         routeAsk.incrementAndGet(); routingState.value = null
+        YtmPlayback.asking = false
         LocalPlayer.stop()
         cancelBurst()
         val episodeId = song.removePrefix("episode:").takeIf { song.startsWith("episode:") }
@@ -1325,8 +1330,29 @@ object SongPlayer {
      * a music account other than Spotify ([accountPlays]) it is not played, the loading ends and the
      * user is told no source had it. True when refused (the caller stops there).
      */
-    private fun refusedWithoutAccountPlayer(title: String?, trackId: String): Boolean {
-        if (accountPlays) return false
+    private fun refusedWithoutAccountPlayer(title: String?, trackId: String, song: SongsModel? = null): Boolean {
+        // The song on screen is YouTube Music's own, played by its page: play, pause and skips are the page's.
+        if (accountPlays || (trackId.isBlank() && YtmPlayback.active)) return false
+        // No extension and no Spotify player: YouTube Music's own page plays the same song when it has it.
+        if (song != null && song.title.isNotBlank()) {
+            val ask = routeAsk.incrementAndGet(); routingState.value = null
+            song.let(::showRouted)
+            playing = false; bufferingState.value = true
+            scope.launch {
+                val onYtm = runCatching { com.music.spotui.data.catalog.CatalogRuntime.ytmUriForSong(song.title, song.singer, song.durationMs.toLong()) }.getOrNull()
+                if (routeAsk.get() != ask) return@launch
+                if (onYtm != null && onYtm.startsWith(YTM_TRACK_PREFIX)) {
+                    app.myspoti.host.android.Logbook.log("audio: no extension plays ${song.title}: YouTube Music plays $onYtm")
+                    playYtm(onYtm, null, song)
+                } else {
+                    app.myspoti.host.android.Logbook.log("audio: no extension plays ${song.title} and YouTube Music has no such song")
+                    routingState.value = null; playing = false; bufferingState.value = false
+                    android.widget.Toast.makeText(Graph.app, app.myspoti.engine.R.string.why_source_none_chosen, android.widget.Toast.LENGTH_SHORT).show()
+                    pushNotification(null, boundState?.likeState?.value ?: false)
+                }
+            }
+            return true
+        }
         app.myspoti.host.android.Logbook.log("audio: no extension plays ${title ?: trackId}; the music account " +
             "(${com.music.spotui.data.preferences.AccountProviderPref.id}) has no player in the app: not sent to Spotify")
         routeAsk.incrementAndGet(); routingState.value = null
@@ -1353,8 +1379,9 @@ object SongPlayer {
         val isLatest = { routeAsk.get() == ask }
         spotifyFallbackId = null; fallbackRest = null
         cancelBurst()
+        val leftYtm = YtmPlayback.leave()
         if (LocalPlayer.active.value) LocalPlayer.pause()
-        else if (playing) { intendPaused(); transport(pullBack = false) { api.player.pause() } }
+        else if (playing && !leftYtm) { intendPaused(); transport(pullBack = false) { api.player.pause() } }
         playing = false; bufferingState.value = true
         positionMs = 0; positionAt = SystemClock.elapsedRealtime()
         routingState.value = trackId; routingUntil = SystemClock.elapsedRealtime() + ROUTE_HOLD_MS
@@ -1365,7 +1392,7 @@ object SongPlayer {
                 .onFailure { app.myspoti.host.android.Logbook.log("audio: asking the extensions for $trackId failed: $it") }
                 .getOrDefault(false)
             if (!played) main.post {
-                if (isLatest() && refusedWithoutAccountPlayer(song?.title, trackId)) return@post
+                if (isLatest() && refusedWithoutAccountPlayer(song?.title, trackId, song)) return@post
                 if (isLatest()) {
                     app.myspoti.host.android.Logbook.log("audio: no extension had ${song?.title ?: trackId}, Spotify plays")
                     // Not when its answer is still awaited: the song goes back to the extension then.
@@ -1808,6 +1835,9 @@ object SongPlayer {
         plainOrderDue?.let { if (restorePlainOrder(it)) return }
         // Myspoti's shuffle turned on or off while paused: the song goes on in the list's new order.
         if (AppShuffle.resume()) { Haptics.click(); return }
+        if (!YtmPlayback.active && _nowPlaying.value.uri.startsWith(YTM_TRACK_PREFIX)) {
+            Haptics.click(); playYtm(_nowPlaying.value.uri, null, null, getCurrentPosition()); return
+        }
         if (!isEpisode && refusedWithoutAccountPlayer(null, trackIdOf(_nowPlaying.value.uri))) return
         Haptics.click(); intendPlaying(); playing = true; positionAt = SystemClock.elapsedRealtime()
         // Loading until the page plays: the clock ran from the tap before, over silence when the
@@ -1876,7 +1906,7 @@ object SongPlayer {
         scope.launch {
             kotlinx.coroutines.delay(JAM_FOLLOW_MS)
             if (playing == wantPaused) return@launch // asked otherwise since
-            kotlinx.coroutines.withTimeoutOrNull(RECONCILE_READ_MS) { runCatching { MyspotiRuntime.spotify.player.refresh() } }
+            if (!YtmPlayback.active) kotlinx.coroutines.withTimeoutOrNull(RECONCILE_READ_MS) { runCatching { MyspotiRuntime.spotify.player.refresh() } }
             val s = api.player.state.value ?: return@launch
             if (s.isPaused == wantPaused || playing == wantPaused) return@launch
             app.myspoti.host.android.Logbook.log("jam: the host did not ${if (wantPaused) "pause" else "play"} in ${JAM_FOLLOW_MS / 1000} s, sent again")
@@ -2168,7 +2198,7 @@ object SongPlayer {
             }
             return
         }
-        if (refusedWithoutAccountPlayer(songs.first().title, songs.first().spotifyTrackId)) return
+        if (refusedWithoutAccountPlayer(songs.first().title, songs.first().spotifyTrackId, songs.random())) return
         routeAsk.incrementAndGet(); routingState.value = null
         LocalPlayer.stop()
         val ctx = contextRegistry[songs.first().url]
@@ -3478,11 +3508,27 @@ object SongPlayer {
      * match gate), played alone; a short message when Spotify is not asked (signed out, turned off) or has no such
      * recording, so the tap is never lost.
      */
-    private fun playCatalogSong(song: String, context: Context?, askExtensions: Boolean) {
+    private fun playCatalogSong(
+        song: String, context: Context?, askExtensions: Boolean,
+        contextUri: String? = null, known: SongsModel? = null, positionMs: Long? = null,
+    ) {
         val uri = song.removePrefix(com.music.spotui.data.catalog.CatalogRuntime.PLAY_PREFIX)
+        val ytm = uri.startsWith(YTM_TRACK_PREFIX)
+        // With YouTube Music as the music account its songs are its page's to play, in their list.
+        if (ytm && YtmRuntime.chosen) { playYtm(uri, contextUri, known, positionMs); return }
         app.myspoti.host.android.MyspotiRuntime.scope.launch {
             val m = try { com.music.spotui.data.catalog.CatalogRuntime.spotifyMatchFor(uri) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
                 com.music.spotui.data.catalog.SpotifyMatch.Unavailable(e.message ?: e.javaClass.simpleName)
+            }
+            if (m !is com.music.spotui.data.catalog.SpotifyMatch.Found) {
+                // Not played by Spotify (not there, no Spotify account): YouTube Music's own page plays
+                // it, the song itself when it is YouTube Music's, else the same song found there.
+                val onYtm = if (ytm) uri else com.music.spotui.data.catalog.CatalogRuntime.ytmUriFor(uri)
+                if (onYtm != null && onYtm.startsWith(YTM_TRACK_PREFIX)) {
+                    app.myspoti.host.android.Logbook.log("catalog: $uri is not played on Spotify ($m): YouTube Music plays $onYtm")
+                    main.post { playYtm(onYtm, null, known, positionMs) }
+                    return@launch
+                }
             }
             if (m !is com.music.spotui.data.catalog.SpotifyMatch.Found) {
                 app.myspoti.host.android.Logbook.log("catalog: $uri not played on Spotify: $m")
@@ -3491,6 +3537,43 @@ object SongPlayer {
             }
             val (id, t) = m.id to m.track
             playSong(buildSpotifyPlayQuery(id, t.name, t.artists.joinToString(", ") { it.name }), context, askExtensions = askExtensions, alone = true)
+        }
+    }
+
+    private const val YTM_TRACK_PREFIX = "ytmusic:track:"
+
+    /**
+     * Plays the YouTube Music song [uri] in YouTube Music's own page ([YtmPlayback]), in the list
+     * [ctx] when it is one of YouTube Music's (the page goes on with it; else with its own "up
+     * next"). [known]: the song as its row showed it, on screen while the page loads. Main thread.
+     */
+    private fun playYtm(uri: String, ctx: String?, known: SongsModel?, positionMs: Long? = null) {
+        userActed()
+        routeAsk.incrementAndGet(); routingState.value = null
+        LocalPlayer.stop()
+        cancelBurst()
+        val list = when {
+            ctx == null -> null
+            ctx.contains("ytmusic:playlist:") -> "ytmusic:playlist:" + ctx.substringAfter("ytmusic:playlist:")
+            ctx == LIKED_CONTEXT && YtmRuntime.chosen -> "ytmusic:playlist:LM"
+            else -> null
+        }
+        YtmPlayback.asking = true
+        YtmPlayback.show(known?.let {
+            app.myspoti.api.NowPlaying(
+                kind = ItemKind.TRACK, uri = uri, uid = null, name = it.title,
+                artists = listOf(app.myspoti.api.ArtistRef("", it.singer)),
+                album = it.album.takeIf { a -> a.isNotBlank() }?.let { a -> app.myspoti.api.AlbumRef(it.albumId, a) },
+                imageUrl = app.myspoti.host.android.Covers.large(it.coverUri), durationMs = it.durationMs.toLong(),
+                explicit = it.explicit, provider = "context",
+            )
+        })
+        playedByHand = uri
+        markPending("", uri)
+        app.myspoti.host.android.Logbook.log("ytmusic: $uri asked${list?.let { l -> " in $l" }.orEmpty()}")
+        transport(pullBack = false) {
+            if (list != null) api.player.play(list, trackUri = uri, positionMs = positionMs?.takeIf { it > 0 })
+            else api.player.play(uri, positionMs = positionMs?.takeIf { it > 0 })
         }
     }
 
