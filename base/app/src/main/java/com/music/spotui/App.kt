@@ -150,6 +150,8 @@ fun App() {
         // The app's own notification pill (likes, saves, errors), over everything.
         // Clips: the full-screen video feed, over everything but the notices.
         com.music.spotui.ui.components.ClipsFeedHost()
+        // A related video, played in the app.
+        com.music.spotui.ui.components.InAppVideoHost()
         com.music.spotui.ui.components.AppNoticeHost()
         // A sponsor read skipped in a podcast (SponsorBlock), and its Undo.
         com.music.spotui.podcast.SponsorSkipUndo()

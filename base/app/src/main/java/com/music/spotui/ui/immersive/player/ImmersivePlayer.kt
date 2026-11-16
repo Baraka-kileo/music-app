@@ -1062,11 +1062,23 @@ internal fun LiveLyricLine(onOpen: () -> Unit) {
             kotlinx.coroutines.delay(200)
         }
     }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     androidx.compose.animation.Crossfade(targetState = line, animationSpec = tween(220), label = "liveLine") { t ->
         Text(
-            t, color = Color.White, fontSize = 20.sp, lineHeight = 25.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+            t, color = Color.White, fontSize = 16.sp, lineHeight = 21.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
             maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            modifier = Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onOpen() },
+            // Tap: the full lyrics. Long press: hide the line (the setting), with an undo.
+            modifier = Modifier.combinedClickable(
+                interactionSource = remember { MutableInteractionSource() }, indication = null,
+                onLongClick = {
+                    com.music.spotui.data.preferences.LyricLinePref.set(ctx, false)
+                    com.music.spotui.ui.components.AppNotice.show(
+                        ctx.getString(R.string.lyric_line_hidden), ctx.getString(R.string.lyric_line_hidden_detail),
+                        actionLabel = ctx.getString(R.string.notice_undo),
+                        onAction = { com.music.spotui.data.preferences.LyricLinePref.set(ctx, true) },
+                    )
+                },
+            ) { onOpen() },
         )
     }
 }

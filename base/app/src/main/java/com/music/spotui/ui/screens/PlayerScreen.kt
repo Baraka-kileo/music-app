@@ -638,6 +638,7 @@ fun PlayerScreen(navController: NavController) {
                     onLikeClick = { playerViewModel.updateLikeState(!isLiked.value) },
                     likeSong = { nowPlayingSong(playerViewModel) },
                     adPlaying = adPlaying,
+                    leadingCover = songCoverUri.takeIf { showVideo && it.isNotBlank() },
                     onTitleClick = { openNowPlayingAlbum(playerViewModel, songSinger, titleScope) { navController.navigate(it) } },
                     onArtistClick = {
                         playerViewModel.goToArtist(SongPlayer.currentTrackId, songSinger) { route ->
@@ -1117,7 +1118,7 @@ fun LikeButton(liked: Boolean, size: androidx.compose.ui.unit.Dp = 28.dp, touch:
     }
 }
 
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class, com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi::class)
 @Composable
 fun PlayerInfo(
     songTitle: String,
@@ -1135,6 +1136,8 @@ fun PlayerInfo(
     adPlaying: Boolean = false,
     /** The words' dip through a crossfade's switch (SongBlend.wordsAlpha), read at draw. */
     wordsAlpha: () -> Float = { 1f },
+    /** While the music video plays (the cover is gone): the cover, small, before the title, as the official app. */
+    leadingCover: String? = null,
 ) {
     // The + answers in a 48 dp square around its 28 dp glyph: the end paddings give back the 10 dp.
     Row(
@@ -1143,6 +1146,13 @@ fun PlayerInfo(
             .fillMaxWidth()
             .padding(start = 24.dp, end = 14.dp)
     ) {
+        if (leadingCover != null) {
+            com.bumptech.glide.integration.compose.GlideImage(
+                model = leadingCover, contentDescription = null, contentScale = ContentScale.Crop,
+                modifier = Modifier.size(52.dp).clip(RoundedCornerShape(4.dp)),
+            )
+            Spacer(Modifier.width(12.dp))
+        }
         // A new song's title and artist fade in (over 0.2 s) instead of replacing the old ones
         // in one frame, while its cover slides in above them.
         val textAlpha = remember { androidx.compose.animation.core.Animatable(1f) }

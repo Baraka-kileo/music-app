@@ -39,4 +39,9 @@
     <string name="clips_for_you">Music for you</string>
     <string name="clips_followers">%1$s followers</string>
     <string name="about_the_artist">About the artist</string>
+    <string name="in_app_video_title">Playing video</string>
+    <string name="in_app_video_failed">This video can\'t play here right now</string>
+    <string name="lyric_line_hidden">Lyric line hidden</string>
+    <string name="lyric_line_hidden_detail">Turn it back on in Settings, Player</string>
+    <string name="notice_undo">Undo</string>
 </resources>

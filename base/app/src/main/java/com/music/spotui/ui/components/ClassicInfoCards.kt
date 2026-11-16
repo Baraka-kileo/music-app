@@ -293,7 +293,8 @@ fun RelatedVideos(artist: String, title: String, text: Color, sub: Color) {
             val v = videos[i]
             Column(Modifier.width(220.dp).clickable {
                 Haptics.click()
-                runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(v.url)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                // Played here, in the app's own video player (not handed to YouTube).
+                InAppVideo.open(v.url, v.name, v.uploader)
             }) {
                 Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(8.dp)).background(Color.Black)) {
                     GlideImage(model = v.thumb, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
