@@ -69,16 +69,11 @@ fun LookStep(onNext: () -> Unit, offer: LookOffer? = null) {
     val family = if (immersive) ImmersiveSans else AppSans
     val text = TextStyle(fontFamily = family, color = Color.White)
     val dim = Color.White.copy(alpha = if (immersive) 0.72f else 1f)
-    val subtle = if (immersive) Color.White.copy(alpha = 0.7f) else Color(0xFFB3B3B3)
+    val subtle = Color.White.copy(alpha = 0.7f)
 
     Box(Modifier.fillMaxSize()) {
-        Crossfade(look, animationSpec = tween(350), label = "lookBackdrop") {
-            if (it == Look.IMMERSIVE) {
-                MeshGradientBackground(cyclingMeshPalette(LookMeshPalettes), colorFadeMillis = MESH_CYCLE_MILLIS)
-            } else {
-                Box(Modifier.fillMaxSize().background(AppBackground))
-            }
-        }
+        // One ground for the whole of the onboarding, whichever look is being tried.
+        com.music.spotui.ui.screens.OnboardingBackdrop(dim = 0.45f)
         Column(
             Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -124,18 +119,10 @@ fun LookStep(onNext: () -> Unit, offer: LookOffer? = null) {
                 style = text, color = dim.copy(alpha = 0.6f), fontSize = 12.sp, textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Button(
-                onClick = onNext,
-                shape = if (immersive) RoundedCornerShape(14.dp) else ButtonDefaults.shape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (immersive) Color.White else AppAccent,
-                    contentColor = Color.Black,
-                ),
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-            ) {
-                Text(stringResource(if (offer != null) R.string.look_offer_try else R.string.setup_continue), fontFamily = family, fontSize = 16.sp,
-                    fontWeight = if (immersive) FontWeight.SemiBold else FontWeight.Bold)
-            }
+            com.music.spotui.ui.screens.OnboardingCta(
+                stringResource(if (offer != null) R.string.look_offer_try else R.string.setup_continue), onNext,
+                Modifier.fillMaxWidth().height(56.dp),
+            )
             if (offer != null) {
                 TextButton(onClick = offer.onKeep, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.look_offer_keep), color = Color.White, fontFamily = family, fontSize = 15.sp)
@@ -158,7 +145,7 @@ private fun LookSegments(look: Look, immersive: Boolean, family: androidx.compos
     Row(
         Modifier
             .fillMaxWidth()
-            .background(if (immersive) Color.White.copy(alpha = 0.14f) else Color(0xFF242424), outer)
+            .background(Color.White.copy(alpha = 0.10f), outer)
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -167,8 +154,7 @@ private fun LookSegments(look: Look, immersive: Boolean, family: androidx.compos
             val fill by animateColorAsState(
                 when {
                     !selected -> Color.Transparent
-                    immersive -> Color.White.copy(alpha = 0.92f)
-                    else -> AppAccent
+                    else -> Color.White.copy(alpha = 0.92f)
                 },
                 label = "segmentFill",
             )

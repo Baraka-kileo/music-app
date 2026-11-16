@@ -8,7 +8,17 @@ package com.music.spotui.ui.immersive.screens
 import com.music.spotui.ui.immersive.sheets.ImmersiveGlassSheet
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
+import com.music.spotui.ui.design.AppIcons
+import com.music.spotui.ui.design.Ds
+import com.music.spotui.ui.design.dsCard
+import com.music.spotui.ui.design.dsGlass
+import com.music.spotui.ui.immersive.pages.ImmersiveGroupRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -114,122 +124,121 @@ internal fun ImmersiveProfileSheet(onOpen: (route: String) -> Unit, onDismiss: (
     val avatar = ProfileCache.imageUrl
     val myId = ProfileCache.id
     // Opened in full: half-open, the sheet and its list both moved under the finger.
+    // The sheets some rows open.
+    var support by remember { mutableStateOf(false) }
+    if (support) SupportSheet(onDismiss = { support = false })
+    var about by remember { mutableStateOf(false) }
+    if (about) AboutSheet(onDismiss = { about = false })
+    var perks by remember { mutableStateOf(false) }
+    if (perks) SupporterSheet(onDismiss = { perks = false })
+    // The other Spotify accounts kept on the phone: switch, add, remove.
+    var accounts by remember { mutableStateOf(false) }
+    if (accounts) com.music.spotui.ui.components.AccountsSheet(onDismiss = { accounts = false }, onLeave = { accounts = false; onDismiss() })
     ImmersiveGlassSheet(onDismiss, rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(
+            verticalArrangement = Arrangement.spacedBy(Ds.SpaceM),
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 16.dp),
+                .padding(horizontal = Immersive.Gutter)
+                .padding(top = 6.dp, bottom = 20.dp),
         ) {
-            // Name and picture open the public profile.
+            // Who is signed in: the picture in a ring of the accent, the name; opens the public profile.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clip(Ds.Card)
                     .clickable(enabled = myId != null, role = Role.Button) { myId?.let { onOpen(profileRoute(it, name)) } }
-                    .padding(horizontal = Immersive.Gutter, vertical = 8.dp),
+                    .padding(vertical = 6.dp),
             ) {
-                AvatarDisc(
-                    url = avatar,
-                    initial = name.trim().firstOrNull()?.uppercase() ?: "•",
-                    contentDescription = null,
-                    onClick = null,
-                    size = 48.dp,
-                )
-                Text(
-                    text = name.ifBlank { stringResource(R.string.immersive_screens_account) },
-                    style = Immersive.Headline,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(start = 14.dp),
-                )
-                if (SupportReminder.level != SupportReminder.Level.NONE) SupporterBadge(Modifier.padding(start = 10.dp))
-            }
-            if (myId != null) {
-                Text(
-                    text = stringResource(R.string.view_profile),
-                    style = Immersive.Caption,
-                    modifier = Modifier.padding(start = 82.dp, bottom = 4.dp),
-                )
-            }
-            HorizontalDivider(color = Immersive.Separator, modifier = Modifier.padding(vertical = 8.dp))
-            SheetRow(stringResource(R.string.settings_title), stringResource(R.string.settings_detail)) {
-                onOpen(Routes.Settings.route)
-            }
-            SheetRow(stringResource(R.string.recap_title), stringResource(R.string.recap_detail)) {
-                onOpen(Routes.Recap.route)
-            }
-            SheetRow(stringResource(R.string.recents_title), stringResource(R.string.recents_detail)) {
-                onOpen(Routes.Recent.route)
-            }
-            // Third-party extensions: installed, enabled, repositories.
-            val extRegistry by com.music.spotui.extensions.Extensions.registry.collectAsState()
-            val installed = extRegistry.extensions
-            SheetRow(
-                stringResource(R.string.extensions_title),
-                if (installed.isEmpty()) stringResource(R.string.extensions_row_detail)
-                else stringResource(R.string.extensions_row_count, installed.size, installed.count { it.enabled }),
-            ) {
-                onOpen(Routes.Extensions.route)
-            }
-            // The account page (plan, privacy, devices), in the app's signed-in browser.
-            SheetRow(
-                stringResource(R.string.immersive_screens_account_page),
-                stringResource(R.string.immersive_screens_account_page_detail),
-            ) {
-                onDismiss()
-                AccountBrowser.open(Graph.app, AccountBrowser.ACCOUNT_URL)
-            }
-            // Donations: always here, never in the way.
-            var support by remember { mutableStateOf(false) }
-            if (support) SupportSheet(onDismiss = { support = false })
-            SheetRow(
-                stringResource(R.string.support_title),
-                stringResource(R.string.support_row_detail),
-                titleColor = Immersive.Accent,
-            ) { support = true }
-            // About: version, Discord, source code and Ko-fi.
-            var about by remember { mutableStateOf(false) }
-            if (about) AboutSheet(onDismiss = { about = false })
-            SheetRow(stringResource(R.string.creator_biography_section_title), stringResource(R.string.about_detail)) {
-                about = true
-            }
-            var perks by remember { mutableStateOf(false) }
-            if (perks) SupporterSheet(onDismiss = { perks = false })
-            if (SupportReminder.PERKS_ENABLED) {
-                SheetRow(stringResource(R.string.supporter_perks_title), stringResource(R.string.supporter_perks_detail)) {
-                    perks = true
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(64.dp).background(Ds.Accent, CircleShape).padding(2.5.dp)
+                        .background(Color(0xFF17131C), CircleShape).padding(2.5.dp),
+                ) {
+                    AvatarDisc(url = avatar, initial = name.trim().firstOrNull()?.uppercase() ?: "•", contentDescription = null, onClick = null, size = 54.dp)
                 }
+                Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = name.ifBlank { stringResource(R.string.immersive_screens_account) },
+                            style = Immersive.Headline, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        if (SupportReminder.level != SupportReminder.Level.NONE) SupporterBadge(Modifier.padding(start = 10.dp))
+                    }
+                    if (myId != null) Text(stringResource(R.string.view_profile), style = Immersive.Subhead)
+                }
+                if (myId != null) Icon(AppIcons.Chevron, contentDescription = null, tint = Ds.Text3, modifier = Modifier.padding(end = 6.dp).size(14.dp))
             }
-            // The other Spotify accounts kept on the phone: switch, add, remove.
-            var accounts by remember { mutableStateOf(false) }
-            if (accounts) com.music.spotui.ui.components.AccountsSheet(onDismiss = { accounts = false }, onLeave = { accounts = false; onDismiss() })
-            SheetRow(stringResource(R.string.accounts_switch_row), com.music.spotui.ui.components.switchAccountDetail()) {
-                accounts = true
+            // What is opened most, one tap away.
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                QuickTile(AppIcons.Settings, stringResource(R.string.settings_title), Modifier.weight(1f)) { onOpen(Routes.Settings.route) }
+                QuickTile(AppIcons.Stats, stringResource(R.string.recap_title), Modifier.weight(1f)) { onOpen(Routes.Recap.route) }
+                QuickTile(AppIcons.Extensions, stringResource(R.string.extensions_title), Modifier.weight(1f)) { onOpen(Routes.Extensions.route) }
             }
-            SheetRow(stringResource(R.string.connect_device_menu_logout), null) {
-                onDismiss()
-                SessionActions.logout(Graph.app)
-            }
+            SheetCard(
+                { ImmersiveGroupRow(stringResource(R.string.recents_title), icon = AppIcons.History, chevron = true, onClick = { onOpen(Routes.Recent.route) }) },
+                // The account page (plan, privacy, devices), in the app's signed-in browser.
+                {
+                    ImmersiveGroupRow(stringResource(R.string.immersive_screens_account_page), icon = AppIcons.AccountPage, chevron = true, onClick = {
+                        onDismiss()
+                        AccountBrowser.open(Graph.app, AccountBrowser.ACCOUNT_URL)
+                    })
+                },
+                {
+                    ImmersiveGroupRow(
+                        stringResource(R.string.accounts_switch_row), detail = com.music.spotui.ui.components.switchAccountDetail(),
+                        icon = AppIcons.SwitchAccount, chevron = true, onClick = { accounts = true },
+                    )
+                },
+            )
+            SheetCard(
+                // Donations: always here, never in the way.
+                { ImmersiveGroupRow(stringResource(R.string.support_title), icon = AppIcons.Support, chevron = true, onClick = { support = true }) },
+                (@Composable { ImmersiveGroupRow(stringResource(R.string.supporter_perks_title), icon = AppIcons.Perks, chevron = true, onClick = { perks = true }) })
+                    .takeIf { SupportReminder.PERKS_ENABLED },
+                // About: version, Discord, source code and Ko-fi.
+                { ImmersiveGroupRow(stringResource(R.string.creator_biography_section_title), icon = AppIcons.About, chevron = true, onClick = { about = true }) },
+            )
+            SheetCard(
+                {
+                    ImmersiveGroupRow(stringResource(R.string.connect_device_menu_logout), icon = AppIcons.LogOut, destructive = true, onClick = {
+                        com.music.spotui.di.Haptics.confirm()
+                        onDismiss()
+                        SessionActions.logout(Graph.app)
+                    })
+                },
+            )
         }
     }
 }
 
+/** One of the three shortcuts under the name: an icon over a word, on glass. */
 @Composable
-private fun SheetRow(
-    title: String,
-    detail: String?,
-    titleColor: androidx.compose.ui.graphics.Color = Immersive.Text,
-    onClick: () -> Unit,
-) {
+private fun QuickTile(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Column(
-        Modifier
-            .fillMaxWidth()
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = Immersive.Gutter, vertical = if (detail == null) 14.dp else 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier.immersiveClickable(onClick = { com.music.spotui.di.Haptics.click(); onClick() }).dsGlass(Ds.Card, fill = Ds.Glass2).padding(horizontal = 6.dp, vertical = 14.dp),
     ) {
-        Text(title, style = Immersive.Body.copy(color = titleColor))
-        if (detail != null) Text(detail, style = Immersive.Caption)
+        Icon(icon, contentDescription = null, tint = Ds.Text, modifier = Modifier.size(26.dp))
+        Text(
+            label, style = Immersive.Caption.copy(color = Ds.Text, fontWeight = FontWeight.SemiBold, fontSize = 13.sp),
+            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+}
+
+/** A card of rows with a hairline between them; a null row is left out. */
+@Composable
+private fun SheetCard(vararg rows: (@Composable () -> Unit)?) {
+    val shown = rows.filterNotNull()
+    Column(Modifier.fillMaxWidth().dsCard()) {
+        shown.forEachIndexed { i, row ->
+            row()
+            if (i < shown.lastIndex) Box(Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(0.5.dp).background(Immersive.Separator))
+        }
     }
 }

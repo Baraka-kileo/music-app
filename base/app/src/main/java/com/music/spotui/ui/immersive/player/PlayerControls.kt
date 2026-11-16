@@ -22,6 +22,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,6 +63,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
+import com.music.spotui.ui.immersive.shell.backdrop.backdrops.LayerBackdrop
+import com.music.spotui.ui.immersive.shell.immersiveLiquidGlass
+import com.music.spotui.ui.immersive.shell.rememberGlassPress
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
@@ -88,6 +93,38 @@ import kotlin.math.roundToInt
  * transport, seek and volume bars stay white on purpose.
  */
 internal val LocalPlayerTint = compositionLocalOf { Color.White }
+
+/**
+ * The recording of the player's own backdrop (the mesh of the cover's colours), for the player's
+ * controls to refract. Null wherever Liquid Glass is off or the backdrop cannot be sampled (a
+ * Canvas clip plays over it): the controls then keep their flat tinted fill.
+ */
+internal val LocalPlayerGlass = compositionLocalOf<LayerBackdrop?> { null }
+
+/**
+ * The body of a player control: Liquid Glass over the player's backdrop ([LocalPlayerGlass]),
+ * tinted with the cover's pale colour at [glassAlpha], with a rim of light and a press bulge;
+ * without it, the flat disc the player had before, at [flatAlpha].
+ */
+@Composable
+internal fun Modifier.playerGlass(
+    shape: Shape,
+    glassAlpha: Float,
+    flatAlpha: Float,
+    interactionSource: InteractionSource? = null,
+): Modifier {
+    val page = LocalPlayerGlass.current
+    val tint = LocalPlayerTint.current
+    if (page == null) {
+        return this.clip(shape).then(if (flatAlpha > 0f) Modifier.background(tint.copy(alpha = flatAlpha)) else Modifier)
+    }
+    return this.immersiveLiquidGlass(
+        shape = shape,
+        page = page,
+        tint = tint.copy(alpha = glassAlpha),
+        press = rememberGlassPress(interactionSource),
+    )
+}
 
 private const val PLAYER_TINT_LIGHTNESS = 0.88f
 private const val PLAYER_TINT_MAX_SATURATION = 0.40f
@@ -187,13 +224,14 @@ internal fun CircleGlyph(
         targetValue = if (active) 0.34f else 0.18f,
         label = "glyphDisc",
     )
+    val source = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
             .size(34.dp)
-            .clip(CircleShape)
-            .background(LocalPlayerTint.current.copy(alpha = discAlpha))
+            // Glass is clearer than the flat disc: the page shows through it, the rim draws its edge.
+            .playerGlass(CircleShape, glassAlpha = discAlpha * 0.6f, flatAlpha = discAlpha, interactionSource = source)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = source,
                 indication = null,
             ) {
                 Haptics.click()
@@ -373,8 +411,8 @@ private fun Pill(content: @Composable androidx.compose.foundation.layout.RowScop
     Row(
         modifier = Modifier
             .height(BOTTOM_ACTION_SIZE)
+            .playerGlass(CircleShape, glassAlpha = 0.10f, flatAlpha = 0.12f)
             .clip(CircleShape)
-            .background(LocalPlayerTint.current.copy(alpha = 0.12f))
             .animateContentSize(
                 animationSpec = com.music.spotui.ui.immersive.motion.ImmersiveMotion.chromeSpring(),
             ),
@@ -437,13 +475,19 @@ private fun BottomGlyph(
     onClick: () -> Unit,
     highlighted: Boolean = false,
 ) {
+    val source = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
             .size(BOTTOM_ACTION_SIZE)
-            .clip(CircleShape)
-            .background(if (highlighted) LocalPlayerTint.current.copy(alpha = 0.20f) else Color.Transparent)
+            // Always a glass disc while Liquid Glass is on (brighter when lit); flat: lit only.
+            .playerGlass(
+                CircleShape,
+                glassAlpha = if (highlighted) 0.26f else 0.08f,
+                flatAlpha = if (highlighted) 0.20f else 0f,
+                interactionSource = source,
+            )
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = source,
                 indication = null,
             ) {
                 Haptics.click()

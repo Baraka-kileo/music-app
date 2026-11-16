@@ -98,7 +98,8 @@ android {
     buildTypes {
         debug {
             // Installs next to the release apps (own data, own sign-in).
-            if (!automixLab) applicationIdSuffix = ".dev"
+            // -PidSuffix=.x: a second dev app beside the first, with its own data (to see the first launch again).
+            if (!automixLab) applicationIdSuffix = ".dev" + ((findProperty("idSuffix") as String?) ?: "")
             manifestPlaceholders["appLabel"] = if (automixLab) "Myspoti Mix Lab" else "Orpheon dev"
             manifestPlaceholders["cliEnabled"] = "true"
             buildConfigField("String", "UPDATE_REPO", "\"\"")
@@ -205,6 +206,7 @@ dependencies {
     // Frosted (blurred) bars of the Immersive look. Apache-2.0.
     implementation("dev.chrisbanes.haze:haze:1.3.1")
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
+    // The app's one icon family (ui/design/AppIcons.kt). MIT.
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     // Awaiting the watch link's tasks (Data Layer channels).
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0")

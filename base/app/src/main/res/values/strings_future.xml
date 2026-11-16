@@ -37,4 +37,26 @@
     <string name="settings_genius_detail">What songs mean and the annotations on their lines, and Genius lyrics when no other source has them. Off: nothing is asked of Genius.</string>
     <string name="welcome_start">Get started</string>
     <string name="setup_account_spotify_next">You sign in next, on Spotify\'s own page. Orpheon never sees your password.</string>
+    <string name="welcome_tagline">Your Spotify account, in a cleaner player.</string>
+    <string name="welcome_row_account_title">Your library comes with you</string>
+    <string name="welcome_row_account_detail">Sign in on Spotify\'s own page. Playlists and likes are all there.</string>
+    <string name="welcome_row_lyrics_title">Lyrics, word by word</string>
+    <string name="welcome_row_lyrics_detail">Synced as the song plays, with translation and meanings.</string>
+    <string name="welcome_row_yours_title">Made yours</string>
+    <string name="welcome_row_yours_detail">A glass look, listening stats and add-ons you choose.</string>
+    <string name="welcome_headline">Music that feels like yours</string>
+    <string name="welcome_headline_em">Music</string>
+    <string name="welcome_body">Your Spotify library in a glass player, with lyrics that follow every word.</string>
+    <string name="onb_account_em">music</string>
+    <string name="settings_group_account">Account and sources</string>
+    <string name="settings_group_listening">Listening</string>
+    <string name="settings_group_app">App</string>
+    <string name="settings_group_quality">Sound quality</string>
+    <string name="settings_group_playing">While playing</string>
+    <string name="settings_section_advanced">Advanced</string>
+    <string name="settings_group_experimental">Experimental</string>
+    <string name="settings_group_touch">Touch</string>
+    <string name="settings_group_repair">Repair</string>
+    <string name="settings_haptics_title">Vibrate on touch</string>
+    <string name="settings_haptics_detail">A light tap under your finger for buttons, switches and long presses.</string>
 </resources>

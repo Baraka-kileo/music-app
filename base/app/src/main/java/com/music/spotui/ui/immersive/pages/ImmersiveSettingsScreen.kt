@@ -77,7 +77,7 @@ import com.music.spotui.ui.screens.shareDiagnosticReport
 import kotlinx.coroutines.launch
 
 /** Where the Immersive Settings are: the list of categories, one category, or a choice inside it. */
-private enum class SettingsPage { Root, Playback, Sources, Lyrics, StreamingWifi, StreamingCell, Crossfade, Downloads, DownloadQuality, Storage, Data, Display, Look, Rotation, Language, LyricsLanguage, App, Accounts, Library }
+private enum class SettingsPage { Root, Playback, Sources, Lyrics, StreamingWifi, StreamingCell, Crossfade, Downloads, DownloadQuality, Storage, Data, Display, Look, Rotation, Language, LyricsLanguage, App, Accounts, Library, Advanced }
 
 private val StreamingChoices = listOf(
     Triple(StreamingQuality.AUTO, R.string.quality_streaming_auto, R.string.quality_streaming_auto_detail),
@@ -154,6 +154,7 @@ fun ImmersiveSettingsScreen(navController: NavController) {
             SettingsPage.App -> AppPage(navController, back)
             SettingsPage.Accounts -> AccountsPage(back)
             SettingsPage.Library -> LibraryPage(navController, back)
+            SettingsPage.Advanced -> AdvancedPage(back)
         }
     }
 }
@@ -175,7 +176,7 @@ private fun SettingsRoot(navController: NavController, open: (SettingsPage) -> U
         title = stringResource(R.string.settings_title), onBack = back,
         actions = {
             com.music.spotui.ui.immersive.shell.ImmersiveBarAction(
-                Icons.Rounded.Search, stringResource(R.string.settings_search), onClick = { query = if (query == null) "" else null },
+                com.music.spotui.ui.design.AppIcons.Search, stringResource(R.string.settings_search), onClick = { query = if (query == null) "" else null },
             )
         },
     ) {
@@ -205,35 +206,36 @@ private fun SettingsRoot(navController: NavController, open: (SettingsPage) -> U
         }
         // Where the music comes from, first: the music account (the library, the recommendations)
         // and the sources that play and download; then how it is listened to; then the app itself.
-        immersiveGroup("music") {
+        immersiveGroup("music", headerRes = R.string.settings_group_account) {
             row {
                 ImmersiveGroupRow(
                     stringResource(R.string.accounts_title), detail = com.music.spotui.ui.components.switchAccountDetail(),
-                    icon = Icons.Rounded.Person, chevron = true, onClick = { open(SettingsPage.Accounts) },
+                    icon = com.music.spotui.ui.design.AppIcons.Account, chevron = true, onClick = { open(SettingsPage.Accounts) },
                 )
             }
             row {
-                ImmersiveGroupRow(stringResource(R.string.settings_sources_tab), icon = Icons.Rounded.Extension, chevron = true,
+                ImmersiveGroupRow(stringResource(R.string.settings_sources_tab), icon = com.music.spotui.ui.design.AppIcons.Sources, chevron = true,
                     detail = audioLine ?: stringResource(R.string.settings_sources_detail), onClick = { open(SettingsPage.Sources) })
             }
         }
-        immersiveGroup("root") {
-            row { ImmersiveGroupRow(stringResource(R.string.settings_section_playback), icon = Icons.Rounded.PlayArrow, chevron = true, onClick = { open(SettingsPage.Playback) }) }
+        immersiveGroup("root", headerRes = R.string.settings_group_listening) {
+            row { ImmersiveGroupRow(stringResource(R.string.settings_section_playback), icon = com.music.spotui.ui.design.AppIcons.Playback, chevron = true, onClick = { open(SettingsPage.Playback) }) }
             row {
                 ImmersiveGroupRow(
-                    stringResource(R.string.settings_transitions_title), icon = Icons.Rounded.GraphicEq, chevron = true,
+                    stringResource(R.string.settings_transitions_title), icon = com.music.spotui.ui.design.AppIcons.Transitions, chevron = true,
                     value = transitionValue(crossfade), onClick = { open(SettingsPage.Crossfade) },
                 )
             }
-            row { ImmersiveGroupRow(stringResource(R.string.settings_section_library), icon = Icons.Rounded.LibraryMusic, chevron = true, onClick = { open(SettingsPage.Library) }) }
-            row { ImmersiveGroupRow(stringResource(R.string.settings_section_downloads), icon = Icons.Rounded.Download, chevron = true, onClick = { open(SettingsPage.Downloads) }) }
-            row { ImmersiveGroupRow(stringResource(R.string.settings_section_lyrics), icon = Icons.Rounded.Lyrics, chevron = true, onClick = { open(SettingsPage.Lyrics) }) }
+            row { ImmersiveGroupRow(stringResource(R.string.settings_section_library), icon = com.music.spotui.ui.design.AppIcons.Library, chevron = true, onClick = { open(SettingsPage.Library) }) }
+            row { ImmersiveGroupRow(stringResource(R.string.settings_section_downloads), icon = com.music.spotui.ui.design.AppIcons.Downloads, chevron = true, onClick = { open(SettingsPage.Downloads) }) }
+            row { ImmersiveGroupRow(stringResource(R.string.settings_section_lyrics), icon = com.music.spotui.ui.design.AppIcons.Lyrics, chevron = true, onClick = { open(SettingsPage.Lyrics) }) }
         }
-        immersiveGroup("more") {
-            row { ImmersiveGroupRow(stringResource(R.string.settings_section_display), icon = Icons.Rounded.Palette, chevron = true, onClick = { open(SettingsPage.Display) }) }
-            row { ImmersiveGroupRow(stringResource(R.string.settings_section_data), icon = Icons.Rounded.SignalCellularAlt, chevron = true, onClick = { open(SettingsPage.Data) }) }
-            row { ImmersiveGroupRow(stringResource(R.string.settings_section_storage), icon = Icons.Rounded.Storage, chevron = true, onClick = { open(SettingsPage.Storage) }) }
-            row { ImmersiveGroupRow(stringResource(R.string.settings_section_app), icon = Icons.Rounded.Info, chevron = true, onClick = { open(SettingsPage.App) }) }
+        immersiveGroup("more", headerRes = R.string.settings_group_app) {
+            row { ImmersiveGroupRow(stringResource(R.string.settings_section_display), icon = com.music.spotui.ui.design.AppIcons.Display, chevron = true, onClick = { open(SettingsPage.Display) }) }
+            row { ImmersiveGroupRow(stringResource(R.string.settings_section_data), icon = com.music.spotui.ui.design.AppIcons.Data, chevron = true, onClick = { open(SettingsPage.Data) }) }
+            row { ImmersiveGroupRow(stringResource(R.string.settings_section_storage), icon = com.music.spotui.ui.design.AppIcons.Storage, chevron = true, onClick = { open(SettingsPage.Storage) }) }
+            row { ImmersiveGroupRow(stringResource(R.string.settings_section_advanced), icon = com.music.spotui.ui.design.AppIcons.Advanced, chevron = true, onClick = { open(SettingsPage.Advanced) }) }
+            row { ImmersiveGroupRow(stringResource(R.string.settings_section_app), icon = com.music.spotui.ui.design.AppIcons.About, chevron = true, onClick = { open(SettingsPage.App) }) }
         }
     }
 }
@@ -332,7 +334,6 @@ private fun PlaybackPage(navController: NavController, open: (SettingsPage) -> U
     val label = { q: StreamingQuality -> StreamingChoices.first { it.first == q }.second }
     var headsetSkip by remember { mutableStateOf(app.myspoti.host.android.PlaybackService.skipsOnEpisodes(ctx)) }
     var keepPlaying by remember { mutableStateOf(app.myspoti.host.android.PlaybackService.keepsPlayingOnClose(ctx)) }
-    val crossfade = com.music.spotui.data.preferences.CrossfadePref.seconds
     // The first source of the audio order, when it is an extension announcing settings here:
     // they show, and Spotify's quality (kept, still used for what Spotify plays) leaves the screen.
     val registry by com.music.spotui.extensions.Extensions.registry.collectAsStateWithLifecycle()
@@ -342,11 +343,11 @@ private fun PlaybackPage(navController: NavController, open: (SettingsPage) -> U
     val extHeader = ext?.let { stringResource(R.string.ext_section_settings, it.name) }
     ImmersivePage(title = stringResource(R.string.settings_section_playback), onBack = back) {
         if (ext != null && extHeader != null) extensionSectionGroup(ext, extHeader)
-        if (ext?.hidesAppQuality != true) immersiveGroup("quality", footerRes = R.string.quality_streaming_detail) {
+        if (ext?.hidesAppQuality != true) immersiveGroup("quality", headerRes = R.string.settings_group_quality, footerRes = R.string.quality_streaming_detail) {
             row { ImmersiveGroupRow(stringResource(R.string.quality_streaming_wifi_title), value = stringResource(label(wifi)), chevron = true, onClick = { open(SettingsPage.StreamingWifi) }) }
             row { ImmersiveGroupRow(stringResource(R.string.quality_streaming_cell_title), value = stringResource(label(cell)), chevron = true, onClick = { open(SettingsPage.StreamingCell) }) }
         }
-        immersiveGroup("playback") {
+        immersiveGroup("playback", headerRes = R.string.settings_group_playing) {
             row {
                 ImmersiveSwitchRow(
                     stringResource(R.string.settings_autoplay_title),
@@ -363,13 +364,6 @@ private fun PlaybackPage(navController: NavController, open: (SettingsPage) -> U
                     detail = stringResource(R.string.myspoti_shuffle_detail),
                 )
             }
-            row {
-                ImmersiveGroupRow(
-                    stringResource(R.string.settings_transitions_title), detail = stringResource(R.string.settings_transitions_detail),
-                    value = transitionValue(crossfade),
-                    chevron = true, onClick = { open(SettingsPage.Crossfade) },
-                )
-            }
             // The local player's equalizer, speed and silence skipping (never Spotify's own songs).
             row {
                 ImmersiveGroupRow(
@@ -381,14 +375,6 @@ private fun PlaybackPage(navController: NavController, open: (SettingsPage) -> U
         }
         // What keeps the music going and what the headset buttons do.
         immersiveGroup("controls", headerRes = R.string.settings_section_controls) {
-            row {
-                var nativeAudio by remember { mutableStateOf(com.music.spotui.di.NativeAudio.enabled) }
-                ImmersiveSwitchRow(
-                    stringResource(R.string.settings_native_audio_title), checked = nativeAudio,
-                    onChecked = { nativeAudio = it; com.music.spotui.di.NativeAudio.set(ctx, it) },
-                    detail = stringResource(R.string.settings_native_audio_detail),
-                )
-            }
             row {
                 ImmersiveSwitchRow(
                     stringResource(R.string.settings_keep_playing_title), checked = keepPlaying,
@@ -1149,7 +1135,34 @@ private fun AppPage(navController: NavController, back: () -> Unit) {
                 )
             }
         }
-        immersiveGroup("repair") {
+    }
+}
+
+/** What few people need: the experimental player, touch vibration, and the repair tools. */
+@Composable
+private fun AdvancedPage(back: () -> Unit) {
+    val ctx = LocalContext.current
+    ImmersivePage(title = stringResource(R.string.settings_section_advanced), onBack = back) {
+        immersiveGroup("touch", headerRes = R.string.settings_group_touch) {
+            row {
+                ImmersiveSwitchRow(
+                    stringResource(R.string.settings_haptics_title), checked = com.music.spotui.data.preferences.HapticsPref.on,
+                    onChecked = { com.music.spotui.data.preferences.HapticsPref.set(ctx, it) },
+                    detail = stringResource(R.string.settings_haptics_detail),
+                )
+            }
+        }
+        immersiveGroup("experimental", headerRes = R.string.settings_group_experimental) {
+            row {
+                var nativeAudio by remember { mutableStateOf(com.music.spotui.di.NativeAudio.enabled) }
+                ImmersiveSwitchRow(
+                    stringResource(R.string.settings_native_audio_title), checked = nativeAudio,
+                    onChecked = { nativeAudio = it; com.music.spotui.di.NativeAudio.set(ctx, it) },
+                    detail = stringResource(R.string.settings_native_audio_detail),
+                )
+            }
+        }
+        immersiveGroup("repair", headerRes = R.string.settings_group_repair) {
             // The hidden Web Player stuck or crashed: rebuild it without leaving the app.
             row {
                 ImmersiveGroupRow(

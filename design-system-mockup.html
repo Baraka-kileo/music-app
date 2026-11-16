@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design system mockup</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Instrument+Serif:ital@1&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>
+:root{
+  --canvas:#0B0910; --ember:linear-gradient(90deg,#FF6B2C,#E5467C 55%,#7C3DF2);
+  --g1:rgba(255,255,255,.06); --g2:rgba(255,255,255,.10); --g3:rgba(255,255,255,.16);
+  --edge:rgba(255,255,255,.12); --t1:#fff; --t2:rgba(255,255,255,.70); --t3:rgba(255,255,255,.46);
+  --danger:#FF5A5F; --r-s:10px; --r-m:16px; --r-l:24px; --r-xl:32px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#07060B;color:var(--t1);font-family:Manrope,system-ui,sans-serif;padding:28px 16px 60px}
+h1{font-size:30px;font-weight:800;letter-spacing:-.6px;margin:0 0 6px}
+h1 em,.em{font-family:"Instrument Serif",serif;font-style:italic;font-weight:400;color:#FFC79E}
+h2{font-size:13px;font-weight:700;color:var(--t3);letter-spacing:.4px;margin:36px 0 12px;text-transform:uppercase}
+p.lead{color:var(--t2);margin:0;max-width:640px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto}
+.ms{font-size:22px;line-height:1;display:inline-block}
+.tab{position:absolute;left:16px;right:16px;bottom:16px;display:flex;gap:10px;align-items:center}
+.tab .bar{flex:1;display:flex;justify-content:space-around;padding:10px 6px;border-radius:999px;background:rgba(30,24,40,.72);border:1px solid var(--edge);backdrop-filter:blur(24px)}
+.tab .bar div{font-size:10.5px;font-weight:600;color:var(--t3);text-align:center}.tab .bar div i{display:block;font-size:23px;margin-bottom:2px}
+.tab .bar .on{color:#fff}.tab .fab{width:54px;height:54px;border-radius:50%;background:rgba(30,24,40,.72);border:1px solid var(--edge);display:flex;align-items:center;justify-content:center;font-size:23px}
+.hap{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:12.5px;color:var(--t2)}.hap b{display:inline;font-size:12.5px;color:#fff;margin:0}
+.tokens{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.tok{background:var(--g1);border:1px solid var(--edge);border-radius:var(--r-l);padding:16px}
+.tok b{display:block;font-size:14px;margin-bottom:10px}
+.tok small{color:var(--t3);font-size:12px;display:block;margin-top:10px;line-height:1.45}
+.sw{display:flex;gap:8px}.sw i{flex:1;height:38px;border-radius:10px;border:1px solid var(--edge)}
+.rad{display:flex;gap:10px;align-items:flex-end}.rad i{width:44px;height:44px;background:var(--g3);border:1px solid var(--edge);display:block}
+.ty div{line-height:1.25}
+.ic{display:flex;gap:10px;flex-wrap:wrap}
+.tile{width:38px;height:38px;border-radius:12px;background:var(--g2);border:1px solid var(--edge);display:flex;align-items:center;justify-content:center;flex:none}
+.phones{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:26px;justify-items:center}
+.cap{font-size:13px;color:var(--t2);margin:0 0 10px;text-align:center;font-weight:600}
+.phone{width:340px;height:720px;border-radius:44px;border:1px solid rgba(255,255,255,.18);overflow:hidden;position:relative;
+  background:radial-gradient(120% 60% at 100% 0%,rgba(255,122,46,.42),transparent 60%),radial-gradient(110% 60% at 0% 100%,rgba(106,47,224,.38),transparent 62%),var(--canvas)}
+.scr{position:absolute;inset:0;padding:46px 16px 20px;overflow:hidden}
+.glass{background:var(--g1);border:1px solid var(--edge);border-radius:var(--r-l);backdrop-filter:blur(24px)}
+.row{display:flex;align-items:center;gap:12px;padding:11px 14px}
+.row+.row{border-top:1px solid rgba(255,255,255,.07)}
+.row .t{flex:1;min-width:0}.row .t b{font-size:15px;font-weight:600;display:block}
+.row .t span{font-size:12.5px;color:var(--t3)}
+.row .v{font-size:13.5px;color:var(--t2)}
+.row .ch{color:var(--t3);font-size:20px}
+.sec{font-size:12.5px;font-weight:700;color:var(--t3);margin:16px 6px 7px}
+.big{font-size:30px;font-weight:800;letter-spacing:-.6px;margin:0 2px 12px}
+.search{display:flex;align-items:center;gap:8px;padding:11px 14px;border-radius:999px;background:var(--g2);border:1px solid var(--edge);color:var(--t3);font-size:14.5px}
+.swt{width:46px;height:28px;border-radius:99px;background:var(--g3);position:relative;flex:none}
+.swt::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff}
+.swt.on{background:var(--ember)}.swt.on::after{left:21px}
+.seg{display:flex;background:var(--g1);border:1px solid var(--edge);border-radius:999px;padding:4px;margin:4px 12px 12px}
+.seg span{flex:1;text-align:center;padding:8px 0;border-radius:999px;font-size:13px;font-weight:600;color:var(--t2)}
+.seg .on{background:var(--ember);color:#fff}
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;height:50px;border-radius:999px;font-weight:700;font-size:15.5px}
+.btn.p{background:var(--ember)}.btn.s{background:var(--g2);border:1px solid var(--edge)}
+.av{width:62px;height:62px;border-radius:50%;padding:2.5px;background:var(--ember);flex:none}
+.av i{display:flex;width:100%;height:100%;border-radius:50%;background:#2A2140;border:2.5px solid #17111F;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:22px}
+.quick{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
+.quick div{padding:14px 8px 12px;text-align:center;font-size:12.5px;font-weight:600;border-radius:20px}
+.quick .ms{display:block;margin-bottom:6px;font-size:24px}
+.stat{display:flex;gap:14px;padding:14px 16px;align-items:center}
+.stat .n{font-size:26px;font-weight:800;letter-spacing:-.5px}
+.stat small{color:var(--t3);font-size:12px;display:block}
+.bars{display:flex;gap:4px;align-items:flex-end;height:38px;margin-left:auto}
+.bars i{width:7px;border-radius:4px;background:var(--ember);display:block}
+.sheet{position:absolute;left:0;right:0;bottom:0;top:70px;border-radius:32px 32px 0 0;background:rgba(24,18,34,.72);border:1px solid var(--edge);backdrop-filter:blur(30px);padding:10px 16px 18px}
+.grab{width:36px;height:4px;border-radius:9px;background:rgba(255,255,255,.35);margin:0 auto 14px}
+.sl{height:4px;border-radius:9px;background:var(--g3);margin:6px 14px 16px;position:relative}
+.sl::before{content:"";position:absolute;left:0;top:0;bottom:0;width:38%;border-radius:9px;background:var(--ember)}
+.sl::after{content:"";position:absolute;left:38%;top:-8px;width:20px;height:20px;margin-left:-10px;border-radius:50%;background:#fff}
+.back{width:38px;height:38px;border-radius:50%;background:var(--g2);border:1px solid var(--edge);display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+.red{color:var(--danger)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>One <em>design system</em> for the whole app</h1>
+  <p class="lead">A mockup to agree the look before it is built. The top row is the rule set; the three phones show the profile menu, Settings and a Settings page drawn with only those rules.</p>
+
+  <h2>The rules</h2>
+  <div class="tokens">
+    <div class="tok"><b>Colour</b>
+      <div class="sw"><i style="background:#0B0910"></i><i style="background:var(--g1)"></i><i style="background:var(--g2)"></i><i style="background:var(--g3)"></i><i style="background:var(--ember)"></i><i style="background:var(--danger)"></i></div>
+      <small>Dark canvas, three glass levels, one gradient ("Ember"), one red. No colour per section: the gradient marks only what is on, selected or the main action.</small></div>
+    <div class="tok ty"><b>Type</b>
+      <div style="font-size:26px;font-weight:800;letter-spacing:-.5px">Display 30 <span class="em">accent</span></div>
+      <div style="font-size:18px;font-weight:700">Title 20</div>
+      <div style="font-size:15px;font-weight:600">Row title 15</div>
+      <div style="font-size:13px;color:var(--t2)">Detail 13</div>
+      <small>One family in four sizes. The italic serif is kept for big headlines only.</small></div>
+    <div class="tok"><b>Shape and spacing</b>
+      <div class="rad"><i style="border-radius:10px"></i><i style="border-radius:16px"></i><i style="border-radius:24px"></i><i style="border-radius:32px 32px 0 0"></i><i style="border-radius:99px;width:70px"></i></div>
+      <small>Five corner sizes (tile 10, control 16, card 24, sheet 32, pill) instead of today's 14. Spacing in steps of 4.</small></div>
+    <div class="tok"><b>Icons</b>
+      <div class="ic"><span class="tile"><i class="ph ph-waveform ms"></i></span><span class="tile"><i class="ph ph-microphone-stage ms"></i></span><span class="tile"><i class="ph ph-palette ms"></i></span><span class="tile"><i class="ph ph-download-simple ms"></i></span><span class="tile"><i class="ph ph-puzzle-piece ms"></i></span><span class="tile"><i class="ph ph-user ms"></i></span></div>
+      <div class="ic" style="margin-top:10px;align-items:center;font-size:24px;gap:16px"><i class="ph ph-heart"></i><i class="ph-fill ph-heart" style="color:#FF6B8A"></i><i class="ph ph-house"></i><i class="ph-fill ph-house"></i><i class="ph ph-shuffle"></i><i class="ph ph-repeat"></i><i class="ph-fill ph-play"></i></div>
+      <small>Phosphor icons: one modern family. Outline by default, the filled twin when something is active (liked, current tab, playing).</small></div>
+    <div class="tok"><b>Controls</b>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px"><span class="swt on"></span><span class="swt"></span><div class="seg" style="margin:0;flex:1"><span>Low</span><span class="on">High</span></div></div>
+      <div style="display:flex;gap:8px"><div class="btn p" style="flex:1;height:42px;font-size:14px">Primary</div><div class="btn s" style="flex:1;height:42px;font-size:14px">Secondary</div></div>
+      <small>One switch, one picker, two buttons, used everywhere.</small></div>
+    <div class="tok"><b>Touch feedback</b>
+      <div class="hap"><b>Tick</b><span>switch, picker, tab change, slider steps</span><b>Click</b><span>play, pause, skip, main buttons</span><b>Pop</b><span>like, add to playlist, download done</span><b>Thud</b><span>long-press menu, drag to reorder</span><b>None</b><span>scrolling, plain navigation, typing</span></div>
+      <small>Four vibrations with fixed meanings, plus a press-shrink on everything tappable. One switch in Settings turns them off.</small></div>
+  </div>
+
+  <h2>Applied</h2>
+  <div class="phones">
+    <div><p class="cap">Profile menu</p>
+      <div class="phone"><div class="sheet">
+        <div class="grab"></div>
+        <div style="display:flex;gap:14px;align-items:center">
+          <div class="av"><i>B</i></div>
+          <div style="flex:1"><div style="font-size:20px;font-weight:800;letter-spacing:-.3px">Baraka</div><div style="font-size:13px;color:var(--t2)">Premium · 42 playlists</div></div>
+          <span class="tile" style="border-radius:50%"><i class="ph ph-caret-right ms"></i></span>
+        </div>
+        <div class="glass stat" style="margin-top:14px">
+          <div><small>This week</small><div class="n">6 h 12 m</div><small>Top artist · Burna Boy</small></div>
+          <div class="bars"><i style="height:30%"></i><i style="height:55%"></i><i style="height:42%"></i><i style="height:80%"></i><i style="height:100%"></i><i style="height:64%"></i><i style="height:36%"></i></div>
+        </div>
+        <div class="quick">
+          <div class="glass"><i class="ph ph-gear-six ms"></i>Settings</div>
+          <div class="glass"><i class="ph ph-chart-bar ms"></i>Stats</div>
+          <div class="glass"><i class="ph ph-puzzle-piece ms"></i>Extensions</div>
+        </div>
+        <div class="glass">
+          <div class="row"><i class="ph ph-clock-counter-clockwise ms"></i><div class="t"><b>Recently played</b></div><i class="ph ph-caret-right ms ch"></i></div>
+          <div class="row"><i class="ph ph-download-simple ms"></i><div class="t"><b>Downloads</b></div><span class="v">128 songs</span></div>
+          <div class="row"><i class="ph ph-devices ms"></i><div class="t"><b>Devices</b></div><i class="ph ph-caret-right ms ch"></i></div>
+          <div class="row"><i class="ph ph-megaphone ms"></i><div class="t"><b>What's new</b></div><i class="ph ph-caret-right ms ch"></i></div>
+        </div>
+        <div class="glass" style="margin-top:12px"><div class="row red"><i class="ph ph-sign-out ms"></i><div class="t"><b>Log out</b></div></div></div>
+      </div></div></div>
+
+    <div><p class="cap">Settings</p>
+      <div class="phone"><div class="scr">
+        <div class="big">Settings</div>
+        <div class="search"><i class="ph ph-magnifying-glass ms" style="font-size:20px"></i>Search settings</div>
+        <div class="sec">Account</div>
+        <div class="glass"><div class="row"><span class="tile"><i class="ph ph-user ms"></i></span><div class="t"><b>Music account</b><span>Spotify · signed in</span></div><i class="ph ph-caret-right ms ch"></i></div></div>
+        <div class="sec">Listening</div>
+        <div class="glass">
+          <div class="row"><span class="tile"><i class="ph ph-waveform ms"></i></span><div class="t"><b>Playback</b></div><span class="v">High</span><i class="ph ph-caret-right ms ch"></i></div>
+          <div class="row"><span class="tile"><i class="ph ph-microphone-stage ms"></i></span><div class="t"><b>Lyrics</b></div><span class="v">Word by word</span><i class="ph ph-caret-right ms ch"></i></div>
+          <div class="row"><span class="tile"><i class="ph ph-download-simple ms"></i></span><div class="t"><b>Downloads</b></div><span class="v">1.2 GB</span><i class="ph ph-caret-right ms ch"></i></div>
+        </div>
+        <div class="sec">App</div>
+        <div class="glass">
+          <div class="row"><span class="tile"><i class="ph ph-palette ms"></i></span><div class="t"><b>Look</b></div><span class="v">Glass</span><i class="ph ph-caret-right ms ch"></i></div>
+          <div class="row"><span class="tile"><i class="ph ph-puzzle-piece ms"></i></span><div class="t"><b>Extensions</b></div><span class="v">3</span><i class="ph ph-caret-right ms ch"></i></div>
+          <div class="row"><span class="tile"><i class="ph ph-sliders-horizontal ms"></i></span><div class="t"><b>Advanced</b></div><i class="ph ph-caret-right ms ch"></i></div>
+          <div class="row"><span class="tile"><i class="ph ph-info ms"></i></span><div class="t"><b>About</b></div><i class="ph ph-caret-right ms ch"></i></div>
+        </div>
+        <div class="tab"><div class="bar"><div class="on"><i class="ph-fill ph-house"></i>Home</div><div><i class="ph ph-compass"></i>Explore</div><div><i class="ph ph-books"></i>Library</div></div><div class="fab"><i class="ph ph-magnifying-glass"></i></div></div>
+      </div></div></div>
+
+    <div><p class="cap">A Settings page: Playback</p>
+      <div class="phone"><div class="scr">
+        <div class="back"><i class="ph ph-arrow-left ms"></i></div>
+        <div class="big">Playback</div>
+        <div class="sec">Sound quality</div>
+        <div class="glass" style="padding-top:8px"><div class="seg"><span>Low</span><span>Normal</span><span class="on">High</span><span>Max</span></div>
+          <div class="row" style="border-top:1px solid rgba(255,255,255,.07)"><div class="t"><b>Lower quality on mobile data</b></div><span class="swt on"></span></div></div>
+        <div class="sec">Between songs</div>
+        <div class="glass">
+          <div class="row"><div class="t"><b>Crossfade</b><span>Blend the end of one song into the next</span></div><span class="v">4 s</span></div>
+          <div class="sl"></div>
+          <div class="row"><div class="t"><b>Gapless</b></div><span class="swt on"></span></div>
+          <div class="row"><div class="t"><b>Autoplay similar songs</b></div><span class="swt"></span></div>
+        </div>
+        <div class="sec">Volume</div>
+        <div class="glass">
+          <div class="row"><div class="t"><b>Even out loudness</b></div><span class="swt on"></span></div>
+          <div class="row"><div class="t"><b>Equalizer</b></div><span class="v">System</span><i class="ph ph-caret-right ms ch"></i></div>
+        </div>
+      </div></div></div>
+  </div>
+</div>
+</body>
+</html>

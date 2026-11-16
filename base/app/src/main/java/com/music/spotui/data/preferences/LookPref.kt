@@ -9,12 +9,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
-/** The two looks. [CLASSIC] is the default, so nothing changes for anyone who has not chosen. */
+/** The two looks. [IMMERSIVE] (the glass look) is the default of this fork; Classic stays a choice in Settings. */
 enum class Look {
     CLASSIC, IMMERSIVE;
 
     companion object {
-        fun of(name: String?): Look = entries.firstOrNull { it.name == name } ?: CLASSIC
+        fun of(name: String?): Look = entries.firstOrNull { it.name == name } ?: IMMERSIVE
     }
 }
 

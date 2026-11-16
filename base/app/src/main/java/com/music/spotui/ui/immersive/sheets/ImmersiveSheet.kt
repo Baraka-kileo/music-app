@@ -52,6 +52,8 @@ import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import com.music.spotui.ui.immersive.shell.LocalImmersiveBackdrop
+import com.music.spotui.ui.immersive.shell.immersiveLiquidGlass
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -160,8 +162,14 @@ fun ImmersiveSheet(
             LocalImmersiveSheetTint provides tint,
             LocalOverscrollFactory provides rememberImmersiveOverscrollFactory(),
         ) {
-            Box(modifier.fillMaxWidth().clip(ImmersiveSheetShape)) {
-                Box(Modifier.matchParentSize().background(tint.background)) {
+            // With Liquid Glass on, the sheet is glass in the cover's deep colour: the page (or the
+            // player) behind shows through it, refracted. Otherwise the painted ground below.
+            val glassPage = LocalImmersiveBackdrop.current
+            val ground = if (glassPage != null) {
+                Modifier.immersiveLiquidGlass(ImmersiveSheetShape, glassPage, tint = tint.background.copy(alpha = 0.62f))
+            } else Modifier
+            Box(modifier.fillMaxWidth().then(ground).clip(ImmersiveSheetShape)) {
+                if (glassPage == null) Box(Modifier.matchParentSize().background(tint.background)) {
                     if (canBlur && !imageUrl.isNullOrBlank()) {
                         GlideImage(
                             model = spotifyImageUrl(imageUrl) ?: imageUrl,

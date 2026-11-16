@@ -111,6 +111,9 @@ import com.music.spotui.ui.immersive.sheets.ImmersiveSongOptionsSheet
 import com.music.spotui.ui.immersive.Immersive
 import com.music.spotui.ui.immersive.lyrics.ImmersiveLyricsPanel
 import com.music.spotui.ui.immersive.lyrics.ImmersiveQueuePanel
+import com.music.spotui.ui.immersive.shell.LocalImmersiveBackdrop
+import com.music.spotui.ui.immersive.shell.backdrop.backdrops.layerBackdrop
+import com.music.spotui.ui.immersive.shell.backdrop.backdrops.rememberLayerBackdrop
 import com.music.spotui.ui.look.MeshGradientBackground
 import com.music.spotui.ui.look.MeshPalette
 import com.music.spotui.ui.look.lerp
@@ -331,7 +334,15 @@ fun ImmersivePlayer(
         val landscape = window.playerSideBySide(maxWidth, maxHeight)
         val sidePane = window.large && maxWidth >= SIDE_PANE_MIN_WIDTH
         val playerWidth = maxWidth
-        PlayerBackdrop(palette, outgoingPalette, blend, state.coverUrl)
+        // The mesh is recorded on its own for the controls' Liquid Glass to refract (the whole
+        // player is already recorded for the sheets, but a glass cannot sample what it sits in).
+        // Not under a Canvas clip: the glass would show the mesh, not the video above it.
+        val glassOn = LocalImmersiveBackdrop.current != null
+        val meshRecording = if (glassOn) rememberLayerBackdrop() else null
+        val playerGlass = meshRecording.takeIf { canvasUrl == null }
+        Box(Modifier.fillMaxSize().then(if (meshRecording != null) Modifier.layerBackdrop(meshRecording) else Modifier)) {
+            PlayerBackdrop(palette, outgoingPalette, blend, state.coverUrl)
+        }
         if (canvasUrl != null) {
             com.music.spotui.ui.screens.CanvasVideo(
                 url = canvasUrl,
@@ -355,7 +366,7 @@ fun ImmersivePlayer(
         }
         // An AutoMix mix: the content draws in with it and springs back after it, the backdrop stays.
         Box(Modifier.fillMaxSize().mixSqueeze(mixMotion)) {
-        CompositionLocalProvider(LocalPlayerTint provides tint) {
+        CompositionLocalProvider(LocalPlayerTint provides tint, LocalPlayerGlass provides playerGlass) {
             if (landscape) LandscapePlayer(
                 state = state,
                 actions = actions,

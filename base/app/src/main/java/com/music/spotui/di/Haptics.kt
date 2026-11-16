@@ -13,6 +13,7 @@ object Haptics {
 
     private fun perform(constant: Int, fallback: Int = HapticFeedbackConstants.CONTEXT_CLICK) {
         val v = view?.get() ?: return
+        if (!com.music.spotui.data.preferences.HapticsPref.on) return
         // Only while the app is in front (no buzz for notification / headset commands).
         if (v.windowVisibility != View.VISIBLE || !v.hasWindowFocus()) return
         v.post { if (!v.performHapticFeedback(constant)) v.performHapticFeedback(fallback) }
@@ -38,6 +39,7 @@ object Haptics {
      * as the hold goes on, so the finger feels it is getting somewhere.
      */
     fun ramp(level: Float) {
+        if (!com.music.spotui.data.preferences.HapticsPref.on) return
         val vibrator = vibrator() ?: return
         val l = level.coerceIn(0.05f, 1f)
         // A plain pulse, not the TICK primitive: some phones (Samsung) play that one too
@@ -53,6 +55,7 @@ object Haptics {
 
     /** A strong, unmistakable buzz: the debug button held to the end. */
     fun thud() {
+        if (!com.music.spotui.data.preferences.HapticsPref.on) return
         val vibrator = vibrator() ?: return
         runCatching { vibrator.vibrate(android.os.VibrationEffect.createPredefined(android.os.VibrationEffect.EFFECT_HEAVY_CLICK)) }
     }

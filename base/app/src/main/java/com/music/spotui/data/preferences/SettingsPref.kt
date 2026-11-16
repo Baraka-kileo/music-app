@@ -75,6 +75,18 @@ object SolidNavBar {
 }
 
 /** "When your music ends, keep playing similar songs" (on by default). Read by the player. */
+/** "Vibrate on touch" (on by default): off silences every haptic the app plays ([com.music.spotui.di.Haptics]). */
+object HapticsPref {
+    private const val KEY = "haptics_on"
+    var on by androidx.compose.runtime.mutableStateOf(prefs(com.music.spotui.di.Graph.app).getBoolean(KEY, true))
+        private set
+
+    fun set(c: Context, value: Boolean) {
+        on = value
+        prefs(c).edit().putBoolean(KEY, value).apply()
+    }
+}
+
 object AutoplayPref {
     private const val KEY = "autoplay_similar"
     var on by androidx.compose.runtime.mutableStateOf(prefs(com.music.spotui.di.Graph.app).getBoolean(KEY, true))

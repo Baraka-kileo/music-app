@@ -40,6 +40,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.music.spotui.ui.immersive.Immersive
+import com.music.spotui.ui.design.AppIcons
+import com.music.spotui.ui.design.Ds
+import com.music.spotui.ui.design.DsCheck
+import com.music.spotui.ui.design.DsIconTile
+import com.music.spotui.ui.design.DsSwitch
+import com.music.spotui.ui.design.dsCard
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import com.music.spotui.ui.immersive.components.immersiveClickable
 import com.music.spotui.ui.immersive.shell.ImmersiveLargeTitle
 import com.music.spotui.ui.immersive.shell.ImmersiveTopBar
@@ -128,18 +136,18 @@ internal fun LazyListScope.immersiveGroup(
         Column(Modifier.fillMaxWidth().padding(horizontal = Immersive.Gutter).padding(top = 14.dp)) {
             if (header != null) {
                 Text(
-                    header.uppercase(),
-                    style = Immersive.Caption,
-                    modifier = Modifier.padding(start = GroupSeparatorInset, bottom = 6.dp),
+                    header,
+                    style = Immersive.Subhead.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Ds.Text3),
+                    modifier = Modifier.padding(start = 6.dp, bottom = 8.dp, top = 4.dp),
                 )
             }
-            Column(Modifier.fillMaxWidth().clip(Immersive.Card).background(Immersive.Raised)) {
+            Column(Modifier.fillMaxWidth().dsCard()) {
                 scope.rows.forEachIndexed { i, row ->
                     row()
                     if (i < scope.rows.lastIndex) {
                         Box(
                             Modifier
-                                .padding(start = GroupSeparatorInset)
+                                .padding(horizontal = GroupSeparatorInset)
                                 .fillMaxWidth()
                                 .heightIn(min = 0.5.dp, max = 0.5.dp)
                                 .background(Immersive.Separator),
@@ -189,11 +197,11 @@ internal fun ImmersiveGroupRow(
         modifier = modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.immersiveClickable(onClick = onClick, pressedScale = 0.99f, enabled = enabled) else Modifier)
-            .heightIn(min = 52.dp)
+            .heightIn(min = 56.dp)
             .padding(horizontal = GroupSeparatorInset, vertical = 10.dp),
     ) {
         if (icon != null) {
-            Icon(icon, null, tint = Immersive.Accent, modifier = Modifier.size(22.dp))
+            DsIconTile(icon, tint = tint)
             Spacer(Modifier.width(12.dp))
         }
         Column(Modifier.weight(1f)) {
@@ -213,7 +221,8 @@ internal fun ImmersiveGroupRow(
             }
             if (chevron) {
                 Spacer(Modifier.width(4.dp))
-                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = Immersive.TextTertiary, modifier = Modifier.size(22.dp))
+                Spacer(Modifier.width(4.dp))
+                Icon(AppIcons.Chevron, null, tint = Immersive.TextTertiary, modifier = Modifier.size(14.dp))
             }
         }
     }
@@ -233,8 +242,8 @@ internal fun ImmersiveSwitchRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .toggleable(checked, enabled = enabled, role = Role.Switch, onValueChange = onChecked)
-            .heightIn(min = 52.dp)
+            .toggleable(checked, enabled = enabled, role = Role.Switch, onValueChange = { com.music.spotui.di.Haptics.toggle(it); onChecked(it) })
+            .heightIn(min = 56.dp)
             .padding(horizontal = GroupSeparatorInset, vertical = 10.dp),
     ) {
         Column(Modifier.weight(1f)) {
@@ -244,21 +253,7 @@ internal fun ImmersiveSwitchRow(
             }
         }
         Spacer(Modifier.width(12.dp))
-        Switch(
-            checked = checked,
-            onCheckedChange = null,
-            enabled = enabled,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = Immersive.Accent,
-                uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = Color(0xFF3A3A3F),
-                uncheckedBorderColor = Color.Transparent,
-                disabledCheckedTrackColor = Immersive.Accent.copy(alpha = 0.4f),
-                disabledUncheckedTrackColor = Color(0xFF2A2A2E),
-                disabledUncheckedBorderColor = Color.Transparent,
-            ),
-        )
+        DsSwitch(checked, enabled = enabled)
     }
 }
 
@@ -270,16 +265,11 @@ internal fun ImmersiveChoiceRow(
     onClick: () -> Unit,
     detail: String? = null,
 ) {
-    val reduce = rememberReduceMotion()
-    val color by animateColorAsState(
-        if (selected) Immersive.Accent else Color.Transparent,
-        animationSpec = if (reduce) snap() else com.music.spotui.ui.immersive.motion.ImmersiveMotion.placementSpring(),
-        label = "choice check",
-    )
     ImmersiveGroupRow(
         title = title,
         detail = detail,
-        onClick = onClick,
-        trailing = { Icon(Icons.Rounded.Check, null, tint = color, modifier = Modifier.size(22.dp)) },
+        // A tick under the finger when the choice changes.
+        onClick = { if (!selected) com.music.spotui.di.Haptics.tick(); onClick() },
+        trailing = { DsCheck(selected) },
     )
 }

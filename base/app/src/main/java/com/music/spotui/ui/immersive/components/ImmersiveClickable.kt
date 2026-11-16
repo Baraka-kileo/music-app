@@ -56,7 +56,7 @@ fun Modifier.immersiveClickable(
             onClick = onClick,
             onLongClick = onLongClick?.let { long ->
                 {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    if (com.music.spotui.data.preferences.HapticsPref.on) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     long()
                 }
             },

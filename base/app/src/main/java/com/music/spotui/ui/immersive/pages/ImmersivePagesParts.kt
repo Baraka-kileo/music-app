@@ -5,6 +5,7 @@
  */
 package com.music.spotui.ui.immersive.pages
 
+import com.music.spotui.ui.design.dsAmbient
 import com.music.spotui.ui.immersive.sheets.ImmersiveAlertDialog
 import com.music.spotui.ui.immersive.sheets.ImmersiveGlassSheet
 import androidx.compose.animation.animateColorAsState
@@ -300,6 +301,10 @@ internal fun ImmersiveSheetRow(
 @Composable
 internal fun ImmersivePageFrame(content: @Composable BoxScope.() -> Unit) {
     CompositionLocalProvider(LocalOverscrollFactory provides rememberImmersiveOverscrollFactory()) {
-        Box(Modifier.fillMaxSize().background(Immersive.Page), content = content)
+        // Glass cards need something behind them: the design system's ambient light, unless the
+        // page is asked to be pure black or an extension's look paints it.
+        val ambient = !app.myspoti.power.EnergySettings.oledBlack &&
+            com.music.spotui.extensions.ExtensionLook.color(app.myspoti.extensions.UiStyle.BACKGROUND) == null
+        Box(Modifier.fillMaxSize().background(Immersive.Page).dsAmbient(ambient), content = content)
     }
 }

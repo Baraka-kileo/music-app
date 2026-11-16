@@ -51,6 +51,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Download
@@ -112,7 +117,7 @@ object Setup {
     internal fun steps(context: Context): List<Int> {
         val needPerms = !permissionsDone(context)
         return listOfNotNull(
-            STEP_INTRO.takeIf { needPerms },
+            // No "How it works" step: the welcome screen says it before the sign-in.
             STEP_LOOK.takeIf { !com.music.spotui.data.preferences.LookPref.isChosen(context) },
             STEP_ACCOUNT.takeIf { !accountSeen(context) },
             STEP_QUALITY.takeIf { !com.music.spotui.data.preferences.isQualityChosen(context) },
@@ -143,16 +148,11 @@ fun SetupScreen(onDone: () -> Unit) {
     androidx.activity.compose.BackHandler(enabled = index > 0) { index-- }
     val immersive = isImmersive()
     Box(Modifier.fillMaxSize().background(if (immersive) Immersive.Page else AppBackground)) {
-        // The page takes the look picked in the look step, live.
-        androidx.compose.animation.Crossfade(immersive, animationSpec = tween(350), label = "setupBackdrop") { imm ->
-            if (imm) Box(Modifier.fillMaxSize()) {
-                com.music.spotui.ui.look.MeshGradientBackground(com.music.spotui.ui.look.LookMeshPalettes.first(), animated = false)
-                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)))
-            } else Glow(Modifier.fillMaxSize(), alpha = 0.16f)
-        }
+        // The first launch's page, dimmed: the steps are for reading.
+        OnboardingBackdrop(dim = 0.45f)
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             // Several steps to go through: dots say where the user is.
-            if (steps > 1) StepDots(count = steps, current = index, Modifier.padding(start = 20.dp, top = 16.dp))
+            if (steps > 1) StepHeader(count = steps, current = index, onBack = { index-- })
             // One step slides away to the left as the next comes in from the right.
             AnimatedContent(
                 targetState = index,
@@ -205,13 +205,14 @@ internal const val STEP_ACCOUNT = 5
 fun AccountChoiceScreen(onBack: () -> Unit, onDone: () -> Unit) {
     androidx.activity.compose.BackHandler(onBack = onBack)
     val immersive = isImmersive()
-    Box(Modifier.fillMaxSize().background(if (immersive) Immersive.Page else AppBackground)) {
-        if (immersive) Box(Modifier.fillMaxSize()) {
-            com.music.spotui.ui.look.MeshGradientBackground(com.music.spotui.ui.look.LookMeshPalettes.first(), animated = false)
-            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)))
-        } else Glow(Modifier.fillMaxSize(), alpha = 0.16f)
-        Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
-            AccountStep(onNext = onDone, beforeSignIn = true)
+    Box(Modifier.fillMaxSize().background(Color(0xFF09060F))) {
+        OnboardingBackdrop(dim = 0.38f)
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.padding(start = 20.dp, top = 12.dp).size(44.dp).onbGlass(CircleShape, fill = 0.12f, edge = 0.18f).clickable(onClick = onBack),
+            ) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp)) }
+            Box(Modifier.weight(1f)) { AccountStep(onNext = onDone, beforeSignIn = true) }
         }
     }
 }
@@ -240,64 +241,91 @@ private fun AccountStep(onNext: () -> Unit, beforeSignIn: Boolean = false) {
             signingIn = true
         } else onNext()
     }
-    val accent = if (isImmersive()) Immersive.Accent else AppAccent
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        var row = 0
-        SetupTitle(stringResource(R.string.setup_account_title), Modifier.riseIn(row++))
-        SetupSubtitle(stringResource(R.string.setup_account_subtitle), Modifier.riseIn(row++))
-        Spacer(Modifier.height(8.dp))
-        for (id in app.myspoti.api.account.AccountProviders.OFFERED) {
-            val selected = pref.id == id
-            val detail = when (id) {
-                app.myspoti.api.account.AccountProviders.SPOTIFY ->
-                    stringResource(if (beforeSignIn) R.string.setup_account_spotify_next else R.string.setup_account_spotify_detail)
-                app.myspoti.api.account.AccountProviders.YTMUSIC ->
-                    if (ytm.signedIn) stringResource(R.string.settings_ytm_signed_in) else stringResource(R.string.setup_account_ytm_detail)
-                else -> stringResource(R.string.setup_account_none_detail)
-            }
-            Column(
-                Modifier.riseIn(row++).setupCard()
-                    .then(if (selected) Modifier.border(2.dp, accent, if (isImmersive()) Immersive.Card else RoundedCornerShape(12.dp)) else Modifier)
-                    .clickable { pref.set(context, id) }
-                    .padding(16.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        CardTitle(com.music.spotui.ui.components.accountProviderLabel(id))
-                        CardDetail(detail)
-                    }
-                    if (selected) Icon(Icons.Default.CheckCircle, contentDescription = null, tint = accent, modifier = Modifier.padding(start = 12.dp).size(26.dp))
+    val providers = app.myspoti.api.account.AccountProviders
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 20.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            var row = 0
+            OnbHeadline(stringResource(R.string.setup_account_title), stringResource(R.string.onb_account_em), Modifier.riseIn(row++), size = 36.sp)
+            Text(
+                stringResource(R.string.setup_account_subtitle), color = Color.White.copy(alpha = 0.72f),
+                fontSize = 15.sp, lineHeight = 21.sp, modifier = Modifier.riseIn(row++),
+            )
+            Spacer(Modifier.height(10.dp))
+            for (id in providers.OFFERED) {
+                val selected = pref.id == id
+                val detail = when (id) {
+                    providers.SPOTIFY ->
+                        stringResource(if (beforeSignIn) R.string.setup_account_spotify_next else R.string.setup_account_spotify_detail)
+                    providers.YTMUSIC ->
+                        if (ytm.signedIn) stringResource(R.string.settings_ytm_signed_in) else stringResource(R.string.setup_account_ytm_detail)
+                    else -> stringResource(R.string.setup_account_none_detail)
                 }
-                if (selected && id == app.myspoti.api.account.AccountProviders.YTMUSIC && !ytm.signedIn) {
-                    TextButton(onClick = { signingIn = true }) {
-                        Text(stringResource(R.string.settings_ytm_sign_in_title), color = accent, fontWeight = FontWeight.Bold)
-                    }
+                // A coloured tile per choice (plain icons, no service's logo).
+                val icon = when (id) {
+                    providers.SPOTIFY -> Icons.Rounded.GraphicEq
+                    providers.YTMUSIC -> Icons.Rounded.PlayArrow
+                    else -> Icons.Rounded.Headphones
                 }
-                // The listen mirror, offered with the provider it counts on (off unless ticked).
-                if (selected && id != app.myspoti.api.account.AccountProviders.NONE) {
-                    val mirror = com.music.spotui.data.preferences.ConnectMirrorPref
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(top = 10.dp).fillMaxWidth().clickable { mirror.set(context, !mirror.on) },
-                    ) {
-                        androidx.compose.material3.Checkbox(
-                            checked = mirror.on,
-                            onCheckedChange = { mirror.set(context, it) },
-                            colors = androidx.compose.material3.CheckboxDefaults.colors(checkedColor = accent),
-                        )
-                        Column(Modifier.weight(1f)) {
-                            CardTitle(stringResource(R.string.settings_connect_mirror_title))
-                            CardDetail(stringResource(R.string.settings_connect_mirror_detail))
+                val tile = when (id) {
+                    providers.SPOTIFY -> listOf(Color(0xFF2BE07A), Color(0xFF0A8A45))
+                    providers.YTMUSIC -> listOf(Color(0xFFFF5A5A), Color(0xFFB0122B))
+                    else -> listOf(Color(0xFF9A95B5), Color(0xFF4B4664))
+                }
+                val shape = RoundedCornerShape(24.dp)
+                val fill by animateColorAsState(Color.White.copy(alpha = if (selected) 0.15f else 0.07f), tween(250), label = "accountFill")
+                Column(
+                    Modifier.riseIn(row++).fillMaxWidth().clip(shape).background(fill)
+                        .then(if (selected) Modifier.border(1.5.dp, OnbBrush, shape) else Modifier.border(1.dp, Color.White.copy(alpha = 0.12f), shape))
+                        .clickable { pref.set(context, id) }
+                        .padding(16.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(tile)),
+                        ) { Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp)) }
+                        Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                            Text(com.music.spotui.ui.components.accountProviderLabel(id), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                            Text(detail, color = Color.White.copy(alpha = 0.66f), fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 2.dp))
+                        }
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.size(26.dp).clip(CircleShape)
+                                .then(if (selected) Modifier.background(OnbBrush) else Modifier.border(1.5.dp, Color.White.copy(alpha = 0.32f), CircleShape)),
+                        ) { if (selected) Icon(Icons.Rounded.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(17.dp)) }
+                    }
+                    if (selected && id == providers.YTMUSIC && !ytm.signedIn) {
+                        TextButton(onClick = { signingIn = true }) {
+                            Text(stringResource(R.string.settings_ytm_sign_in_title), color = Color(0xFFFFB07A), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    // The listen mirror, offered with the provider it counts on (off unless ticked). Not on
+                    // the first launch, before any sign-in: it stays in Settings > Music account.
+                    if (!beforeSignIn && selected && id != providers.NONE) {
+                        val mirror = com.music.spotui.data.preferences.ConnectMirrorPref
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(top = 10.dp).fillMaxWidth().clickable { mirror.set(context, !mirror.on) },
+                        ) {
+                            androidx.compose.material3.Checkbox(
+                                checked = mirror.on,
+                                onCheckedChange = { mirror.set(context, it) },
+                                colors = androidx.compose.material3.CheckboxDefaults.colors(checkedColor = OnbPink),
+                            )
+                            Column(Modifier.weight(1f)) {
+                                CardTitle(stringResource(R.string.settings_connect_mirror_title))
+                                CardDetail(stringResource(R.string.settings_connect_mirror_detail))
+                            }
                         }
                     }
                 }
             }
         }
-        Spacer(Modifier.height(12.dp))
-        SetupButton(stringResource(R.string.setup_continue), next, Modifier.fillMaxWidth().height(50.dp).riseIn(row))
+        OnboardingCta(stringResource(R.string.setup_continue), next, Modifier.fillMaxWidth().height(58.dp).riseIn(5))
+        Spacer(Modifier.height(16.dp))
     }
     if (signingIn) com.music.spotui.ui.components.YtmSignInDialog(onDismiss = { signingIn = false })
 }
@@ -313,6 +341,33 @@ private fun StepDots(count: Int, current: Int, modifier: Modifier = Modifier) {
             val c by animateColorAsState(if (i == current) on else AppText.copy(alpha = 0.25f), if (reduce) snap() else tween(350), label = "dotColor")
             Box(Modifier.height(6.dp).width(w).clip(RoundedCornerShape(50)).background(c))
         }
+    }
+}
+
+/** Where the user is: a back arrow after the first step, one bar per step, and "2 / 5". */
+@Composable
+private fun StepHeader(count: Int, current: Int, onBack: () -> Unit) {
+    val reduce = com.music.spotui.ui.look.rememberReduceMotion()
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 20.dp, top = 8.dp).height(48.dp),
+    ) {
+        Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            if (current > 0) androidx.compose.material3.IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null, tint = Color.White)
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f)) {
+            for (i in 0 until count) {
+                val a by androidx.compose.animation.core.animateFloatAsState(
+                    if (i <= current) 1f else 0f, if (reduce) snap() else tween(350), label = "stepBar",
+                )
+                Box(Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.18f))) {
+                    Box(Modifier.fillMaxSize().graphicsLayer { alpha = a }.background(OnbBrush))
+                }
+            }
+        }
+        Text("${current + 1} / $count", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp, modifier = Modifier.padding(start = 14.dp))
     }
 }
 
@@ -375,7 +430,7 @@ private fun QualityStep(onNext: () -> Unit) {
         SetupSubtitle(stringResource(R.string.setup_quality_subtitle), Modifier.padding(horizontal = 20.dp).riseIn(1))
         Box(Modifier.riseIn(2)) { com.music.spotui.ui.components.StreamingQualityPicker(Modifier.padding(top = 8.dp)) }
         Box(Modifier.riseIn(3)) { com.music.spotui.ui.components.DownloadQualityPicker() }
-        SetupButton(stringResource(R.string.setup_continue), onNext, Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(50.dp).riseIn(4))
+        SetupButton(stringResource(R.string.setup_continue), onNext, Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(56.dp).riseIn(4))
     }
 }
 
@@ -398,7 +453,7 @@ private fun IntroStep(onNext: () -> Unit) {
         // starts again with it, and only what is this device's own (its permissions) is asked.
         var passing by remember { mutableStateOf(false) }
         Column(Modifier.riseIn(row), horizontalAlignment = Alignment.CenterHorizontally) {
-            SetupButton(stringResource(R.string.setup_continue), onNext, Modifier.fillMaxWidth().height(50.dp))
+            SetupButton(stringResource(R.string.setup_continue), onNext, Modifier.fillMaxWidth().height(56.dp))
             SetupLinkButton(stringResource(R.string.pass_receive), { passing = true }, Modifier.fillMaxWidth().height(48.dp))
         }
         if (passing) com.music.spotui.pass.PassReceiveDialog(onDismiss = { passing = false })
@@ -428,67 +483,51 @@ private fun ExtensionsStep(onBrowse: () -> Unit, onLater: () -> Unit) {
         SetupSubtitle(stringResource(R.string.setup_ext_where), Modifier.padding(horizontal = 4.dp).riseIn(row++), size = 13.sp)
         Spacer(Modifier.height(4.dp))
         Column(Modifier.riseIn(row), horizontalAlignment = Alignment.CenterHorizontally) {
-            SetupButton(stringResource(R.string.setup_ext_browse), onBrowse, Modifier.fillMaxWidth().height(50.dp))
+            SetupButton(stringResource(R.string.setup_ext_browse), onBrowse, Modifier.fillMaxWidth().height(56.dp))
             SetupLinkButton(stringResource(R.string.setup_ext_home), onLater, Modifier.fillMaxWidth().height(48.dp))
         }
     }
 }
 
-/** The setup's title, drawn in the chosen look. */
+/** The step's title. */
 @Composable
 private fun SetupTitle(text: String, modifier: Modifier = Modifier) {
-    if (isImmersive()) Text(text, style = Immersive.Title.copy(fontSize = 26.sp, fontWeight = FontWeight.SemiBold), modifier = modifier)
-    else Text(text, color = AppText, fontSize = 26.sp, fontWeight = FontWeight.Bold, modifier = modifier)
+    Text(text, color = Color.White, fontSize = 30.sp, lineHeight = 35.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp, modifier = modifier)
 }
 
 @Composable
-private fun SetupSubtitle(text: String, modifier: Modifier = Modifier, size: androidx.compose.ui.unit.TextUnit = 14.sp) {
-    if (isImmersive()) Text(text, style = Immersive.Subhead.copy(fontSize = size, color = Color.White.copy(alpha = 0.72f)), modifier = modifier)
-    else Text(text, color = AppMuted, fontSize = size, modifier = modifier)
+private fun SetupSubtitle(text: String, modifier: Modifier = Modifier, size: androidx.compose.ui.unit.TextUnit = 15.sp) {
+    Text(text, color = Color.White.copy(alpha = 0.72f), fontSize = size, lineHeight = size * 1.4f, modifier = modifier)
 }
 
-/** The step's main button: green and square-ish in Classic, white and rounded in Immersive (as the look step's). */
+/** The step's main button: the first launch's gradient pill. */
 @Composable
-private fun SetupButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier.fillMaxWidth().height(50.dp)) {
-    val immersive = isImmersive()
-    Button(
-        onClick = onClick,
-        shape = if (immersive) Immersive.Button else ButtonDefaults.shape,
-        colors = ButtonDefaults.buttonColors(containerColor = if (immersive) Color.White else AppAccent, contentColor = Color.Black),
-        modifier = modifier,
-    ) {
-        Text(text, fontFamily = if (immersive) com.music.spotui.ui.look.ImmersiveSans else null, fontSize = 16.sp,
-            fontWeight = if (immersive) FontWeight.SemiBold else FontWeight.Bold)
-    }
+private fun SetupButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier.fillMaxWidth().height(56.dp)) {
+    OnboardingCta(text, onClick, modifier)
 }
 
 @Composable
 private fun SetupLinkButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     TextButton(onClick = onClick, modifier = modifier) {
-        Text(text, color = if (isImmersive()) Color.White else AppText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
-            fontFamily = if (isImmersive()) com.music.spotui.ui.look.ImmersiveSans else null)
+        Text(text, color = Color.White.copy(alpha = 0.86f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
-/** A card of the setup: Classic's dark grey, Immersive's raised grouped-list fill. */
+/** A card of the setup: glass on the first launch's page. */
 @Composable
-private fun Modifier.setupCard(): Modifier =
-    if (isImmersive()) this.fillMaxWidth().clip(Immersive.Card).background(Immersive.Raised.copy(alpha = 0.92f))
-    else this.fillMaxWidth().background(tone(0xFF1E1E1E), RoundedCornerShape(12.dp))
+private fun Modifier.setupCard(): Modifier = this.fillMaxWidth().onbGlass(RoundedCornerShape(22.dp))
 
 /** A card of the intro and extensions steps: an accent icon, a title and a line of detail. */
 @Composable
 private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, detail: String, modifier: Modifier = Modifier) {
-    val immersive = isImmersive()
-    val accent = if (immersive) Immersive.Accent else AppAccent
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier.setupCard().padding(16.dp),
     ) {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier.size(40.dp).background(accent.copy(alpha = 0.15f), RoundedCornerShape(10.dp)),
-        ) { Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(22.dp)) }
+            modifier = Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(OnbOrange, OnbPink, OnbPurple))),
+        ) { Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(23.dp)) }
         Column(Modifier.weight(1f).padding(start = 14.dp)) {
             CardTitle(title)
             CardDetail(detail)
@@ -498,7 +537,7 @@ private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title
 
 @Composable
 private fun SetupRow(title: String, detail: String, on: Boolean, modifier: Modifier = Modifier, onEnable: () -> Unit) {
-    val accent = if (isImmersive()) Immersive.Accent else AppAccent
+    val accent = Color(0xFFFFB07A)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier.setupCard().padding(16.dp),
@@ -521,12 +560,10 @@ private fun SetupRow(title: String, detail: String, on: Boolean, modifier: Modif
 
 @Composable
 private fun CardTitle(text: String) {
-    if (isImmersive()) Text(text, style = Immersive.BodyStrong)
-    else Text(text, color = AppText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+    Text(text, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
 }
 
 @Composable
 private fun CardDetail(text: String, lineHeight: androidx.compose.ui.unit.TextUnit = 18.sp) {
-    if (isImmersive()) Text(text, style = Immersive.Caption.copy(fontSize = 13.sp, lineHeight = lineHeight))
-    else Text(text, color = AppMuted, fontSize = 13.sp, lineHeight = lineHeight)
+    Text(text, color = Color.White.copy(alpha = 0.66f), fontSize = 13.sp, lineHeight = lineHeight)
 }
