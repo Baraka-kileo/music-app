@@ -189,6 +189,16 @@ object YtmParse {
         return found.keys.mapNotNull(::row)
     }
 
+    /** The carousels of a page (the home): each one's title, and its cards and rows in order. */
+    fun shelves(answer: JsonElement): List<Pair<String?, List<Item>>> =
+        deep(answer, "musicCarouselShelfRenderer").map { shelf ->
+            val title = deep(shelf.o("header"), "title").firstNotNullOfOrNull(::text)
+            title to shelf.a("contents").orEmpty().mapNotNull { c ->
+                val o = c.o() ?: return@mapNotNull null
+                o.o("musicTwoRowItemRenderer")?.let(::twoRow) ?: o.o("musicResponsiveListItemRenderer")?.let(::row)
+            }
+        }
+
     /** Every card of an answer (grids and carousels), in order. */
     fun cards(answer: JsonElement): List<Item> = deep(answer, "musicTwoRowItemRenderer").mapNotNull(::twoRow)
 

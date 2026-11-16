@@ -83,7 +83,8 @@ object CatalogRuntime {
 
     /** Once, after [MyspotiRuntime.start]: the UI reads its music through the catalog from then on. */
     fun install() {
-        MyspotiRuntime.useApi(MetadataApi(MyspotiRuntime.spotify, ::chain, signedIn = { spotify.takeIf { chain().providerOf(it.id) === it } }))
+        // Over it, the parts of the music account chosen (YouTube Music's own library, playlists and home): see AccountApi.
+        MyspotiRuntime.useApi(com.music.spotui.di.AccountApi(MetadataApi(MyspotiRuntime.spotify, ::chain, signedIn = { spotify.takeIf { chain().providerOf(it.id) === it } })))
         scope.launch {
             scripts = runCatching { store.load() }.getOrNull()
             delay(FIRST_CHECK_MS)

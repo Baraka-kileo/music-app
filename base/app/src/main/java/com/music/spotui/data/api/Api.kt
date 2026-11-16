@@ -93,7 +93,10 @@ class Api constructor(
         val folders = java.util.concurrent.ConcurrentHashMap<String, List<LibraryEntry>>()
 
         /** A playlist's songs were changed from the app: the next page of it reads them again. */
-        fun invalidatePlaylist(playlistId: String) = PlaylistFresh.drop("spotify:playlist:$playlistId")
+        fun invalidatePlaylist(playlistId: String) = PlaylistFresh.drop(playlistUri(playlistId))
+
+        /** The uri of the playlist [id]: Spotify's for a bare id, [id] itself when it is another provider's whole uri. */
+        fun playlistUri(id: String): String = if (id.contains(':')) id else "spotify:playlist:$id"
 
         /** Drop all cached feeds (e.g. on logout / account switch). */
         fun clear() {
@@ -151,14 +154,23 @@ class Api constructor(
 
     /** True once the Web Player is signed in and ready (waits up to 30 s at startup). */
     private suspend fun ready(): Boolean =
-        withTimeoutOrNull(30_000) { api.ready.first { it } } != null
+        if (com.music.spotui.di.YtmRuntime.chosen) ytmReady() else withTimeoutOrNull(30_000) { api.ready.first { it } } != null
+
+    /**
+     * YouTube Music as the music account: its reads need its session, not Spotify's player (waited
+     * for 30 s, every screen then said "not signed in"). The session is read at the app's start: a
+     * few seconds are left for that.
+     */
+    private suspend fun ytmReady(): Boolean =
+        com.music.spotui.di.YtmRuntime.signedIn ||
+            withTimeoutOrNull(5_000) { androidx.compose.runtime.snapshotFlow { com.music.spotui.di.YtmRuntime.signedIn }.first { it } } != null
 
     /**
      * For reads that go straight to Spotify over HTTP (search): ready as soon as a token is in hand,
      * the one kept from the last launch included, without waiting for the page to load.
      */
     private suspend fun readyToRead(): Boolean =
-        api.ready.value || runCatching { app.myspoti.host.android.MyspotiRuntime.spotify.http.hasToken() }.getOrDefault(false) || ready()
+        if (com.music.spotui.di.YtmRuntime.chosen) ytmReady() else api.ready.value || runCatching { app.myspoti.host.android.MyspotiRuntime.spotify.http.hasToken() }.getOrDefault(false) || ready()
 
     private suspend fun diskHome(): HomeFeedModel? =
         withContext(Dispatchers.IO) { ScreenCache.home.read() }?.also { HomeCache.home = it }
@@ -276,7 +288,7 @@ class Api constructor(
     private fun artistOf(a: Artist) = ArtistsModel(name = a.name, coverUri = cover(a.images), id = idOf(a.uri))
 
     private fun playlistEntry(p: Playlist) = LibraryEntry(
-        spotifyId = p.uri.substringAfterLast(':'),
+        spotifyId = idOf(p.uri),
         name = p.name,
         subtitle = context.getString(R.string.assisted_curation_search_playlist) + (p.owner?.let { " • $it" } ?: ""),
         coverUri = cover(p.images),
@@ -284,7 +296,8 @@ class Api constructor(
     )
 
     private fun homeItem(c: MediaCard): HomeItem? {
-        val id = c.uri.substringAfterLast(':')
+        // Spotify's bare id; another provider's item keeps its whole uri (as its albums already do).
+        val id = idOf(c.uri)
         val image = cover(c.images)
         return when (c.kind) {
             MediaKind.ALBUM -> HomeItem.Album(id = id, name = c.title, imageUrl = image, subtitle = c.subtitle ?: context.getString(R.string.album_type_album), artists = c.subtitle.orEmpty())
@@ -1003,7 +1016,7 @@ class Api constructor(
     suspend fun getPlaylistPage(playlistId: String, force: Boolean = false): Flow<Response<ContextPageModel>> = flow {
         emit(Response.Loading())
         if (!ready()) { emit(Response.Error(notSignedIn())); return@flow }
-        val uri = "spotify:playlist:$playlistId"
+        val uri = playlistUri(playlistId)
         val fresh = if (force) null else PlaylistFresh.get(uri)
         // The first songs are asked for together with the playlist's details, not after them.
         val flowScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.currentCoroutineContext())
@@ -1096,10 +1109,10 @@ class Api constructor(
             coverUri = "", isPlaylist = false, folderUri = item.uri, childCount = item.count ?: 0,
             uri = item.uri, pinned = item.pinned, addedAt = item.addedAt.orEmpty(),
         )
-        MediaKind.PLAYLIST -> LibraryEntry(item.uri.substringAfterLast(':'), item.name,
+        MediaKind.PLAYLIST -> LibraryEntry(idOf(item.uri), item.name,
             context.getString(R.string.assisted_curation_search_playlist) + (item.subtitle?.let { " • $it" } ?: ""), cover(item.images), isPlaylist = true,
             uri = item.uri, pinned = item.pinned, addedAt = item.addedAt.orEmpty(), ownerUri = item.ownerUri.orEmpty())
-        MediaKind.ALBUM -> LibraryEntry(item.uri.substringAfterLast(':'), item.name,
+        MediaKind.ALBUM -> LibraryEntry(idOf(item.uri), item.name,
             context.getString(R.string.album_type_album) + (item.subtitle?.let { " • $it" } ?: ""), cover(item.images), isPlaylist = false, artists = item.subtitle.orEmpty(),
             uri = item.uri, pinned = item.pinned, addedAt = item.addedAt.orEmpty())
         MediaKind.COLLECTION -> if (item.uri == "spotify:collection:tracks") null

@@ -26,6 +26,8 @@ object AccountProviderPref {
         if (v == id) return
         id = v
         prefs(c).edit().putString(KEY, v).apply()
+        // What the screens kept (home, library, liked songs) is the other account's.
+        runCatching { com.music.spotui.data.api.Api.HomeCache.clear() }
         com.music.spotui.di.AccountSync.providerChanged()
         com.music.spotui.di.YtmRuntime.startIfChosen()
     }
