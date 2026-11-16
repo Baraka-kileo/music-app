@@ -270,7 +270,13 @@ fun RelatedVideos(artist: String, title: String, text: Color, sub: Color) {
             runCatching {
                 val key = main.lowercase()
                 com.music.spotui.video.YouTubeSource.searchVideos("$main official music video")
-                    .filter { it.uploader.lowercase().contains(key) || it.name.lowercase().contains(key) }
+                    // The artist's own channel (or its VEVO / Topic one), or a title that starts with the artist's name:
+                    // a plain "contains" took "Finesse" by Bruno Mars for the artist Finess.
+                    .filter { h ->
+                        val up = h.uploader.lowercase().replace("vevo", "").replace(" - topic", "").replace("official", "").filter { it.isLetterOrDigit() }
+                        val k = key.filter { it.isLetterOrDigit() }
+                        up == k || h.name.lowercase().startsWith("$key -") || h.name.lowercase().startsWith("$key –")
+                    }
                     .filterNot { title.isNotBlank() && it.name.lowercase().contains(title.lowercase()) }
                     .filter { it.durationSec in 60..900 }
                     .distinctBy { it.url }

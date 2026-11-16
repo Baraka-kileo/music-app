@@ -146,13 +146,12 @@ internal fun ImmersiveInfoCards(
             }
             return@Column
         }
-        if (info.artist != null) { SectionTitle(stringResource(R.string.artist_subtitle)); ArtistCard(info, actions) }
+        if (info.artist != null) ArtistCard(info, actions)
         UpNextCard(onOpenQueue)
-        info.credits?.let { SectionTitle(stringResource(R.string.track_credits)); CreditsCard(it, actions) }
+        info.credits?.let { CreditsCard(it, actions, titled = true) }
         info.artist?.let { ExploreCard(it, state, actions) }
         info.about?.let { a ->
-            SectionTitle(stringResource(R.string.lyrics_meaning_about))
-            GlassCard { Text(a, color = tint, fontSize = 15.sp, lineHeight = 22.sp, maxLines = 12, overflow = TextOverflow.Ellipsis) }
+            GlassCard { SectionTitle(stringResource(R.string.lyrics_meaning_about)); Text(a, color = tint, fontSize = 15.sp, lineHeight = 22.sp, maxLines = 12, overflow = TextOverflow.Ellipsis) }
         }
         GlassCard { com.music.spotui.ui.components.RelatedVideos(state.artist, state.title, Color.White, Color.White.copy(alpha = 0.65f)) }
         info.credits?.let { c -> GlassCard { com.music.spotui.ui.components.Contributors(c, info.artist, Color.White, Color.White.copy(alpha = 0.65f)) { actions.openArtistRef(it) } } }
@@ -167,7 +166,7 @@ private fun cardGround(): Color = if (LocalSolidCards.current) Color(0xFF1E1E25)
 
 @Composable
 private fun SectionTitle(text: String) {
-    Text(text, color = LocalPlayerTint.current, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 8.dp))
+    Text(text, color = LocalPlayerTint.current, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
 }
 
 @Composable
@@ -351,9 +350,10 @@ private fun ArtistCard(i: SongInfo, actions: ImmersivePlayerActions) {
 }
 
 @Composable
-private fun CreditsCard(credits: app.myspoti.api.Credits, actions: ImmersivePlayerActions) {
+private fun CreditsCard(credits: app.myspoti.api.Credits, actions: ImmersivePlayerActions, titled: Boolean = false) {
     val tint = LocalPlayerTint.current
     GlassCard {
+        if (titled) SectionTitle(stringResource(R.string.track_credits))
         credits.roles.forEachIndexed { idx, role ->
             if (idx > 0) Spacer(Modifier.height(14.dp))
             Text(role.role, color = tint.copy(alpha = 0.55f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)

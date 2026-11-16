@@ -632,8 +632,8 @@ private fun QueueHeader(
             modifier = Modifier.weight(1f),
         )
         if (dock) QueueToggle(com.music.spotui.ui.design.AppIcons.Shuffle, stringResource(R.string.immersive_queue_shuffle), shuffle, onShuffle)
-        Spacer(Modifier.width(8.dp))
-        QueueToggle(
+        if (dock) Spacer(Modifier.width(8.dp))
+        if (dock) QueueToggle(
             when (repeatMode) { 2 -> com.music.spotui.ui.design.AppIcons.RepeatOne; 3 -> RepeatIcons.once; else -> com.music.spotui.ui.design.AppIcons.Repeat },
             stringResource(R.string.immersive_queue_repeat),
             repeatMode != 0,
