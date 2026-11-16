@@ -57,7 +57,7 @@ import kotlinx.coroutines.launch
 private enum class InfoTab { LYRICS, ARTIST, CREDITS, ABOUT }
 
 /** What the panel read for the song shown: null fields are not there (their chip is hidden). */
-private class SongInfo(
+internal class SongInfo(
     val artist: app.myspoti.api.ArtistPage?,
     val rank: Pair<app.myspoti.api.TimeRange, Int>?,
     val credits: app.myspoti.api.Credits?,
@@ -90,12 +90,14 @@ internal fun ImmersiveInfoPanel(
 }
 
 @Composable
-private fun rememberSongInfo(state: ImmersivePlayerState): SongInfo? {
-    val trackId = state.trackId
-    val info by produceState<SongInfo?>(null, trackId, state.title) {
+private fun rememberSongInfo(state: ImmersivePlayerState): SongInfo? = rememberSongInfo(state.trackId, state.title, state.artist)
+
+@Composable
+internal fun rememberSongInfo(trackId: String, title: String, artist: String): SongInfo? {
+    val info by produceState<SongInfo?>(null, trackId, title) {
         value = null
-        if (trackId.isBlank()) { value = SongInfo(null, null, null, about(state)); return@produceState }
-        val refs = runCatching { com.music.spotui.ui.components.ArtistChooser.artistsOf(trackId, state.artist) }.getOrDefault(emptyList())
+        if (trackId.isBlank()) { value = SongInfo(null, null, null, about(trackId, title, artist)); return@produceState }
+        val refs = runCatching { com.music.spotui.ui.components.ArtistChooser.artistsOf(trackId, artist) }.getOrDefault(emptyList())
         val first = refs.firstOrNull { it.uri.startsWith("spotify:artist:") }
         val page = first?.let { runCatching { MyspotiRuntime.api.catalog.artistPage(it.uri) }.getOrNull() }
         val rank = first?.let { a ->
@@ -106,7 +108,7 @@ private fun rememberSongInfo(state: ImmersivePlayerState): SongInfo? {
             }.getOrNull()
         }
         val credits = runCatching { MyspotiRuntime.api.extras.credits("spotify:track:$trackId") }.getOrNull()?.takeIf { it.roles.isNotEmpty() }
-        value = SongInfo(page, rank, credits, about(state))
+        value = SongInfo(page, rank, credits, about(trackId, title, artist))
     }
     return info
 }
@@ -223,11 +225,11 @@ private fun PanelBody(
 }
 
 /** The song's story from Genius, when the lyrics meaning is on and Genius has one. */
-private suspend fun about(state: ImmersivePlayerState): String? {
-    if (!com.music.spotui.data.preferences.GeniusPref.on || state.title.isBlank()) return null
-    val m = com.music.spotui.data.api.GeniusMeaning.currentFor(state.trackId)
-        ?: com.music.spotui.data.api.GeniusMeaning.cached(state.title, state.artist)
-        ?: runCatching { com.music.spotui.data.api.GeniusMeaning.find(state.title, state.artist) }.getOrNull()
+private suspend fun about(trackId: String, title: String, artist: String): String? {
+    if (!com.music.spotui.data.preferences.GeniusPref.on || title.isBlank()) return null
+    val m = com.music.spotui.data.api.GeniusMeaning.currentFor(trackId)
+        ?: com.music.spotui.data.api.GeniusMeaning.cached(title, artist)
+        ?: runCatching { com.music.spotui.data.api.GeniusMeaning.find(title, artist) }.getOrNull()
     return m?.about?.trim()?.takeIf { it.length > 40 }
 }
 

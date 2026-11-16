@@ -906,6 +906,12 @@ private fun QueueList(
                         SwipeLeftToRemove(enabled = !editing && dragging == null, onRemove = {
                             if (e.queued) queued = queued - item else nextUp = nextUp - item
                             SongPlayer.removeFromQueue(item)
+                        }, onPlayNext = {
+                            SongPlayer.playNext(item.uri.substringAfterLast(':'))
+                            AppNotice.show(
+                                title = com.music.spotui.di.Graph.app.getString(R.string.notice_plays_next), subtitle = item.song.title,
+                                coverUrl = item.song.coverUri, tone = AppNotice.Tone.SUCCESS,
+                            )
                         }) {
                             QueueSheetRow(item.song, current = false, leading = {
                                 if (editing) Icon(
@@ -952,7 +958,7 @@ private fun QueueList(
 
 /** Swipe a queue row from right to left to remove it (red strip, haptic tick at the threshold). */
 @Composable
-private fun SwipeLeftToRemove(enabled: Boolean, onRemove: () -> Unit, content: @Composable () -> Unit) {
+private fun SwipeLeftToRemove(enabled: Boolean, onRemove: () -> Unit, onPlayNext: (() -> Unit)? = null, content: @Composable () -> Unit) {
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     // 40 % of the row (at least 110 dp): a slanted scroll of the sheet took songs out of the queue.
@@ -964,6 +970,8 @@ private fun SwipeLeftToRemove(enabled: Boolean, onRemove: () -> Unit, content: @
     // The offset moves every drag and spring frame: read it through derived state so only the
     // strip appearing and the row coming to rest, not the whole row, recompose.
     val revealed by remember(offset) { derivedStateOf { offset.value < 0f } }
+    val revealedRight by remember(offset) { derivedStateOf { offset.value > 0f } }
+    var armedRight by remember { mutableStateOf(false) }
     val atRest by remember(offset) { derivedStateOf { offset.value == 0f } }
     Box(modifier = Modifier.fillMaxWidth().onSizeChanged { rowWidth = it.width.toFloat() }) {
         if (revealed) Box(
@@ -971,6 +979,13 @@ private fun SwipeLeftToRemove(enabled: Boolean, onRemove: () -> Unit, content: @
             modifier = Modifier.matchParentSize().background(if (armed) Color(0xFFE22134) else Color(0xFF7A1F1F)),
         ) {
             Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.aligned_curation_first_save_default_row_remove_action_description), tint = AppText, modifier = Modifier.padding(end = 24.dp).size(24.dp))
+        }
+        // Swiped right: plays next.
+        if (revealedRight) Box(
+            contentAlignment = Alignment.CenterStart,
+            modifier = Modifier.matchParentSize().background(if (armedRight) Green else Color(0xFF1E5E35)),
+        ) {
+            Text(stringResource(R.string.notice_plays_next), color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 24.dp))
         }
         Box(
             modifier = Modifier
@@ -983,17 +998,24 @@ private fun SwipeLeftToRemove(enabled: Boolean, onRemove: () -> Unit, content: @
                         onDragEnd = {
                             if (armed) {
                                 scope.launch { offset.animateTo(-size.width.toFloat()) ; onRemove(); offset.snapTo(0f) }
-                            } else scope.launch { offset.animateTo(0f) }
-                            armed = false
+                            } else {
+                                if (armedRight) onPlayNext?.invoke()
+                                scope.launch { offset.animateTo(0f) }
+                            }
+                            armed = false; armedRight = false
                         },
-                        onDragCancel = { armed = false; scope.launch { offset.animateTo(0f) } },
+                        onDragCancel = { armed = false; armedRight = false; scope.launch { offset.animateTo(0f) } },
                     ) { change, dx ->
                         change.consume()
-                        val next = (offset.value + dx).coerceIn(-size.width.toFloat(), 0f)
+                        val maxRight = if (onPlayNext != null) size.width * 0.5f else 0f
+                        val next = (offset.value + dx).coerceIn(-size.width.toFloat(), maxRight)
                         scope.launch { offset.snapTo(next) }
                         val nowArmed = -next >= threshold
                         if (nowArmed && !armed) haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.GestureThresholdActivate)
                         armed = nowArmed
+                        val nowRight = next >= minimum
+                        if (nowRight && !armedRight) haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.GestureThresholdActivate)
+                        armedRight = nowRight
                     }
                 },
         ) { content() }

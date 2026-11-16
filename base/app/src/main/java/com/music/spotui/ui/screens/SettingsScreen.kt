@@ -409,6 +409,18 @@ fun SettingsScreen(navController: NavController) {
                 onChecked = { com.music.spotui.data.preferences.PlayerLyricsCardPref.set(ctx, it) },
             )
             OptionRow(
+                label = stringResource(R.string.settings_lyric_line_title),
+                detail = stringResource(R.string.settings_lyric_line_detail),
+                checked = com.music.spotui.data.preferences.LyricLinePref.on,
+                onChecked = { com.music.spotui.data.preferences.LyricLinePref.set(ctx, it) },
+            )
+            OptionRow(
+                label = stringResource(R.string.settings_mini_video_title),
+                detail = stringResource(R.string.settings_mini_video_detail),
+                checked = com.music.spotui.data.preferences.MiniVideoBigPref.on,
+                onChecked = { com.music.spotui.data.preferences.MiniVideoBigPref.set(ctx, it) },
+            )
+            OptionRow(
                 label = stringResource(R.string.settings_player_source_title),
                 detail = stringResource(R.string.settings_player_source_detail),
                 checked = com.music.spotui.data.preferences.PlayerSourceLinePref.on,

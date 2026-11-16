@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.size
@@ -586,7 +587,13 @@ fun PlayerScreen(navController: NavController) {
                     if (videoReady || videoOn) 1f else 0f, tween(250), label = "pillIn",
                 )
                 // A short window keeps the pill (32 dp) but not the gap under it.
-                Box(modifier = Modifier.fillMaxWidth().height(if (shortWindow) 36.dp else 52.dp), contentAlignment = Alignment.TopCenter) {
+                // Over a Canvas: the line being sung, above the pill (a setting), and the pill at the
+                // start of the line, as in the official app.
+                Box(modifier = Modifier.fillMaxWidth().height(if (shortWindow) 36.dp else 52.dp), contentAlignment = if (pillAboveTitle) Alignment.TopStart else Alignment.TopCenter) {
+                    if (pillAboveTitle && com.music.spotui.data.preferences.LyricLinePref.on) Box(
+                        Modifier.fillMaxWidth().height(64.dp).offset(y = if (pillIn > 0f) (-70).dp else (-34).dp),
+                        contentAlignment = Alignment.BottomStart,
+                    ) { com.music.spotui.ui.immersive.player.LiveLyricLine(onOpen = { showLyrics = true }) }
                     if (pillAboveTitle && pillIn > 0f) com.music.spotui.ui.components.VideoSwitchPill(
                         on = videoOn,
                         modifier = Modifier
@@ -728,6 +735,15 @@ fun PlayerScreen(navController: NavController) {
                 album = playerViewModel.currentSongAlbum.value,
                 accentColor = dominentColor,
                 onExpand = { showLyrics = true },
+            )
+        }
+        // The cards under the lyrics: the artist, up next, credits, the song's story, explore.
+        if (!immersive && !adPlaying) item(key = "infoCards") {
+            com.music.spotui.ui.components.ClassicInfoCards(
+                trackId = SongPlayer.currentTrackId, title = songTitle, artist = songSinger, coverUrl = songCoverUri,
+                navController = navController,
+                onOpenQueue = { showQueue = true },
+                onOpenAlbum = { openNowPlayingAlbum(playerViewModel, songSinger, titleScope) { navController.navigate(it) } },
             )
         }
         }
@@ -1641,7 +1657,11 @@ fun AddButton(song: () -> SongsModel, liked: Boolean, size: androidx.compose.ui.
     LikeButton(liked = saved, size = size, touch = touch) {
         if (saved) savedIn = song() else {
             onLike()
-            android.widget.Toast.makeText(context, context.getString(R.string.snackbar_added_to_liked_songs), android.widget.Toast.LENGTH_SHORT).show()
+            com.music.spotui.ui.components.AppNotice.show(
+                title = context.getString(R.string.snackbar_added_to_liked_songs).trimEnd('.'), subtitle = song().title,
+                coverUrl = song().coverUri, tone = com.music.spotui.ui.components.AppNotice.Tone.LIKE,
+                actionLabel = context.getString(R.string.notice_change), onAction = { com.music.spotui.ui.components.AppNotice.openSaveTo(song()) },
+            )
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.music.spotui.ui.components
 
+import androidx.compose.foundation.layout.heightIn
 import com.music.spotui.ui.theme.tone
 import com.music.spotui.ui.theme.AppText
 
@@ -273,6 +274,13 @@ fun MiniPlayer() {
             // Drawn: the colour follows a crossfade frame by frame without recomposing the card.
             .drawBehind { drawRect(blend?.let { androidx.compose.ui.graphics.lerp(outgoingTint, animatedTint, it.progress()) } ?: animatedTint) }
     ) {
+        // The music video goes on playing with the player closed: big on top of the card (a setting).
+        val miniVideo = com.music.spotui.video.MusicVideoController.on.value &&
+            com.music.spotui.video.MusicVideoController.player != null && !com.music.spotui.ui.navigation.PlayerSheet.open.value
+        val bigVideo = miniVideo && com.music.spotui.data.preferences.MiniVideoBigPref.on
+        if (bigVideo) Box(Modifier.fillMaxWidth().background(Color.Black), contentAlignment = Alignment.Center) {
+            VideoSurface(modifier = Modifier.heightIn(max = 200.dp), fitHeight = true)
+        }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
@@ -300,7 +308,11 @@ fun MiniPlayer() {
                     label = "miniSong",
                 ) { m ->
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(4.dp))) {
+                    if (page == 1 && miniVideo && !bigVideo) Box(
+                        Modifier.height(40.dp).width(64.dp).clip(RoundedCornerShape(4.dp)).background(Color.Black),
+                        contentAlignment = Alignment.Center,
+                    ) { VideoSurface(modifier = Modifier.height(40.dp), fitHeight = true) }
+                    else Box(Modifier.size(40.dp).clip(RoundedCornerShape(4.dp))) {
                         GlideImage(
                             modifier = Modifier.size(40.dp),
                             model = m.cover,

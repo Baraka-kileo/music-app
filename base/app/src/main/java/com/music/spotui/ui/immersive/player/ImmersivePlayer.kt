@@ -1019,7 +1019,7 @@ internal object MusicVideoAspect { fun tall() = com.music.spotui.video.MusicVide
 
 /** The lyric line being sung now, large and bold, fading from line to line. Tap: the lyrics. */
 @Composable
-private fun LiveLyricLine(onOpen: () -> Unit) {
+internal fun LiveLyricLine(onOpen: () -> Unit) {
     val vm: com.music.spotui.ui.viewmodel.LyricsViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     val song = com.music.spotui.di.Graph.currentSongState
     val st = com.music.spotui.ui.screens.rememberLyricsState(vm, song.title.value, song.singer.value)

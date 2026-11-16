@@ -14,4 +14,5 @@
     <string name="notice_plays_next">Plays next</string>
     <string name="notice_sleep_timer">Sleep timer</string>
     <string name="notice_end_of_song">End of song</string>
+    <string name="notice_show_all">Show all</string>
 </resources>
