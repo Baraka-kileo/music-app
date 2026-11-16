@@ -75,7 +75,7 @@ internal fun ImmersiveLibrarySortSheet(onDismiss: () -> Unit) {
                         modifier = Modifier.weight(1f),
                     )
                     if (selected) {
-                        Icon(Icons.Rounded.Check, contentDescription = null, tint = Immersive.Accent, modifier = Modifier.size(20.dp))
+                        Icon(com.music.spotui.ui.design.AppIcons.Check, contentDescription = null, tint = Immersive.Accent, modifier = Modifier.size(20.dp))
                     }
                 }
             }

@@ -548,7 +548,7 @@ private fun QueueEntry(row: QRow, removed: SnapshotStateList<String>, dragging: 
                     contentAlignment = Alignment.CenterEnd,
                 ) {
                     Icon(
-                        Icons.Rounded.Close,
+                        com.music.spotui.ui.design.AppIcons.Close,
                         contentDescription = stringResource(R.string.immersive_queue_remove),
                         tint = Immersive.TextSecondary,
                         modifier = Modifier.size(22.dp),
@@ -566,7 +566,7 @@ private fun QueueEntry(row: QRow, removed: SnapshotStateList<String>, dragging: 
             onClick = { SongPlayer.skipTo(item) },
             handle = {
                 Icon(
-                    Icons.Rounded.DragHandle,
+                    com.music.spotui.ui.design.AppIcons.DragHandle,
                     contentDescription = stringResource(R.string.immersive_queue_reorder),
                     tint = Immersive.TextSecondary,
                     modifier = handle.size(40.dp).padding(8.dp),
@@ -589,10 +589,10 @@ private fun QueueHeader(
             style = Immersive.Title,
             modifier = Modifier.weight(1f),
         )
-        QueueToggle(Icons.Rounded.Shuffle, stringResource(R.string.immersive_queue_shuffle), shuffle, onShuffle)
+        QueueToggle(com.music.spotui.ui.design.AppIcons.Shuffle, stringResource(R.string.immersive_queue_shuffle), shuffle, onShuffle)
         Spacer(Modifier.width(8.dp))
         QueueToggle(
-            when (repeatMode) { 2 -> Icons.Rounded.RepeatOne; 3 -> RepeatIcons.once; else -> Icons.Rounded.Repeat },
+            when (repeatMode) { 2 -> com.music.spotui.ui.design.AppIcons.RepeatOne; 3 -> RepeatIcons.once; else -> com.music.spotui.ui.design.AppIcons.Repeat },
             stringResource(R.string.immersive_queue_repeat),
             repeatMode != 0,
             onRepeat,
@@ -692,7 +692,7 @@ private fun QueueRow(
         if (isCurrent) {
             Spacer(Modifier.width(10.dp))
             Icon(
-                Icons.Rounded.GraphicEq,
+                com.music.spotui.ui.design.AppIcons.GraphicEq,
                 contentDescription = stringResource(R.string.immersive_queue_now_playing),
                 tint = Immersive.Accent,
                 modifier = Modifier.size(20.dp),

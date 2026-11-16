@@ -283,12 +283,12 @@ fun ImmersiveLibraryScreen(navController: NavController) {
         val collapse = if (gridView && !loading) gridCollapse(gridState) else rememberTopBarCollapse(listState)
         ImmersiveTopBar(title, collapse) {
             ImmersiveBarAction(
-                Icons.Rounded.Add,
+                com.music.spotui.ui.design.AppIcons.Add,
                 stringResource(R.string.create_playlist_content_description),
                 onClick = { creating = true },
             )
             ImmersiveBarAction(
-                Icons.Rounded.Search,
+                com.music.spotui.ui.design.AppIcons.Search,
                 stringResource(R.string.library_search_text_hint),
                 onClick = {
                     searchActive = !searchActive
@@ -422,7 +422,7 @@ private fun LibraryHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.immersiveClickable(onClick = onSort).padding(vertical = 6.dp),
             ) {
-                Icon(Icons.Rounded.SwapVert, contentDescription = null, tint = Immersive.Text, modifier = Modifier.size(18.dp))
+                Icon(com.music.spotui.ui.design.AppIcons.SwapVert, contentDescription = null, tint = Immersive.Text, modifier = Modifier.size(18.dp))
                 Text(
                     text = stringResource(libraryOrderLabel(LibraryOrder.sort)),
                     style = Immersive.Subhead.copy(color = Immersive.Text, fontWeight = FontWeight.SemiBold),
@@ -701,7 +701,7 @@ private fun LibraryEntryRow(entry: LibraryEntry, onMenu: () -> Unit, modifier: M
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (entry.pinned) {
                     Icon(
-                        Icons.Rounded.PushPin, contentDescription = null, tint = Immersive.Accent,
+                        com.music.spotui.ui.design.AppIcons.PushPin, contentDescription = null, tint = Immersive.Accent,
                         modifier = Modifier.padding(end = 4.dp).size(12.dp),
                     )
                 }

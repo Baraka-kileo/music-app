@@ -96,7 +96,7 @@ internal fun ImmersiveEpisodeRow(
                             )
                         }
                         if (finished) {
-                            Icon(Icons.Rounded.Check, contentDescription = null, tint = Immersive.Accent, modifier = Modifier.size(14.dp))
+                            Icon(com.music.spotui.ui.design.AppIcons.Check, contentDescription = null, tint = Immersive.Accent, modifier = Modifier.size(14.dp))
                             Spacer(Modifier.width(4.dp))
                         }
                         val meta = buildString {
@@ -132,7 +132,7 @@ internal fun ImmersiveEpisodeRow(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        Icons.Rounded.MoreHoriz,
+                        com.music.spotui.ui.design.AppIcons.MoreHoriz,
                         contentDescription = stringResource(R.string.episode_options),
                         tint = Immersive.TextSecondary,
                         modifier = Modifier.size(22.dp),
@@ -161,7 +161,7 @@ internal fun PlayDisc(playing: Boolean, onClick: () -> Unit, modifier: Modifier 
     ) {
         Crossfade(targetState = playing, animationSpec = tween(150), label = "episode play glyph") { on ->
             Icon(
-                imageVector = if (on) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                imageVector = if (on) com.music.spotui.ui.design.AppIcons.Pause else com.music.spotui.ui.design.AppIcons.PlayArrow,
                 contentDescription = stringResource(if (on) R.string.notif_action_pause else R.string.episode_play),
                 tint = Color.White,
                 modifier = Modifier.size(24.dp),

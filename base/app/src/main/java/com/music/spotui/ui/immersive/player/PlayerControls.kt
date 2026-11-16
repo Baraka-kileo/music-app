@@ -282,7 +282,7 @@ internal fun TransportRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TransportGlyph(
-            icon = Icons.Rounded.SkipPrevious,
+            icon = com.music.spotui.ui.design.AppIcons.SkipPrevious,
             contentDescription = stringResource(R.string.immersive_player_previous),
             size = 64.dp,
             touchSize = PLAYER_SKIP_TOUCH_SIZE,
@@ -298,7 +298,7 @@ internal fun TransportRow(
             }
         } else {
             TransportGlyph(
-                icon = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                icon = if (isPlaying) com.music.spotui.ui.design.AppIcons.Pause else com.music.spotui.ui.design.AppIcons.PlayArrow,
                 contentDescription = stringResource(if (isPlaying) R.string.immersive_player_pause else R.string.immersive_player_play),
                 size = playSize,
                 touchSize = playTouch,
@@ -307,7 +307,7 @@ internal fun TransportRow(
         }
         }
         TransportGlyph(
-            icon = Icons.Rounded.SkipNext,
+            icon = com.music.spotui.ui.design.AppIcons.SkipNext,
             contentDescription = stringResource(R.string.immersive_player_next),
             size = 64.dp,
             touchSize = PLAYER_SKIP_TOUCH_SIZE,
@@ -367,7 +367,7 @@ internal fun VolumeRow(volume: PlayerVolume) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            Icons.AutoMirrored.Rounded.VolumeDown,
+            com.music.spotui.ui.design.AppIcons.VolumeDown,
             contentDescription = stringResource(R.string.immersive_player_volume_down),
             tint = LocalPlayerTint.current.copy(alpha = 0.5f),
             modifier = Modifier.size(20.dp),
@@ -383,7 +383,7 @@ internal fun VolumeRow(volume: PlayerVolume) {
         )
         Spacer(Modifier.width(10.dp))
         Icon(
-            Icons.AutoMirrored.Rounded.VolumeUp,
+            com.music.spotui.ui.design.AppIcons.VolumeUp,
             contentDescription = stringResource(R.string.immersive_player_volume_up),
             tint = LocalPlayerTint.current.copy(alpha = 0.5f),
             modifier = Modifier.size(20.dp),
@@ -551,7 +551,7 @@ internal fun PlayerActionRow(
                 modifier = Modifier.align(Alignment.CenterStart),
             ) {
                 BottomGlyph(
-                    icon = Icons.Rounded.Lyrics,
+                    icon = com.music.spotui.ui.design.AppIcons.Lyrics,
                     contentDescription = stringResource(if (lyricsOpen) R.string.immersive_player_lyrics_close else R.string.immersive_player_lyrics),
                     // Lyrics and the queue are two things to show in one place, so opening either
                     // closes the other; lit to say which is up.
@@ -573,7 +573,7 @@ internal fun PlayerActionRow(
                 Pill {
                     if (modes) {
                         PillSegment(
-                            icon = if (smartEnabled) Icons.Rounded.AutoAwesome else Icons.Rounded.Shuffle,
+                            icon = if (smartEnabled) com.music.spotui.ui.design.AppIcons.AutoAwesome else com.music.spotui.ui.design.AppIcons.Shuffle,
                             contentDescription = stringResource(
                                 when {
                                     smartEnabled -> R.string.smart_shuffle_title
@@ -587,9 +587,9 @@ internal fun PlayerActionRow(
                         PillDivider()
                         PillSegment(
                             icon = when (repeatMode) {
-                                ImmersiveRepeat.ONE -> Icons.Rounded.RepeatOne
+                                ImmersiveRepeat.ONE -> com.music.spotui.ui.design.AppIcons.RepeatOne
                                 ImmersiveRepeat.ONCE -> RepeatIcons.once
-                                else -> Icons.Rounded.Repeat
+                                else -> com.music.spotui.ui.design.AppIcons.Repeat
                             },
                             contentDescription = when (repeatMode) {
                                 ImmersiveRepeat.ONE -> stringResource(R.string.immersive_player_repeat_one)
@@ -603,7 +603,7 @@ internal fun PlayerActionRow(
                         PillDivider()
                     }
                     PillSegment(
-                        icon = Icons.Rounded.Devices,
+                        icon = com.music.spotui.ui.design.AppIcons.Devices,
                         contentDescription = stringResource(R.string.immersive_player_devices),
                         onClick = onOpenDevices,
                         highlighted = deviceActive,
@@ -614,7 +614,7 @@ internal fun PlayerActionRow(
             }
             Box(Modifier.align(Alignment.CenterEnd)) {
                 BottomGlyph(
-                    icon = Icons.AutoMirrored.Rounded.QueueMusic,
+                    icon = com.music.spotui.ui.design.AppIcons.QueueMusic,
                     contentDescription = stringResource(if (queueOpen) R.string.immersive_player_queue_close else R.string.immersive_player_queue),
                     onClick = onToggleQueue,
                     highlighted = queueOpen,

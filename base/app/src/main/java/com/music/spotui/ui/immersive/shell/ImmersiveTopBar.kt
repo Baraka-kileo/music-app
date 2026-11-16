@@ -135,7 +135,7 @@ fun immersiveTopContentPadding(): Dp = immersiveTopBarHeight() + ImmersiveTopBar
  *         ...
  *     }
  *     ImmersiveTopBar("Library", list, onBack = { nav.popBackStack() }) {
- *         ImmersiveBarAction(Icons.Rounded.Add, "Add", onClick = ::add)
+ *         ImmersiveBarAction(com.music.spotui.ui.design.AppIcons.Add, "Add", onClick = ::add)
  *     }
  * }
  * ```
@@ -186,7 +186,7 @@ fun ImmersiveTopBar(
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
-                                Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
+                                com.music.spotui.ui.design.AppIcons.KeyboardArrowLeft,
                                 contentDescription = stringResource(R.string.immersive_shell_back),
                                 tint = Immersive.Text,
                                 modifier = Modifier.size(controlSize * 0.64f),

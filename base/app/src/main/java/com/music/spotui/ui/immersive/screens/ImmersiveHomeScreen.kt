@@ -237,7 +237,7 @@ private fun WhatsNewBell(size: androidx.compose.ui.unit.Dp, onClick: () -> Unit)
         contentAlignment = Alignment.Center,
     ) {
         androidx.compose.material3.Icon(
-            androidx.compose.material.icons.Icons.Rounded.NotificationsNone,
+            com.music.spotui.ui.design.AppIcons.NotificationsNone,
             contentDescription = stringResource(R.string.whats_new_title),
             tint = Immersive.Text,
             modifier = Modifier.size(size * 0.55f),

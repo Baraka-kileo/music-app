@@ -137,13 +137,13 @@ fun ImmersivePlayShuffleButtons(
     ) {
         ImmersiveButton(
             text = stringResource(R.string.immersive_shell_play),
-            icon = Icons.Rounded.PlayArrow,
+            icon = com.music.spotui.ui.design.AppIcons.PlayArrow,
             onClick = onPlay,
             modifier = Modifier.weight(1f),
         )
         ImmersiveButton(
             text = stringResource(R.string.immersive_shell_shuffle),
-            icon = Icons.Rounded.Shuffle,
+            icon = com.music.spotui.ui.design.AppIcons.Shuffle,
             onClick = onShuffle,
             modifier = Modifier.weight(1f),
         )

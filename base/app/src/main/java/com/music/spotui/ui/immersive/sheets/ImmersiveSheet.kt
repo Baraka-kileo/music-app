@@ -374,7 +374,7 @@ fun ImmersiveSheetOption(
         }
         if (selected) {
             Spacer(Modifier.width(12.dp))
-            Icon(Icons.Rounded.Check, contentDescription = null, tint = accent, modifier = Modifier.size(22.dp))
+            Icon(com.music.spotui.ui.design.AppIcons.Check, contentDescription = null, tint = accent, modifier = Modifier.size(22.dp))
         }
     }
 }

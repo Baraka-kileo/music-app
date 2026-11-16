@@ -161,14 +161,14 @@ private fun WhatsNewRow(item: WhatsNewItem, onClick: () -> Unit) {
             if (date.isNotEmpty()) Text(date, style = Immersive.Caption, maxLines = 1)
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 2.dp)) {
                 Icon(
-                    if (saved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    if (saved) com.music.spotui.ui.design.AppIcons.Favorite else com.music.spotui.ui.design.AppIcons.FavoriteBorder,
                     contentDescription = stringResource(if (saved) R.string.immersive_detail_unsave else R.string.immersive_detail_save),
                     tint = if (saved) Immersive.Accent else Immersive.TextSecondary,
                     modifier = Modifier.clip(CircleShape).immersiveClickable(onClick = { SongPlayer.setSaved(item.uri, !saved) }, pressedScale = 0.9f)
                         .padding(6.dp).size(22.dp),
                 )
                 Icon(
-                    Icons.Rounded.MoreHoriz,
+                    com.music.spotui.ui.design.AppIcons.MoreHoriz,
                     contentDescription = stringResource(R.string.immersive_shell_more),
                     tint = Immersive.TextSecondary,
                     modifier = Modifier.padding(start = 8.dp).clip(CircleShape).immersiveClickable(onClick = { menu = true }, pressedScale = 0.9f)
@@ -181,7 +181,7 @@ private fun WhatsNewRow(item: WhatsNewItem, onClick: () -> Unit) {
                         .immersiveClickable(onClick = { item.togglePlay(playback) }, pressedScale = 0.9f),
                 ) {
                     Icon(
-                        if (playback.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        if (playback.playing) com.music.spotui.ui.design.AppIcons.Pause else com.music.spotui.ui.design.AppIcons.PlayArrow,
                         contentDescription = stringResource(if (playback.playing) R.string.immersive_player_pause else R.string.immersive_player_play),
                         tint = Immersive.Page,
                         modifier = Modifier.size(24.dp),

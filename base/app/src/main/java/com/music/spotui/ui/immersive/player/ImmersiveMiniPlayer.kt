@@ -157,7 +157,7 @@ fun ImmersiveMiniPlayer(modifier: Modifier = Modifier) {
                 // Play and pause swap as in the full player.
                 com.music.spotui.ui.components.GlyphSwap(playing) { on ->
                     Icon(
-                        imageVector = if (on) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        imageVector = if (on) com.music.spotui.ui.design.AppIcons.Pause else com.music.spotui.ui.design.AppIcons.PlayArrow,
                         contentDescription = stringResource(if (on) R.string.immersive_player_pause else R.string.immersive_player_play),
                         tint = Immersive.Text,
                         modifier = Modifier.size(GLYPH_SIZE),
@@ -174,7 +174,7 @@ fun ImmersiveMiniPlayer(modifier: Modifier = Modifier) {
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.Rounded.SkipNext,
+                imageVector = com.music.spotui.ui.design.AppIcons.SkipNext,
                 contentDescription = stringResource(R.string.immersive_player_next),
                 tint = Immersive.Text,
                 modifier = Modifier.size(GLYPH_SIZE),

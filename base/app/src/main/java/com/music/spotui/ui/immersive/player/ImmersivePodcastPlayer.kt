@@ -218,14 +218,14 @@ fun ImmersivePodcastPlayer(navController: NavController) {
         }
         Spacer(Modifier.width(10.dp))
         CircleGlyph(
-            icon = if (saved) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+            icon = if (saved) com.music.spotui.ui.design.AppIcons.Star else com.music.spotui.ui.design.AppIcons.StarBorder,
             contentDescription = stringResource(if (saved) R.string.immersive_player_unlike else R.string.immersive_player_like),
             onClick = { SongPlayer.setSaved(uri, !saved) },
             active = saved,
         )
         Spacer(Modifier.width(8.dp))
         CircleGlyph(
-            icon = Icons.Rounded.MoreHoriz,
+            icon = com.music.spotui.ui.design.AppIcons.MoreHoriz,
             contentDescription = stringResource(R.string.episode_options),
             onClick = { showMenu = true },
         )
@@ -249,19 +249,19 @@ fun ImmersivePodcastPlayer(navController: NavController) {
         ) {
             SpeedChip(label = stringResource(R.string.player_speed_chip, speedLabel(SongPlayer.speed.value)), onClick = { showSpeed = true })
             BottomGlyph(
-                icon = Icons.Rounded.Timer,
+                icon = com.music.spotui.ui.design.AppIcons.Timer,
                 contentDescription = stringResource(R.string.player_sleep_timer),
                 onClick = { showSleep = true },
                 highlighted = SongPlayer.sleepEndsAt.value != null,
             )
             BottomGlyph(
-                icon = Icons.Rounded.Devices,
+                icon = com.music.spotui.ui.design.AppIcons.Devices,
                 contentDescription = stringResource(R.string.immersive_player_devices),
                 onClick = { showDevices = true },
                 highlighted = state.deviceName != null,
             )
             BottomGlyph(
-                icon = Icons.AutoMirrored.Rounded.QueueMusic,
+                icon = com.music.spotui.ui.design.AppIcons.QueueMusic,
                 contentDescription = stringResource(R.string.immersive_player_queue),
                 onClick = { showQueue = true },
             )
@@ -427,7 +427,7 @@ private fun PodcastTransportRow(
             }
         } else {
             TransportButton(
-                icon = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                icon = if (isPlaying) com.music.spotui.ui.design.AppIcons.Pause else com.music.spotui.ui.design.AppIcons.PlayArrow,
                 contentDescription = stringResource(if (isPlaying) R.string.immersive_player_pause else R.string.immersive_player_play),
                 size = 88.dp,
                 touchSize = playTouch,
@@ -443,7 +443,7 @@ private fun PodcastTransportRow(
 private fun SkipButton(back: Boolean, onClick: () -> Unit) {
     Box(contentAlignment = Alignment.Center) {
         TransportButton(
-            icon = if (back) Icons.Rounded.RotateLeft else Icons.Rounded.RotateRight,
+            icon = if (back) com.music.spotui.ui.design.AppIcons.RotateLeft else com.music.spotui.ui.design.AppIcons.RotateRight,
             contentDescription = stringResource(if (back) R.string.player_back_15 else R.string.player_forward_15),
             size = 56.dp,
             touchSize = 72.dp,

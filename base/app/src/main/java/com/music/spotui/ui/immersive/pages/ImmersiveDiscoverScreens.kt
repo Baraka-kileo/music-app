@@ -149,7 +149,7 @@ fun ImmersiveEpisodesScreen(navController: NavController) {
                         round = false,
                         trailing = if (e.played) ({
                             androidx.compose.material3.Icon(
-                                androidx.compose.material.icons.Icons.Rounded.Check,
+                                com.music.spotui.ui.design.AppIcons.Check,
                                 contentDescription = stringResource(R.string.episode_marked_played),
                                 tint = Immersive.Accent,
                                 modifier = Modifier.size(20.dp),

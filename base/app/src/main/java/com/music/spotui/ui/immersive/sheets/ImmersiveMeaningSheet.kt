@@ -251,14 +251,14 @@ private fun MeaningFooter(shown: com.music.spotui.ui.components.ShownMeaning, ur
             )
             shown.canTranslate -> FooterPill(
                 label = stringResource(if (showOriginal.value) R.string.lyrics_meaning_translate else R.string.lyrics_meaning_original),
-                icon = { Icon(Icons.Rounded.Translate, null, tint = Immersive.Text, modifier = Modifier.size(15.dp)) },
+                icon = { Icon(com.music.spotui.ui.design.AppIcons.Translate, null, tint = Immersive.Text, modifier = Modifier.size(15.dp)) },
                 color = Immersive.Text,
                 onClick = { showOriginal.value = !showOriginal.value },
             )
         }
         if (url.isNotBlank()) FooterPill(
             label = stringResource(R.string.immersive_genius_read),
-            icon = { Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, tint = accent, modifier = Modifier.size(15.dp)) },
+            icon = { Icon(com.music.spotui.ui.design.AppIcons.OpenInNew, null, tint = accent, modifier = Modifier.size(15.dp)) },
             color = accent,
             onClick = {
                 runCatching {

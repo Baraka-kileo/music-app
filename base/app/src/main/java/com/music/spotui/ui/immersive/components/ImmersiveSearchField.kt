@@ -78,7 +78,7 @@ fun ImmersiveSearchField(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            Icons.Rounded.Search,
+            com.music.spotui.ui.design.AppIcons.Search,
             contentDescription = stringResource(R.string.immersive_shell_search_hint),
             tint = Immersive.TextSecondary,
             modifier = Modifier
@@ -127,7 +127,7 @@ fun ImmersiveSearchField(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    Icons.Rounded.Close,
+                    com.music.spotui.ui.design.AppIcons.Close,
                     contentDescription = stringResource(R.string.immersive_shell_search_clear),
                     tint = Immersive.TextSecondary,
                     modifier = Modifier.size(18.dp),

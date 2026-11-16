@@ -126,7 +126,7 @@ fun ImmersiveSongOptionsSheet(
         ImmersiveSheetDivider()
 
         ImmersiveSheetRow(
-            icon = if (liked) null else Icons.Rounded.AddCircleOutline,
+            icon = if (liked) null else com.music.spotui.ui.design.AppIcons.AddCircleOutline,
             label = stringResource(if (liked) R.string.collection_liked_songs_title else R.string.aligned_curation_context_menu_item_add_to_liked_songs),
             enabled = hasId,
             leading = if (liked) ({ LikedTick() }) else null,
@@ -135,25 +135,25 @@ fun ImmersiveSongOptionsSheet(
             toast(context.getString(if (liked) R.string.snackbar_removed_from_liked_songs else R.string.snackbar_added_to_liked_songs))
             onDismiss()
         }
-        ImmersiveSheetRow(Icons.AutoMirrored.Rounded.PlaylistAdd, stringResource(R.string.context_menu_add_to_playlist), enabled = hasId) { showSavedIn = true }
-        ImmersiveSheetRow(Icons.AutoMirrored.Rounded.PlaylistAdd, stringResource(R.string.context_menu_add_to_another_playlist), enabled = hasId) { showAddTo = true }
+        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.PlaylistAdd, stringResource(R.string.context_menu_add_to_playlist), enabled = hasId) { showSavedIn = true }
+        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.PlaylistAdd, stringResource(R.string.context_menu_add_to_another_playlist), enabled = hasId) { showAddTo = true }
         if (onRemoveFromPlaylist != null) {
-            ImmersiveSheetRow(Icons.Rounded.DeleteOutline, stringResource(R.string.context_menu_remove_from_playlist), enabled = hasId) {
+            ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.DeleteOutline, stringResource(R.string.context_menu_remove_from_playlist), enabled = hasId) {
                 onDismiss()
                 onRemoveFromPlaylist()
             }
         }
         if (!nowPlaying) {
-            ImmersiveSheetRow(Icons.AutoMirrored.Rounded.PlaylistPlay, stringResource(R.string.context_menu_play_next), enabled = SongQueue.canQueue(song)) {
+            ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.PlaylistPlay, stringResource(R.string.context_menu_play_next), enabled = SongQueue.canQueue(song)) {
                 SongQueue.add(context, song, next = true)
                 onDismiss()
             }
-            ImmersiveSheetRow(Icons.AutoMirrored.Rounded.QueueMusic, stringResource(R.string.context_menu_add_to_queue), enabled = SongQueue.canQueue(song)) {
+            ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.QueueMusic, stringResource(R.string.context_menu_add_to_queue), enabled = SongQueue.canQueue(song)) {
                 SongQueue.add(context, song)
                 onDismiss()
             }
         } else if (onOpenQueue != null) {
-            ImmersiveSheetRow(Icons.AutoMirrored.Rounded.QueueMusic, stringResource(R.string.context_menu_go_to_queue), enabled = !isRadio) {
+            ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.QueueMusic, stringResource(R.string.context_menu_go_to_queue), enabled = !isRadio) {
                 onDismiss()
                 onOpenQueue()
             }
@@ -181,7 +181,7 @@ fun ImmersiveSongOptionsSheet(
                 onDismiss()
             }
             else -> ImmersiveSheetRow(
-                Icons.Rounded.ArrowCircleDown, stringResource(R.string.context_menu_download),
+                com.music.spotui.ui.design.AppIcons.ArrowCircleDown, stringResource(R.string.context_menu_download),
                 enabled = downloadKey.isNotBlank(),
                 leading = if (offline != null) ({ DownloadBadge(offline, size = 22.dp) }) else null,
             ) {
@@ -195,24 +195,24 @@ fun ImmersiveSongOptionsSheet(
                 onDismiss()
             }
         }
-        ImmersiveSheetRow(Icons.Rounded.Radio, stringResource(R.string.context_menu_go_to_song_radio), enabled = hasId) {
+        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Radio, stringResource(R.string.context_menu_go_to_song_radio), enabled = hasId) {
             onDismiss()
             playerViewModel.goToSongRadio(song.spotifyTrackId, song.title,
                 navigate = { route -> navController.navigate(route) },
                 onFailed = { toast(context.getString(R.string.song_radio_failed)) })
         }
-        ImmersiveSheetRow(Icons.Rounded.Album, stringResource(R.string.context_menu_browse_album), enabled = !isRadio && (song.album.isNotBlank() || song.albumId.isNotBlank())) {
+        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Album, stringResource(R.string.context_menu_browse_album), enabled = !isRadio && (song.album.isNotBlank() || song.albumId.isNotBlank())) {
             onDismiss()
             navController.navigate(albumRoute(song.album, song.singer, song.albumId))
         }
-        ImmersiveSheetRow(Icons.Rounded.Person, stringResource(R.string.context_menu_browse_artist), enabled = !isRadio && song.singer.isNotBlank()) {
+        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Person, stringResource(R.string.context_menu_browse_artist), enabled = !isRadio && song.singer.isNotBlank()) {
             onDismiss()
             playerViewModel.goToArtist(song.spotifyTrackId, song.singer) { route -> navController.navigate(route) }
         }
-        ImmersiveSheetRow(Icons.Rounded.Info, stringResource(R.string.track_credits), enabled = hasId) { showCredits = true }
+        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Info, stringResource(R.string.track_credits), enabled = hasId) { showCredits = true }
         if (nowPlaying && hasId && !song.url.startsWith("episode:")) {
             if (com.music.spotui.data.preferences.GeniusPref.on)
-                ImmersiveSheetRow(Icons.Rounded.Lightbulb, stringResource(R.string.lyrics_meaning_title)) { showMeaning = true }
+                ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Lightbulb, stringResource(R.string.lyrics_meaning_title)) { showMeaning = true }
         }
         if (nowPlaying && lyricsOpen) {
             // The lyrics panel's translation, the Classic look's: same model, shown under each line.
@@ -225,14 +225,14 @@ fun ImmersiveSongOptionsSheet(
                 ?.equals(target.substringBefore('-'), ignoreCase = true) == true
             // Picks lines of the lyrics shown to send as text (a long press on a line does the same).
             if (lyrics != null) {
-                ImmersiveSheetRow(Icons.Rounded.Share, stringResource(R.string.lyrics_share)) {
+                ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Share, stringResource(R.string.lyrics_share)) {
                     lyricsVm.startSelecting()
                     onDismiss()
                 }
             }
             if (lyrics != null && !sameLanguage) {
                 ImmersiveSheetRow(
-                    Icons.Rounded.Translate,
+                    com.music.spotui.ui.design.AppIcons.Translate,
                     stringResource(if (lyrics.showTranslation) R.string.lyrics_fullscreen_translate_button_enabled_readout_value else R.string.lyrics_fullscreen_context_menu_main_page_translate_lyrics_action),
                 ) {
                     lyricsVm.toggleTranslation(target)
@@ -243,7 +243,7 @@ fun ImmersiveSongOptionsSheet(
             if (lyrics != null && lyrics.lyrics.hasRomanization) {
                 val on = com.music.spotui.data.preferences.LyricsRomanizationPref.on
                 ImmersiveSheetRow(
-                    Icons.Rounded.SortByAlpha, stringResource(R.string.lyrics_romanization),
+                    com.music.spotui.ui.design.AppIcons.SortByAlpha, stringResource(R.string.lyrics_romanization),
                     tint = if (on) LocalImmersiveSheetTint.current.accent else null,
                 ) {
                     com.music.spotui.data.preferences.LyricsRomanizationPref.set(context, !on)
@@ -252,14 +252,14 @@ fun ImmersiveSongOptionsSheet(
             }
             // Ask another provider for the lyrics (also when none were found).
             if (lyricsState !is com.music.spotui.ui.viewmodel.LyricsViewModel.State.Loading) {
-                ImmersiveSheetRow(Icons.Rounded.SwapHoriz, stringResource(R.string.lyrics_other_source)) { showSources = true }
+                ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.SwapHoriz, stringResource(R.string.lyrics_other_source)) { showSources = true }
             }
         }
 
         // "Not interested": kept on this phone only; the song leaves the queue and lists skip it.
         if (hasId && episodeKey == null) {
             val hidden = com.music.spotui.data.preferences.HiddenSongs.isHidden(song.spotifyTrackId)
-            ImmersiveSheetRow(Icons.Rounded.ThumbDownOffAlt, stringResource(if (hidden) R.string.show_song_again else R.string.hide_song)) {
+            ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.ThumbDownOffAlt, stringResource(if (hidden) R.string.show_song_again else R.string.hide_song)) {
                 if (hidden) com.music.spotui.data.preferences.HiddenSongs.show(context, song.spotifyTrackId) else SongPlayer.hideSong(song)
                 onDismiss()
             }
@@ -269,7 +269,7 @@ fun ImmersiveSongOptionsSheet(
         val excluded by produceState<Boolean?>(null, trackUri) {
             value = if (!hasId) null else runCatching { app.myspoti.host.android.MyspotiRuntime.api.extras.isExcludedFromTaste(listOf(trackUri)).single() }.getOrNull()
         }
-        ImmersiveSheetRow(Icons.Rounded.Block, stringResource(if (excluded == true) R.string.include_taste else R.string.exclude_taste), enabled = hasId && excluded != null) {
+        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Block, stringResource(if (excluded == true) R.string.include_taste else R.string.exclude_taste), enabled = hasId && excluded != null) {
             val exclude = excluded != true
             app.myspoti.host.android.MyspotiRuntime.scope.launch {
                 runCatching { app.myspoti.host.android.MyspotiRuntime.api.extras.setExcludedFromTaste(trackUri, exclude) }
@@ -285,7 +285,7 @@ fun ImmersiveSongOptionsSheet(
                 artist to api.extras.isArtistBanned(listOf(artist)).single()
             }.getOrNull()
         }
-        ImmersiveSheetRow(Icons.Rounded.Block, stringResource(if (artistBan?.second == true) R.string.artist_unban else R.string.artist_ban), enabled = artistBan != null) {
+        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Block, stringResource(if (artistBan?.second == true) R.string.artist_unban else R.string.artist_ban), enabled = artistBan != null) {
             val (artist, banned) = artistBan ?: return@ImmersiveSheetRow
             app.myspoti.host.android.MyspotiRuntime.scope.launch {
                 runCatching { app.myspoti.host.android.MyspotiRuntime.api.extras.setArtistBanned(artist, !banned) }
@@ -299,7 +299,7 @@ fun ImmersiveSongOptionsSheet(
             val saved by produceState<Boolean?>(null, episodeUri) {
                 value = runCatching { app.myspoti.host.android.MyspotiRuntime.api.library.contains(listOf(episodeUri)).single() }.getOrNull()
             }
-            ImmersiveSheetRow(Icons.Rounded.Bookmark, stringResource(if (saved == true) R.string.episode_unsave else R.string.episode_save), enabled = saved != null) {
+            ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Bookmark, stringResource(if (saved == true) R.string.episode_unsave else R.string.episode_save), enabled = saved != null) {
                 val save = saved != true
                 app.myspoti.host.android.MyspotiRuntime.scope.launch {
                     runCatching { app.myspoti.host.android.MyspotiRuntime.api.podcasts.setEpisodeSaved(episodeUri, save) }
@@ -309,38 +309,38 @@ fun ImmersiveSongOptionsSheet(
             }
         }
         if (nowPlaying && song.url.startsWith("episode:")) {
-            ImmersiveSheetRow(Icons.Rounded.Speed, stringResource(R.string.playback_speed)) { showSpeed = true }
+            ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Speed, stringResource(R.string.playback_speed)) { showSpeed = true }
         }
         // The app's own playback (extensions, downloads, files): its equalizer, speed and silences.
         if (nowPlaying && com.music.spotui.di.LocalPlayer.active.value) {
-            ImmersiveSheetRow(Icons.Rounded.GraphicEq, stringResource(R.string.equalizer_title)) {
+            ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.GraphicEq, stringResource(R.string.equalizer_title)) {
                 onDismiss()
                 navController.navigate(com.music.spotui.ui.navigation.Routes.Equalizer.route)
             }
         }
-        ImmersiveSheetRow(Icons.Rounded.Share, stringResource(R.string.context_menu_share), enabled = hasId || isRadio) {
+        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Share, stringResource(R.string.context_menu_share), enabled = hasId || isRadio) {
             // A station has no Spotify uri: shared as plain text, never through a Spotify Code.
             if (isRadio) com.music.spotui.radio.RadioPlayer.share(context)
             else SpotifyCode.show(ShareTarget("spotify:track:${song.spotifyTrackId}", song.title, song.singer, song.coverUri))
             onDismiss()
         }
-        if (hasId && !isRadio) ImmersiveSheetRow(Icons.Rounded.ContentCopy, stringResource(R.string.copy_link)) {
+        if (hasId && !isRadio) ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.ContentCopy, stringResource(R.string.copy_link)) {
             SpotifyCode.copyLink(context, "spotify:track:${song.spotifyTrackId}"); onDismiss()
         }
         if (nowPlaying) {
             ImmersiveSheetRow(
-                Icons.Rounded.Bedtime,
+                com.music.spotui.ui.design.AppIcons.Bedtime,
                 stringResource(R.string.context_menu_sleep_timer),
                 tint = if (SongPlayer.sleepEndsAt.value != null) LocalImmersiveSheetTint.current.accent else null,
             ) { showSleep = true }
             // The player's source line and capsule are turned off: their sheets are here instead.
             if (!com.music.spotui.data.preferences.PlayerSourceLinePref.shown) {
-                ImmersiveSheetRow(Icons.Rounded.GraphicEq, stringResource(R.string.quality_sheet_title)) { showQuality = true }
+                ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.GraphicEq, stringResource(R.string.quality_sheet_title)) { showQuality = true }
             }
             if (!com.music.spotui.data.preferences.PlayerCapsulePref.shown) {
-                ImmersiveSheetRow(Icons.Rounded.Devices, stringResource(R.string.listen_on)) { showDevices = true }
+                ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Devices, stringResource(R.string.listen_on)) { showDevices = true }
             }
-            ImmersiveSheetRow(Icons.Rounded.Analytics, stringResource(R.string.nerd_title)) { showNerd = true }
+            ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Analytics, stringResource(R.string.nerd_title)) { showNerd = true }
         }
         // Entries from extensions (menu.items), after the app's own; each names its extension.
         if (hasId) com.music.spotui.extensions.ExtensionMenuEntries(
@@ -357,6 +357,6 @@ private fun LikedTick() {
         contentAlignment = Alignment.Center,
         modifier = Modifier.size(24.dp).background(LocalImmersiveSheetTint.current.accent, CircleShape),
     ) {
-        androidx.compose.material3.Icon(Icons.Rounded.Check, contentDescription = null, tint = Color.Black, modifier = Modifier.size(16.dp))
+        androidx.compose.material3.Icon(com.music.spotui.ui.design.AppIcons.Check, contentDescription = null, tint = Color.Black, modifier = Modifier.size(16.dp))
     }
 }

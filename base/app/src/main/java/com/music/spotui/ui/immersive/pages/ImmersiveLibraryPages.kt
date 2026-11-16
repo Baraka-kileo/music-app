@@ -86,9 +86,9 @@ fun ImmersiveFolderScreen(navController: NavController, uri: String, initialName
     LaunchedEffect(uri) { LibraryEdits.reloads.collect { generation++ } }
 
     if (menu) ImmersiveSheet(onDismiss = { menu = false }) {
-        ImmersiveSheetRow(Icons.AutoMirrored.Rounded.PlaylistAdd, stringResource(R.string.add_to_playlist_new_playlist_button_text), onClick = { menu = false; newPlaylist = true })
-        ImmersiveSheetRow(Icons.Rounded.Edit, stringResource(R.string.context_menu_rename_folder), onClick = { menu = false; renaming = true })
-        ImmersiveSheetRow(Icons.Rounded.DeleteOutline, stringResource(R.string.folder_delete), destructive = true, onClick = { menu = false; deletingFolder = true })
+        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.PlaylistAdd, stringResource(R.string.add_to_playlist_new_playlist_button_text), onClick = { menu = false; newPlaylist = true })
+        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Edit, stringResource(R.string.context_menu_rename_folder), onClick = { menu = false; renaming = true })
+        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.DeleteOutline, stringResource(R.string.folder_delete), destructive = true, onClick = { menu = false; deletingFolder = true })
     }
     itemMenu?.let { LibraryItemSheet(it, onDismiss = { itemMenu = null }, onChanged = { generation++ }) }
     if (deletingFolder) ImmersiveAlertDialog(
@@ -157,7 +157,7 @@ fun ImmersiveFolderScreen(navController: NavController, uri: String, initialName
             )
         }
         ImmersiveTopBar(title = name, collapse = rememberTopBarCollapse(listState), onBack = { navController.navigateUp() }) {
-            ImmersiveBarAction(Icons.Rounded.MoreHoriz, stringResource(R.string.content_description_context_menu), onClick = { menu = true })
+            ImmersiveBarAction(com.music.spotui.ui.design.AppIcons.MoreHoriz, stringResource(R.string.content_description_context_menu), onClick = { menu = true })
         }
     }
 }
@@ -177,8 +177,8 @@ fun ImmersiveLocalPlaylistScreen(navController: NavController, id: String) {
         return
     }
     if (menu) ImmersiveSheet(onDismiss = { menu = false }) {
-        ImmersiveSheetRow(Icons.Rounded.Edit, stringResource(R.string.local_rename), onClick = { menu = false; renaming = true })
-        ImmersiveSheetRow(Icons.Rounded.DeleteOutline, stringResource(R.string.local_delete_playlist), destructive = true, onClick = {
+        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Edit, stringResource(R.string.local_rename), onClick = { menu = false; renaming = true })
+        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.DeleteOutline, stringResource(R.string.local_delete_playlist), destructive = true, onClick = {
             menu = false
             navController.navigateUp()
             LocalPlaylists.delete(id)
@@ -198,7 +198,7 @@ fun ImmersiveLocalPlaylistScreen(navController: NavController, id: String) {
             pluralStringResource(R.plurals.add_to_playlist_subtitle_songs_count, playlist.items.size, playlist.items.size.toString()),
         onBack = { navController.navigateUp() },
         actions = {
-            ImmersiveBarAction(Icons.Rounded.MoreHoriz, stringResource(R.string.content_description_context_menu), onClick = { menu = true })
+            ImmersiveBarAction(com.music.spotui.ui.design.AppIcons.MoreHoriz, stringResource(R.string.content_description_context_menu), onClick = { menu = true })
         },
     ) {
         if (playlist.items.isEmpty()) {

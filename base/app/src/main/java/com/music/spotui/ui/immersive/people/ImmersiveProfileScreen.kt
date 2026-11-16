@@ -118,7 +118,7 @@ fun ImmersiveProfileScreen(navController: NavController, userId: String, userNam
                                 url = avatarUrl,
                                 modifier = Modifier.size(AvatarSize),
                                 shape = CircleShape,
-                                placeholderIcon = Icons.Rounded.Person,
+                                placeholderIcon = com.music.spotui.ui.design.AppIcons.Person,
                             )
                             Spacer(Modifier.height(18.dp))
                             Text(
@@ -174,7 +174,7 @@ fun ImmersiveProfileScreen(navController: NavController, userId: String, userNam
                                     text = stringResource(
                                         if (f) R.string.curation_button_following_state_text else R.string.curation_button_follow_state_text,
                                     ),
-                                    icon = if (f) Icons.Rounded.Check else Icons.Rounded.PersonAdd,
+                                    icon = if (f) com.music.spotui.ui.design.AppIcons.Check else com.music.spotui.ui.design.AppIcons.PersonAdd,
                                     filled = !f,
                                     modifier = Modifier.widthIn(min = 170.dp),
                                     onClick = {
@@ -224,7 +224,7 @@ fun ImmersiveProfileScreen(navController: NavController, userId: String, userNam
                     val b = blocked
                     if (!me && b != null) Box {
                         com.music.spotui.ui.immersive.shell.ImmersiveBarAction(
-                            icon = Icons.Rounded.MoreHoriz,
+                            icon = com.music.spotui.ui.design.AppIcons.MoreHoriz,
                             contentDescription = stringResource(R.string.profile_more_options),
                             onClick = { barMenu = true },
                         )

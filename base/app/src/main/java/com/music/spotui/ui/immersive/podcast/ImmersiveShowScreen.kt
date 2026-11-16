@@ -160,7 +160,7 @@ fun ImmersiveShowScreen(navController: NavController, showId: String, showName: 
                                 .immersiveClickable(onClick = { oldestFirst = !oldestFirst }, pressedScale = 0.96f)
                                 .padding(vertical = 12.dp),
                         ) {
-                            Icon(Icons.Rounded.SwapVert, contentDescription = null, tint = Immersive.Accent, modifier = Modifier.size(18.dp))
+                            Icon(com.music.spotui.ui.design.AppIcons.SwapVert, contentDescription = null, tint = Immersive.Accent, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 text = stringResource(
@@ -239,7 +239,7 @@ private fun ShowHeader(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.fillMaxWidth().padding(top = immersiveTopContentPadding() + 8.dp, bottom = 8.dp),
         ) {
-            ImmersiveCover(cover, Modifier.size(ShowCover), Immersive.CoverLarge, placeholderIcon = Icons.Rounded.Podcasts)
+            ImmersiveCover(cover, Modifier.size(ShowCover), Immersive.CoverLarge, placeholderIcon = com.music.spotui.ui.design.AppIcons.Podcasts)
             Spacer(Modifier.height(20.dp))
             Text(
                 text = name,
@@ -279,7 +279,7 @@ private fun ShowHeader(
             val rating = show?.rating ?: 0.0
             if (rating > 0.0) {
                 Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Star, contentDescription = null, tint = Immersive.TextSecondary, modifier = Modifier.size(16.dp))
+                    Icon(com.music.spotui.ui.design.AppIcons.Star, contentDescription = null, tint = Immersive.TextSecondary, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(String.format(java.util.Locale.getDefault(), "%.1f", rating), style = Immersive.Subhead)
                 }
@@ -287,7 +287,7 @@ private fun ShowHeader(
             Spacer(Modifier.height(16.dp))
             ImmersiveButton(
                 text = stringResource(if (following) R.string.show_following else R.string.show_follow),
-                icon = if (following) Icons.Rounded.Check else Icons.Rounded.Add,
+                icon = if (following) com.music.spotui.ui.design.AppIcons.Check else com.music.spotui.ui.design.AppIcons.Add,
                 filled = !following,
                 modifier = Modifier.widthIn(min = 170.dp),
                 onClick = { onFollow(!following) },

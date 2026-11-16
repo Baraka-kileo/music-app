@@ -167,7 +167,7 @@ internal fun ImmersiveSwipeToRemove(key: Any, onRemove: () -> Unit, content: @Co
                     .background(if (armed) Immersive.Destructive else Immersive.Destructive.copy(alpha = 0.6f)),
             ) {
                 Icon(
-                    Icons.Rounded.DeleteOutline,
+                    com.music.spotui.ui.design.AppIcons.DeleteOutline,
                     contentDescription = stringResource(R.string.context_menu_undownload),
                     tint = Color.White,
                     modifier = Modifier.padding(horizontal = 24.dp).size(26.dp),

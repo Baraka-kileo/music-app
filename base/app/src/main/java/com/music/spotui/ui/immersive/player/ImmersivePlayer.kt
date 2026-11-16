@@ -715,7 +715,7 @@ private fun RowScope.PlayerCredits(
     Spacer(Modifier.width(10.dp))
     // Beside the credits rather than in the toggle row: liking is about this song.
     CircleGlyph(
-        icon = if (state.liked) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+        icon = if (state.liked) com.music.spotui.ui.design.AppIcons.Star else com.music.spotui.ui.design.AppIcons.StarBorder,
         contentDescription = stringResource(if (state.liked) R.string.immersive_player_unlike else R.string.immersive_player_like),
         onClick = actions.toggleLike,
         active = state.liked,
@@ -723,7 +723,7 @@ private fun RowScope.PlayerCredits(
     if (onMore != null) {
         Spacer(Modifier.width(8.dp))
         CircleGlyph(
-            icon = Icons.Rounded.MoreHoriz,
+            icon = com.music.spotui.ui.design.AppIcons.MoreHoriz,
             contentDescription = stringResource(R.string.immersive_player_more),
             onClick = onMore,
         )

@@ -378,7 +378,7 @@ object PlayerCapsulePref {
  */
 object PlayerModesPref {
     private const val KEY = "immersive_player_modes"
-    var on by androidx.compose.runtime.mutableStateOf(prefs(com.music.spotui.di.Graph.app).getBoolean(KEY, false))
+    var on by androidx.compose.runtime.mutableStateOf(prefs(com.music.spotui.di.Graph.app).getBoolean(KEY, true))
         private set
 
     fun set(c: Context, value: Boolean) {

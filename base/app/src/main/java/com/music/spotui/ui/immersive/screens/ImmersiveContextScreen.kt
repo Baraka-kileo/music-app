@@ -501,7 +501,7 @@ private fun ImmersiveContextContent(navController: NavController, vm: ContextVie
                     modifier = Modifier.padding(horizontal = Immersive.Gutter, vertical = 6.dp).fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp)).background(Immersive.Raised).padding(12.dp),
                 ) {
-                    Icon(androidx.compose.material.icons.Icons.Outlined.Group, contentDescription = null, tint = Immersive.TextSecondary, modifier = Modifier.size(20.dp))
+                    Icon(com.music.spotui.ui.design.AppIcons.Group, contentDescription = null, tint = Immersive.TextSecondary, modifier = Modifier.size(20.dp))
                     Text(
                         stringResource(R.string.playlist_collab_locked, p.ownerName.ifBlank { stringResource(R.string.playlist_collab_owner) }),
                         style = Immersive.Caption.copy(color = Immersive.TextSecondary),
@@ -558,7 +558,7 @@ private fun ImmersiveContextContent(navController: NavController, vm: ContextVie
                                 val face: @Composable () -> Unit = {
                                     if (m != null) com.music.spotui.ui.components.ProfileAvatar(m.imageUrl, m.name, 22.dp)
                                     if (reordering) Icon(
-                                        Icons.Rounded.DragHandle,
+                                        com.music.spotui.ui.design.AppIcons.DragHandle,
                                         contentDescription = stringResource(R.string.edit_playlist_items_move_chip),
                                         tint = Immersive.TextSecondary,
                                         modifier = Modifier.padding(start = if (m != null) 8.dp else 0.dp).then(drag.handle(song.rowUid)).size(28.dp),
@@ -588,7 +588,7 @@ private fun ImmersiveContextContent(navController: NavController, vm: ContextVie
                             onClick = { LocalPlayer.play(additions.map { it.toTrack() }, index, context = p.name) },
                             trailing = {
                                 Icon(
-                                    Icons.Rounded.Close,
+                                    com.music.spotui.ui.design.AppIcons.Close,
                                     contentDescription = stringResource(R.string.immersive_detail_remove_local),
                                     tint = Immersive.TextSecondary,
                                     modifier = Modifier
@@ -629,14 +629,14 @@ private fun ImmersiveContextContent(navController: NavController, vm: ContextVie
             actions = if (hasActions) {
                 {
                     if (findable && all.isNotEmpty()) ImmersiveBarAction(
-                        icon = Icons.Rounded.Search,
+                        icon = com.music.spotui.ui.design.AppIcons.Search,
                         contentDescription = stringResource(R.string.immersive_detail_find),
                         onClick = { finding = !finding },
                         tint = if (finding) Immersive.Accent else Immersive.Text,
                     )
                     if (findable) Box {
                         ImmersiveBarAction(
-                            icon = Icons.Rounded.SwapVert,
+                            icon = com.music.spotui.ui.design.AppIcons.SwapVert,
                             contentDescription = stringResource(R.string.filter_and_sort_sort_section_title),
                             onClick = { sortMenu = true },
                             tint = if (sort.isCustom) Immersive.Text else Immersive.Accent,
@@ -650,7 +650,7 @@ private fun ImmersiveContextContent(navController: NavController, vm: ContextVie
                     }
                     if (!com.music.spotui.data.catalog.CatalogRuntime.isCatalogUri(p.uri) &&
                         (p.type == "playlist" || p.type == "album" || p.type == "liked" || p.type == "liked-artist")) ImmersiveBarAction(
-                        icon = Icons.Rounded.MoreHoriz,
+                        icon = com.music.spotui.ui.design.AppIcons.MoreHoriz,
                         contentDescription = stringResource(R.string.content_description_context_menu),
                         onClick = { if (p.type == "playlist") playlistMenu = true else albumMenu = true },
                     )
@@ -717,7 +717,7 @@ private fun ContextHeader(
                 url = p.coverUri,
                 modifier = Modifier.matchParentSize(),
                 shape = SleeveShape,
-                placeholderIcon = if (p.type == "album") Icons.Rounded.Album else Icons.Rounded.QueueMusic,
+                placeholderIcon = if (p.type == "album") com.music.spotui.ui.design.AppIcons.Album else com.music.spotui.ui.design.AppIcons.QueueMusic,
             )
         }
         Spacer(Modifier.height(20.dp))
@@ -819,13 +819,13 @@ private fun ContextHeader(
             ) {
                 ImmersiveButton(
                     text = stringResource(if (thisPlaying) R.string.immersive_detail_pause else R.string.immersive_shell_play),
-                    icon = if (thisPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    icon = if (thisPlaying) com.music.spotui.ui.design.AppIcons.Pause else com.music.spotui.ui.design.AppIcons.PlayArrow,
                     onClick = onPlay,
                     modifier = Modifier.weight(1f, fill = false).widthIn(max = 240.dp).fillMaxWidth(),
                 )
                 ImmersiveButton(
                     text = stringResource(R.string.immersive_shell_shuffle),
-                    icon = if (shuffled && smart) Icons.Rounded.AutoAwesome else Icons.Rounded.Shuffle,
+                    icon = if (shuffled && smart) com.music.spotui.ui.design.AppIcons.AutoAwesome else com.music.spotui.ui.design.AppIcons.Shuffle,
                     onClick = onShuffle,
                     // Lit while this list plays shuffled (or smart-shuffled): a tap then plays another random song.
                     filled = shuffled,
@@ -837,7 +837,7 @@ private fun ContextHeader(
             val onSpotify = !com.music.spotui.data.catalog.CatalogRuntime.isCatalogUri(p.uri)
             if (onSpotify) Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (p.type != "liked") ImmersiveCircleButton(
-                    icon = if (saved) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    icon = if (saved) com.music.spotui.ui.design.AppIcons.Favorite else com.music.spotui.ui.design.AppIcons.FavoriteBorder,
                     contentDescription = stringResource(if (saved) R.string.immersive_detail_unsave else R.string.immersive_detail_save),
                     onClick = onToggleSaved,
                     tint = if (saved) Immersive.Accent else Immersive.Text,
@@ -863,14 +863,14 @@ private fun ContextHeader(
                     }
                 }
                 if (SmartShuffle.canPlay(p.uri)) ImmersiveCircleButton(
-                    icon = Icons.Rounded.AutoAwesome,
+                    icon = com.music.spotui.ui.design.AppIcons.AutoAwesome,
                     contentDescription = stringResource(R.string.smart_shuffle_title),
                     onClick = onToggleSmart,
                     tint = if (smart) Immersive.Accent else Immersive.Text,
                 )
                 // "Move": a handle on each song, to put them in another order (again: done).
                 if (moving != null) ImmersiveCircleButton(
-                    icon = Icons.Rounded.DragHandle,
+                    icon = com.music.spotui.ui.design.AppIcons.DragHandle,
                     contentDescription = stringResource(if (moving) R.string.done else R.string.edit_playlist_items_move_chip),
                     onClick = onMove,
                     tint = if (moving) Immersive.Accent else Immersive.Text,
@@ -889,7 +889,7 @@ private fun LikedSleeve(modifier: Modifier) {
             .clip(SleeveShape)
             .background(Brush.linearGradient(listOf(Color(0xFF450AF5), Color(0xFF8E8EE5), Color(0xFFC4EFD9)))),
     ) {
-        Icon(Icons.Rounded.Favorite, contentDescription = null, tint = Color.White, modifier = Modifier.fillMaxSize(0.4f))
+        Icon(com.music.spotui.ui.design.AppIcons.Favorite, contentDescription = null, tint = Color.White, modifier = Modifier.fillMaxSize(0.4f))
     }
 }
 
@@ -911,7 +911,7 @@ private fun DownloadCircle(downloaded: Int, total: Int, busy: Boolean, kept: Boo
     ) {
         when {
             all -> Icon(
-                Icons.Rounded.DeleteOutline, stringResource(R.string.context_menu_undownload),
+                com.music.spotui.ui.design.AppIcons.DeleteOutline, stringResource(R.string.context_menu_undownload),
                 tint = Immersive.Accent, modifier = Modifier.size(22.dp),
             )
             busy -> if (total > 0) CircularProgressIndicator(
@@ -920,7 +920,7 @@ private fun DownloadCircle(downloaded: Int, total: Int, busy: Boolean, kept: Boo
                 strokeWidth = 2.dp, modifier = Modifier.size(22.dp),
             ) else CircularProgressIndicator(color = Immersive.Accent, strokeWidth = 2.dp, modifier = Modifier.size(22.dp))
             else -> Icon(
-                Icons.Rounded.Download, stringResource(R.string.context_menu_download),
+                com.music.spotui.ui.design.AppIcons.Download, stringResource(R.string.context_menu_download),
                 tint = Immersive.Text, modifier = Modifier.size(22.dp),
             )
         }
@@ -947,7 +947,7 @@ private fun SortMenu(open: Boolean, sort: TrackOrder, onDismiss: () -> Unit, onS
                 trailingIcon = if (option == sort.sort) {
                     {
                         Icon(
-                            if (sort.reversed) Icons.Rounded.ArrowUpward else Icons.Rounded.ArrowDownward,
+                            if (sort.reversed) com.music.spotui.ui.design.AppIcons.ArrowUpward else com.music.spotui.ui.design.AppIcons.ArrowDownward,
                             contentDescription = null, tint = Immersive.Accent, modifier = Modifier.size(18.dp),
                         )
                     }
@@ -1024,7 +1024,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.immersiveRecommended(
             modifier = immersiveItemPlacement(),
             trailing = {
                 Icon(
-                    androidx.compose.material.icons.Icons.Outlined.AddCircleOutline,
+                    com.music.spotui.ui.design.AppIcons.AddCircleOutline,
                     contentDescription = stringResource(R.string.recommended_songs_add),
                     tint = Immersive.Text,
                     modifier = Modifier

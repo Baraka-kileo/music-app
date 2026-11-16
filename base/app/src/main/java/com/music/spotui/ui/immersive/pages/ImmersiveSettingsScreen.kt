@@ -285,7 +285,7 @@ private fun SourcesPage(navController: NavController, back: () -> Unit) {
             row {
                 ImmersiveGroupRow(
                     stringResource(R.string.extensions_title), detail = stringResource(R.string.extensions_row_detail),
-                    icon = Icons.Rounded.Extension, chevron = true,
+                    icon = com.music.spotui.ui.design.AppIcons.Extension, chevron = true,
                     onClick = { navController.navigate(Routes.Extensions.route) },
                 )
             }
@@ -1129,7 +1129,7 @@ private fun AppPage(navController: NavController, back: () -> Unit) {
                     trailing = {
                         if (check.checking) androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = Immersive.Accent)
                         else androidx.compose.material3.IconButton(onClick = { scope.launch { check.run() } }) {
-                            androidx.compose.material3.Icon(Icons.Rounded.Refresh, stringResource(R.string.settings_update_refresh), tint = Immersive.Accent)
+                            androidx.compose.material3.Icon(com.music.spotui.ui.design.AppIcons.Refresh, stringResource(R.string.settings_update_refresh), tint = Immersive.Accent)
                         }
                     },
                 )

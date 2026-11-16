@@ -280,7 +280,7 @@ private fun GroupRow(group: RecentGroup, expanded: Boolean, onToggle: () -> Unit
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                Icons.Rounded.KeyboardArrowDown,
+                com.music.spotui.ui.design.AppIcons.KeyboardArrowDown,
                 contentDescription = stringResource(if (expanded) R.string.recents_collapse else R.string.recents_expand),
                 tint = Immersive.Text,
                 modifier = Modifier.size(20.dp).rotate(rotation),
@@ -329,7 +329,7 @@ private fun RecentCover(context: RecentItem, round: Boolean) {
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    Icons.Rounded.Favorite,
+                    com.music.spotui.ui.design.AppIcons.Favorite,
                     contentDescription = stringResource(R.string.collection_liked_songs_title),
                     tint = Color.White,
                     modifier = Modifier.size(13.dp),

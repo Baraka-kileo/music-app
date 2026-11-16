@@ -108,7 +108,7 @@ fun ImmersiveFriendsScreen(navController: NavController) {
         // Opened from Home's header (no longer a tab): back to it.
         onBack = { navController.popBackStack() },
         actions = {
-            ImmersiveBarAction(Icons.Rounded.Refresh, stringResource(R.string.friends_refresh), onClick = { state = null; attempt++ })
+            ImmersiveBarAction(com.music.spotui.ui.design.AppIcons.Refresh, stringResource(R.string.friends_refresh), onClick = { state = null; attempt++ })
         },
     ) {
         val s = state
@@ -201,7 +201,7 @@ fun ImmersiveLocalFilesScreen(navController: NavController) {
         subtitle = if (granted && tracks != null) pluralStringResource(R.plurals.local_files_count, n, n) else null,
         onBack = { navController.popBackStack() },
         actions = if (granted) {
-            { ImmersiveBarAction(Icons.Rounded.Folder, stringResource(R.string.local_folders_button), onClick = { choosingFolders = true }) }
+            { ImmersiveBarAction(com.music.spotui.ui.design.AppIcons.Folder, stringResource(R.string.local_folders_button), onClick = { choosingFolders = true }) }
         } else null,
     ) {
         when {
@@ -325,18 +325,18 @@ fun ImmersiveEpisodeScreen(navController: NavController, episodeId: String, fall
                     modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                 ) {
                     ImmersiveCircleButton(
-                        if (saved) Icons.Rounded.Check else Icons.Rounded.Add,
+                        if (saved) com.music.spotui.ui.design.AppIcons.Check else com.music.spotui.ui.design.AppIcons.Add,
                         stringResource(if (saved) R.string.episode_unsave else R.string.episode_save),
                         onClick = { episode?.let { SongPlayer.setSaved(it.spotifyUri, !saved) } },
                     )
                     episode?.let { EpisodeDownloadButton(it, size = 26.dp) }
-                    ImmersiveCircleButton(Icons.Rounded.IosShare, stringResource(R.string.a11y_share), onClick = { episode?.let { shareEpisode(context, it) } })
-                    ImmersiveCircleButton(Icons.Rounded.MoreHoriz, stringResource(R.string.episode_options), onClick = { menuOpen = true })
+                    ImmersiveCircleButton(com.music.spotui.ui.design.AppIcons.IosShare, stringResource(R.string.a11y_share), onClick = { episode?.let { shareEpisode(context, it) } })
+                    ImmersiveCircleButton(com.music.spotui.ui.design.AppIcons.MoreHoriz, stringResource(R.string.episode_options), onClick = { menuOpen = true })
                     Spacer(Modifier.weight(1f))
                     ImmersiveButton(
                         stringResource(if (playing) R.string.notif_action_pause else R.string.episode_play),
                         onClick = { if (playing) SongPlayer.pause() else play() },
-                        icon = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        icon = if (playing) com.music.spotui.ui.design.AppIcons.Pause else com.music.spotui.ui.design.AppIcons.PlayArrow,
                         filled = true,
                     )
                 }

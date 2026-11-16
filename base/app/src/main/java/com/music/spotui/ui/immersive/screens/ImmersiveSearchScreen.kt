@@ -360,7 +360,7 @@ private fun LazyListScope.recentSearches(
             onClick = { onOpen(item) },
             trailing = {
                 Icon(
-                    imageVector = Icons.Rounded.Close,
+                    imageVector = com.music.spotui.ui.design.AppIcons.Close,
                     contentDescription = stringResource(R.string.aligned_curation_first_save_default_row_remove_action_description),
                     tint = Immersive.TextSecondary,
                     modifier = Modifier
@@ -389,7 +389,7 @@ private fun ImmersiveVoiceSearchButton(onClick: () -> Unit) {
             .clickable(role = Role.Button, onClick = onClick),
     ) {
         Icon(
-            Icons.Outlined.Mic,
+            com.music.spotui.ui.design.AppIcons.Mic,
             contentDescription = stringResource(R.string.voice_search),
             tint = Immersive.Text,
             modifier = Modifier.size(22.dp),
@@ -407,7 +407,7 @@ private fun SuggestionRow(term: String, onClick: () -> Unit) {
             .padding(horizontal = Immersive.Gutter, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Rounded.Search, contentDescription = null, tint = Immersive.TextSecondary, modifier = Modifier.size(22.dp))
+        Icon(com.music.spotui.ui.design.AppIcons.Search, contentDescription = null, tint = Immersive.TextSecondary, modifier = Modifier.size(22.dp))
         Spacer(Modifier.width(16.dp))
         Text(text = term, style = Immersive.Body, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
@@ -645,7 +645,7 @@ private fun TopResultCard(song: SongsModel, onPlay: () -> Unit, onMore: () -> Un
             ImmersiveButton(
                 text = stringResource(R.string.immersive_shell_play),
                 onClick = onPlay,
-                icon = Icons.Rounded.PlayArrow,
+                icon = com.music.spotui.ui.design.AppIcons.PlayArrow,
             )
         }
     }

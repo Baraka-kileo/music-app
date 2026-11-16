@@ -60,7 +60,7 @@ private val GESTURE_BAR_FLOOR = 15.dp
  * its own, so the two numbers are a pair — change one and the bar's height moves unless the other
  * moves against it.
  */
-private val TAB_VERTICAL_PADDING = 7.dp
+private val TAB_VERTICAL_PADDING = 5.dp
 
 /** The gap between a tab's glyph and its label. */
 private val TAB_ICON_LABEL_GAP = 2.dp
@@ -162,7 +162,7 @@ internal fun TabBarContent(
                 val tint = if (selectedTab == item.route) Immersive.Accent else Immersive.Text.copy(alpha = 0.65f)
                 tab(
                     key = item.route,
-                    icon = { TabIcon(item, tint) },
+                    icon = { TabIcon(item, tint, selectedTab == item.route) },
                     title = {
                         Text(
                             text = tabLabel(item),
@@ -176,7 +176,7 @@ internal fun TabBarContent(
                             modifier = Modifier.padding(top = TAB_ICON_LABEL_GAP).padding(horizontal = 6.dp),
                         )
                     },
-                    onClick = { currentOnTabClick(item) },
+                    onClick = { if (selectedTab != item.route) com.music.spotui.di.Haptics.tick(); currentOnTabClick(item) },
                 )
             }
             standaloneTab(
@@ -185,9 +185,10 @@ internal fun TabBarContent(
                     TabIcon(
                         Routes.Search,
                         if (selectedTab == Routes.Search.route) Immersive.Accent else Immersive.Text.copy(alpha = 0.65f),
+                        selectedTab == Routes.Search.route,
                     )
                 },
-                onClick = { currentOnTabClick(Routes.Search) },
+                onClick = { if (selectedTab != Routes.Search.route) com.music.spotui.di.Haptics.tick(); currentOnTabClick(Routes.Search) },
             )
         }
     }
@@ -198,12 +199,17 @@ private fun tabLabel(item: Routes): String =
     if (item.labelRes != 0) stringResource(item.labelRes) else item.label
 
 @Composable
-private fun TabIcon(item: Routes, tint: Color) {
+private fun TabIcon(item: Routes, tint: Color, selected: Boolean) {
+    val I = com.music.spotui.ui.design.AppIcons
     Icon(
-        painter = painterResource(item.icon),
+        imageVector = when (item) {
+            Routes.Home -> if (selected) I.TabHomeOn else I.TabHome
+            Routes.Library -> if (selected) I.TabLibraryOn else I.TabLibrary
+            else -> if (selected) I.TabSearchOn else I.TabSearch
+        },
         // The label right below names the tab for TalkBack; the standalone one has none.
         contentDescription = if (item == Routes.Search) tabLabel(item) else null,
         tint = tint,
-        modifier = Modifier.size(22.dp),
+        modifier = Modifier.size(23.dp),
     )
 }

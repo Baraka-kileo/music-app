@@ -303,7 +303,7 @@ private fun ArtistOverviewContent(
             item(key = "header") {
                 ArtistNameHeader(name = displayName, artHeight = artHeight) {
                     if (overview.verified) Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Verified, contentDescription = null, tint = Immersive.Accent, modifier = Modifier.size(18.dp))
+                        Icon(com.music.spotui.ui.design.AppIcons.Verified, contentDescription = null, tint = Immersive.Accent, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.verified_artist), style = Immersive.Subhead.copy(color = Immersive.Text, fontWeight = FontWeight.SemiBold))
                     }
@@ -331,7 +331,7 @@ private fun ArtistOverviewContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     ImmersiveCircleButton(
-                        icon = Icons.Rounded.Shuffle,
+                        icon = com.music.spotui.ui.design.AppIcons.Shuffle,
                         contentDescription = stringResource(R.string.immersive_shell_shuffle),
                         onClick = {
                             if (tracks.isNotEmpty()) Graph.currentSongState.startShuffled(tracks.map { it.song })
@@ -353,7 +353,7 @@ private fun ArtistOverviewContent(
                         containerColor = Color.White,
                     )
                     if (onSpotify) ImmersiveCircleButton(
-                        icon = if (isFollowing) Icons.Rounded.Check else Icons.Rounded.PersonAdd,
+                        icon = if (isFollowing) com.music.spotui.ui.design.AppIcons.Check else com.music.spotui.ui.design.AppIcons.PersonAdd,
                         contentDescription = stringResource(if (isFollowing) R.string.immersive_detail_unfollow else R.string.immersive_detail_follow),
                         onClick = {
                             val on = !(SongPlayer.library["spotify:artist:${overview.id}"] ?: following)
@@ -486,7 +486,7 @@ private fun ArtistOverviewContent(
             onBack = { navController.navigateUp() },
             actions = {
                 if (onSpotify) ImmersiveBarAction(
-                    icon = Icons.Rounded.MoreHoriz,
+                    icon = com.music.spotui.ui.design.AppIcons.MoreHoriz,
                     contentDescription = stringResource(R.string.content_description_context_menu),
                     onClick = { showArtistMenu = true },
                 )

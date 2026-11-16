@@ -320,7 +320,7 @@ internal fun ArtistLikedRow(title: String, subtitle: String, onClick: () -> Unit
                 .clip(Immersive.CoverSmall)
                 .background(Brush.linearGradient(listOf(Color(0xFF450AF5), Color(0xFF8E8EE5), Color(0xFFC4EFD9)))),
         ) {
-            Icon(Icons.Rounded.Favorite, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+            Icon(com.music.spotui.ui.design.AppIcons.Favorite, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {

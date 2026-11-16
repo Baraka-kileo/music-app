@@ -121,7 +121,7 @@ fun ImmersiveSongRow(
                 Box(Modifier.width(TrackNumberWidth).height(RowCover), contentAlignment = Alignment.Center) {
                     if (current) {
                         Icon(
-                            imageVector = if (playing) Icons.Rounded.GraphicEq else Icons.Rounded.PlayArrow,
+                            imageVector = if (playing) com.music.spotui.ui.design.AppIcons.GraphicEq else com.music.spotui.ui.design.AppIcons.PlayArrow,
                             contentDescription = stringResource(R.string.immersive_shell_now_playing),
                             tint = Immersive.Accent,
                             modifier = Modifier.size(22.dp),
@@ -148,7 +148,7 @@ fun ImmersiveSongRow(
             trailing?.invoke()
             Spacer(Modifier.width(8.dp))
             Icon(
-                Icons.Rounded.Star,
+                com.music.spotui.ui.design.AppIcons.Star,
                 contentDescription = stringResource(R.string.liked_song),
                 tint = Immersive.Accent,
                 modifier = Modifier.size(18.dp),
@@ -291,7 +291,7 @@ fun ImmersiveMoreButton(
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            Icons.Rounded.MoreVert,
+            com.music.spotui.ui.design.AppIcons.MoreVert,
             contentDescription = stringResource(R.string.immersive_shell_more),
             tint = tint,
             modifier = Modifier.size(iconSize),

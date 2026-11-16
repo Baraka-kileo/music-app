@@ -246,10 +246,10 @@ fun ImmersiveExtensionsScreen(navController: NavController) {
             footerRes = if (tab == 0) R.string.extensions_repository_warning else null,
         ) {
             if (tab == 0) row {
-                ImmersiveGroupRow(stringResource(R.string.extensions_repository_add), icon = Icons.Rounded.Add, chevron = true, onClick = { askRepo = true })
+                ImmersiveGroupRow(stringResource(R.string.extensions_repository_add), icon = com.music.spotui.ui.design.AppIcons.Add, chevron = true, onClick = { askRepo = true })
             }
-            row { ImmersiveGroupRow(stringResource(R.string.extensions_install_file), icon = Icons.Rounded.Folder, chevron = true, onClick = pickFile) }
-            row { ImmersiveGroupRow(stringResource(R.string.extensions_install_url), icon = Icons.Rounded.Link, chevron = true, onClick = { askUrl = true }) }
+            row { ImmersiveGroupRow(stringResource(R.string.extensions_install_file), icon = com.music.spotui.ui.design.AppIcons.Folder, chevron = true, onClick = pickFile) }
+            row { ImmersiveGroupRow(stringResource(R.string.extensions_install_url), icon = com.music.spotui.ui.design.AppIcons.Link, chevron = true, onClick = { askUrl = true }) }
         }
     }
 
@@ -306,8 +306,8 @@ private fun RepoHeader(repo: ExtensionStore.Repo, onRefresh: () -> Unit, onRemov
                     style = Immersive.Caption.copy(color = if (official) Immersive.TextSecondary else Warning))
             }
             if (repo.loading) CircularProgressIndicator(Modifier.padding(10.dp).size(20.dp), color = Immersive.Accent, strokeWidth = 2.dp)
-            else ImmersiveRowIcon(Icons.Rounded.Refresh, stringResource(R.string.extensions_repository_refresh), onClick = onRefresh)
-            if (!official) ImmersiveRowIcon(Icons.Rounded.DeleteOutline, stringResource(R.string.extensions_repository_remove), onClick = onRemove)
+            else ImmersiveRowIcon(com.music.spotui.ui.design.AppIcons.Refresh, stringResource(R.string.extensions_repository_refresh), onClick = onRefresh)
+            if (!official) ImmersiveRowIcon(com.music.spotui.ui.design.AppIcons.DeleteOutline, stringResource(R.string.extensions_repository_remove), onClick = onRemove)
         }
         repo.error?.let { Text(stringResource(R.string.extensions_repo_error, it), style = Immersive.Caption.copy(color = Warning)) }
         if (repo.catalog?.extensions?.isEmpty() == true) Text(stringResource(R.string.extensions_repo_empty), style = Immersive.Caption)
@@ -328,7 +328,7 @@ private fun GitHubHeader(repo: ExtensionStore.Repo, onRefresh: () -> Unit) {
                 Text(stringResource(R.string.extensions_github_note), style = Immersive.Caption.copy(color = Warning))
             }
             if (repo.loading) CircularProgressIndicator(Modifier.padding(10.dp).size(20.dp), color = Immersive.Accent, strokeWidth = 2.dp)
-            else ImmersiveRowIcon(Icons.Rounded.Refresh, stringResource(R.string.extensions_repository_refresh), onClick = onRefresh)
+            else ImmersiveRowIcon(com.music.spotui.ui.design.AppIcons.Refresh, stringResource(R.string.extensions_repository_refresh), onClick = onRefresh)
         }
         repo.error?.let { Text(stringResource(R.string.extensions_repo_error, it), style = Immersive.Caption.copy(color = Warning)) }
     }
@@ -394,9 +394,9 @@ private fun LazyListScope.areaSection(
                     }
                     // Sources are ordered per action, in Settings (see the hint under them).
                     if (list.size >= 2 && area != Area.AUDIO) Row {
-                        ImmersiveRowIcon(Icons.Rounded.KeyboardArrowUp, stringResource(R.string.extensions_move_up), enabled = i > 0, tint = Immersive.Text,
+                        ImmersiveRowIcon(com.music.spotui.ui.design.AppIcons.KeyboardArrowUp, stringResource(R.string.extensions_move_up), enabled = i > 0, tint = Immersive.Text,
                             onClick = { Extensions.movePriority(area, e.id, -1) })
-                        ImmersiveRowIcon(Icons.Rounded.KeyboardArrowDown, stringResource(R.string.extensions_move_down), enabled = i < list.lastIndex, tint = Immersive.Text,
+                        ImmersiveRowIcon(com.music.spotui.ui.design.AppIcons.KeyboardArrowDown, stringResource(R.string.extensions_move_down), enabled = i < list.lastIndex, tint = Immersive.Text,
                             onClick = { Extensions.movePriority(area, e.id, 1) })
                     }
                 }
@@ -450,7 +450,7 @@ private fun InstalledRow(
             }
         },
         trailing = {
-            ImmersiveRowIcon(Icons.Rounded.DeleteOutline, stringResource(R.string.extension_uninstall), onClick = { askUninstall = true })
+            ImmersiveRowIcon(com.music.spotui.ui.design.AppIcons.DeleteOutline, stringResource(R.string.extension_uninstall), onClick = { askUninstall = true })
             ImmersiveSwitch(e.enabled) { enable(e.id, it) }
         },
     ) {

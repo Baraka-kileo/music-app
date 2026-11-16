@@ -114,7 +114,7 @@ internal fun ImmersiveHomeFacets(facet: String, labels: Map<String, String>, pod
                 .padding(horizontal = 8.dp, vertical = 6.dp),
         ) {
             androidx.compose.material3.Icon(
-                androidx.compose.material.icons.Icons.Rounded.Close, contentDescription = labels[""],
+                com.music.spotui.ui.design.AppIcons.Close, contentDescription = labels[""],
                 tint = Immersive.Text, modifier = Modifier.size(18.dp),
             )
         }

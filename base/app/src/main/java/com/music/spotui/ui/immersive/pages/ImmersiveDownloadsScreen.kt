@@ -205,7 +205,7 @@ fun ImmersiveDownloadsScreen(navController: NavController) {
                             DownloadBadge(status, size = 20.dp)
                             Spacer(Modifier.width(12.dp))
                             Icon(
-                                Icons.Rounded.Close,
+                                com.music.spotui.ui.design.AppIcons.Close,
                                 contentDescription = stringResource(R.string.download_cancel),
                                 tint = Immersive.TextSecondary,
                                 modifier = Modifier
@@ -270,7 +270,7 @@ private fun NoticeCard(title: String, detail: String?, onClick: () -> Unit, icon
         }
         if (icon) {
             Spacer(Modifier.width(12.dp))
-            Icon(Icons.Rounded.Close, contentDescription = title, tint = Immersive.TextSecondary, modifier = Modifier.size(20.dp))
+            Icon(com.music.spotui.ui.design.AppIcons.Close, contentDescription = title, tint = Immersive.TextSecondary, modifier = Modifier.size(20.dp))
         }
     }
 }

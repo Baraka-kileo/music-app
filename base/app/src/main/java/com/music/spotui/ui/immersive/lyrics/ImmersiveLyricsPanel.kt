@@ -241,13 +241,13 @@ fun ImmersiveLyricsPanel(modifier: Modifier = Modifier, contentPadding: PaddingV
                                 ),
                         ) {
                             if (canRomanize) LyricsToggle(
-                                icon = Icons.Rounded.Abc,
+                                icon = com.music.spotui.ui.design.AppIcons.Abc,
                                 description = stringResource(R.string.lyrics_romanize),
                                 on = LyricsRomanizationPref.on,
                                 onClick = { LyricsRomanizationPref.set(context, !LyricsRomanizationPref.on) },
                             )
                             if (canTranslate) LyricsToggle(
-                                icon = Icons.Rounded.Translate,
+                                icon = com.music.spotui.ui.design.AppIcons.Translate,
                                 description = stringResource(R.string.lyrics_fullscreen_chip_label_translate),
                                 on = current.showTranslation,
                                 loading = current.translating && current.translationRequested,
@@ -905,7 +905,7 @@ private fun ShareBar(canShare: Boolean, onCancel: () -> Unit, onShare: () -> Uni
             ImmersiveButton(stringResource(R.string.cancel), onCancel, Modifier.weight(1f))
             ImmersiveButton(
                 stringResource(R.string.lyrics_fullscreen_chip_label_share), onShare, Modifier.weight(1f),
-                icon = Icons.Rounded.Share, filled = true, enabled = canShare,
+                icon = com.music.spotui.ui.design.AppIcons.Share, filled = true, enabled = canShare,
             )
         }
     }
@@ -1024,7 +1024,7 @@ private fun NoteMark(onOpen: () -> Unit) {
                 .background(Color.White.copy(alpha = 0.16f)),
         ) {
             Icon(
-                Icons.Rounded.FormatQuote,
+                com.music.spotui.ui.design.AppIcons.FormatQuote,
                 contentDescription = null,
                 tint = Color.White.copy(alpha = 0.9f),
                 modifier = Modifier.size(15.dp),

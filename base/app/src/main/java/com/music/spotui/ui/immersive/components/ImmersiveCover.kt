@@ -59,7 +59,7 @@ fun ImmersiveCover(
     shape: Shape = Immersive.CoverMedium,
     contentDescription: String? = null,
     border: Boolean = true,
-    placeholderIcon: ImageVector = Icons.Rounded.MusicNote,
+    placeholderIcon: ImageVector = com.music.spotui.ui.design.AppIcons.MusicNote,
 ) {
     val model = spotifyImageUrl(url)
     Box(
