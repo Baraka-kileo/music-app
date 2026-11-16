@@ -105,6 +105,7 @@ import com.music.spotui.data.entity.LyricLine
 import com.music.spotui.data.entity.Lyrics
 import com.music.spotui.data.preferences.LyricsRomanizationPref
 import com.music.spotui.di.Graph
+import kotlinx.coroutines.launch
 import com.music.spotui.di.SongPlayer
 import com.music.spotui.ui.immersive.Immersive
 import com.music.spotui.ui.look.GLOW_ALPHA
@@ -165,6 +166,7 @@ fun ImmersiveLyricsPanel(modifier: Modifier = Modifier, contentPadding: PaddingV
     val blend = com.music.spotui.ui.components.rememberSongBlend()
     val hold = blend?.outgoingWords == true
     val title = song.title.value
+    val shareScope = androidx.compose.runtime.rememberCoroutineScope()
     val artist = song.singer.value
     // currentTrackId is plain data, not Compose state: a skip whose title and artist are the same
     // (or that reports its id after them) would never re-run this. The playing item's uri is state.
@@ -258,7 +260,17 @@ fun ImmersiveLyricsPanel(modifier: Modifier = Modifier, contentPadding: PaddingV
                     if (selecting) ShareBar(
                         canShare = picked != null,
                         onCancel = { vm.stopSelecting() },
-                        onShare = { picked?.let { shareLyricLines(context, current.lyrics, it, title, artist); vm.stopSelecting() } },
+                        onShare = {
+                            picked?.let { range ->
+                                val words = current.lyrics
+                                shareScope.launch {
+                                    com.music.spotui.ui.components.shareLyricCard(
+                                        context, words, range, title, artist, Graph.currentSongState.coverUri.value,
+                                    )
+                                }
+                                vm.stopSelecting()
+                            }
+                        },
                         modifier = Modifier.align(Alignment.BottomCenter).padding(contentPadding).padding(horizontal = Immersive.Gutter),
                     )
                 }

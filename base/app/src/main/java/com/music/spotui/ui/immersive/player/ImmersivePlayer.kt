@@ -299,11 +299,35 @@ fun ImmersivePlayer(
     // the queue close it the same way back: the clip (paused under them) fades out to the cover's
     // backdrop and the sleeve returns as the header's thumbnail, rather than a still clip showing
     // around the panel; closing the panel opens the cover into the clip again.
+    // The music video (a clip kept in time with the song): looked up for the song shown, offered by
+    // a pill on the cover once it is ready, played in the cover's place, full screen on a tap.
+    val mv = com.music.spotui.video.MusicVideoController
+    androidx.compose.runtime.DisposableEffect(mv) {
+        mv.attachPlayerScreen()
+        onDispose { mv.detachPlayerScreen() }
+    }
+    val videoAllowed = com.music.spotui.data.preferences.MusicVideoPref.on && state.deviceName == null &&
+        !state.adPlaying && !state.isEpisode
+    LaunchedEffect(state.trackId, state.title, state.buffering) {
+        if (!state.buffering && videoAllowed && state.trackId.isNotBlank()) {
+            mv.prepare(state.trackId, state.title, state.artist, com.music.spotui.di.SongPlayer.getDuration())
+        }
+    }
+    val readyVideo = mv.state.value as? com.music.spotui.video.MusicVideoController.State.Ready
+    val videoMatches = state.trackId.isNotBlank() && readyVideo?.trackId == state.trackId
+    val videoReady = videoMatches && videoAllowed && !state.buffering && !com.music.spotui.data.DataSaver.active
+    LaunchedEffect(com.music.spotui.data.DataSaver.active) {
+        if (com.music.spotui.data.DataSaver.active && mv.on.value) mv.setOn(false)
+    }
+    val videoOn = mv.on.value && videoMatches && videoAllowed
+    val showVideo = videoOn && panel == Panel.NONE && !mv.fullscreen.value
+    LaunchedEffect(mv.state.value, videoReady) { if (videoReady) mv.warm() }
+
     val canvasUrl = rememberImmersiveCanvas(state)
     var canvasShown by remember(canvasUrl) {
         mutableStateOf(canvasUrl != null && com.music.spotui.ui.components.CanvasPlayer.isReady(canvasUrl))
     }
-    val canvasOn = canvasUrl != null && canvasShown && !state.adPlaying && panel == Panel.NONE
+    val canvasOn = canvasUrl != null && canvasShown && !state.adPlaying && panel == Panel.NONE && !videoOn
     // Opening on a clip already showing starts at the end; every later change animates from where it is.
     val canvasOpen = remember { androidx.compose.animation.core.Animatable(if (canvasOn) 1f else 0f) }
     // Opening the player: the heart of the song shown is checked again if its state is old.
@@ -478,6 +502,22 @@ fun ImmersivePlayer(
                             requestBuilderTransform = { it.override(COVER_DECODE_PX) },
                         )
                         SongBlendCover(blend, Modifier.fillMaxSize()) { it.override(COVER_DECODE_PX) }
+                        if (showVideo) Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+                            com.music.spotui.ui.components.VideoSurface(onTap = { mv.fullscreen.value = true })
+                        }
+                    }
+
+                    // ---- Switch to video / to audio: on the cover's lower corner, gone with a panel open ----
+                    if ((videoReady || videoOn) && panel == Panel.NONE) Box(
+                        Modifier
+                            .offset {
+                                // Inside the cover as it is drawn: it steps back while paused.
+                                val inset = artSize() * ((1f - pauseScale.value) / 2f) + 12.dp
+                                IntOffset((artStart() + inset).roundToPx(), (artTop() + artSize() - inset - 32.dp).roundToPx())
+                            }
+                            .graphicsLayer { alpha = 1f - p() },
+                    ) {
+                        com.music.spotui.ui.components.VideoSwitchPill(on = videoOn)
                     }
 
                     // ---- Title + round glyphs ----
@@ -541,6 +581,7 @@ fun ImmersivePlayer(
             }
         }
         }
+        if (videoOn && mv.fullscreen.value) com.music.spotui.ui.screens.VideoFullscreen()
     }
 
     if (showDevices) DevicesSheet { showDevices = false }

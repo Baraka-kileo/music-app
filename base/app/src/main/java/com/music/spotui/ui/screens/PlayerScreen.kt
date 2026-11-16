@@ -843,7 +843,7 @@ private fun ImmersiveStrip(
 
 /** The clip filling the screen, landscape while it shows; back or the exit button leaves. */
 @Composable
-private fun VideoFullscreen() {
+internal fun VideoFullscreen() {
     val activity = LocalContext.current as? android.app.Activity
     androidx.compose.runtime.DisposableEffect(activity) {
         val before = activity?.requestedOrientation
