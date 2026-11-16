@@ -18,6 +18,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.spotui.ui.navigation.PlayerSheet
@@ -369,6 +370,11 @@ fun ImmersivePlayer(
         val landscape = window.playerSideBySide(maxWidth, maxHeight)
         val sidePane = window.large && maxWidth >= SIDE_PANE_MIN_WIDTH
         val playerWidth = maxWidth
+        // The page scroll (portrait), read here so the backdrop can darken under the cards.
+        val pageScroll = androidx.compose.foundation.rememberScrollState()
+        val pageHpx = constraints.maxHeight.toFloat().coerceAtLeast(1f)
+        // 0 at the top of the player, 1 once the cards have taken most of the screen.
+        val scrolled = { (pageScroll.value / (pageHpx * 0.6f)).coerceIn(0f, 1f) }
         // The mesh is recorded on its own for the controls' Liquid Glass to refract (the whole
         // player is already recorded for the sheets, but a glass cannot sample what it sits in).
         // Not under a Canvas clip: the glass would show the mesh, not the video above it.
@@ -378,6 +384,14 @@ fun ImmersivePlayer(
         Box(Modifier.fillMaxSize().then(if (meshRecording != null) Modifier.layerBackdrop(meshRecording) else Modifier)) {
             PlayerBackdrop(palette, outgoingPalette, blend, state.coverUrl)
         }
+        // A shade behind the words: soft at the foot of the player (the controls read over any
+        // colour), and deeper as the cards scroll up over the cover.
+        if (canvasUrl == null) Box(
+            Modifier.fillMaxSize().drawBehind {
+                drawRect(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.38f)))
+                drawRect(Color.Black.copy(alpha = 0.55f * scrolled()))
+            },
+        )
         if (canvasUrl != null) {
             com.music.spotui.ui.screens.CanvasVideo(
                 url = canvasUrl,
@@ -395,9 +409,11 @@ fun ImmersivePlayer(
             )
             // The words and the controls read over any clip; darker again under an open panel.
             Box(
-                Modifier.fillMaxSize().graphicsLayer { alpha = canvasOpen.value * (0.55f + 0.45f * collapse.value) }
+                Modifier.fillMaxSize().graphicsLayer { alpha = canvasOpen.value * (0.85f + 0.15f * maxOf(collapse.value, scrolled())) }
                     .background(CanvasShade),
             )
+            // Scrolled down: the clip dims further under the cards.
+            Box(Modifier.fillMaxSize().drawBehind { drawRect(Color.Black.copy(alpha = 0.6f * scrolled())) })
         }
         // An AutoMix mix: the content draws in with it and springs back after it, the backdrop stays.
         Box(Modifier.fillMaxSize().mixSqueeze(mixMotion)) {
@@ -420,7 +436,6 @@ fun ImmersivePlayer(
             // The player fills the screen; scrolling down shows the cards under it (lyrics, artist,
             // credits, the song's story). Off while lyrics or the queue are open.
             val pageH = maxHeight
-            val pageScroll = androidx.compose.foundation.rememberScrollState()
             LaunchedEffect(panel) { if (panel != Panel.NONE) pageScroll.animateScrollTo(0) }
             Column(Modifier.fillMaxSize().verticalScroll(pageScroll, enabled = panel == Panel.NONE)) {
             // The top of the lyrics card shows at the foot of the player (as the official app), so the
@@ -497,9 +512,15 @@ fun ImmersivePlayer(
                                 val opened = canvasOpen.value * (1f - p())
                                 val beat = 1f + MIX_BEAT_GROW * (state.mixPulse?.level() ?: 0f) * (1f - p())
                                 val scale = (pauseScale.value + (1f - pauseScale.value) * p()) * (1f + CANVAS_COVER_GROW * opened) * beat
-                                scaleX = scale
-                                scaleY = scale
-                                alpha = 1f - opened
+                                // Scrolled down: the cover (or the video) holds its place while the
+                                // title, the controls and the cards slide up over it, easing back and
+                                // fading out as they come.
+                                val sy = pageScroll.value.toFloat()
+                                val fade = (sy / (artSize().toPx() * 0.9f).coerceAtLeast(1f)).coerceIn(0f, 1f)
+                                translationY = sy
+                                scaleX = scale * (1f - 0.08f * fade)
+                                scaleY = scale * (1f - 0.08f * fade)
+                                alpha = (1f - opened) * (1f - fade)
                                 shadowElevation = if (showVideo) 0f else 10.dp.toPx() * (1f - p()) * (1f - opened)
                                 shape = ArtCorner
                                 clip = !showVideo
@@ -659,7 +680,13 @@ private const val CANVAS_OPEN_ZOOM = 0.08f
 private const val CANVAS_COVER_GROW = 0.12f
 /** Over a Canvas: the handle and the credits at the top, the controls at the foot. */
 private val CanvasShade = Brush.verticalGradient(
-    listOf(Color.Black.copy(alpha = 0.45f), Color.Black.copy(alpha = 0.05f), Color.Black.copy(alpha = 0.35f), Color.Black.copy(alpha = 0.8f)),
+    // Light over the middle of the clip, then a deep shade from the title down, so the words and the
+    // controls read over any picture (as the official app).
+    0f to Color.Black.copy(alpha = 0.45f),
+    0.22f to Color.Black.copy(alpha = 0.06f),
+    0.4f to Color.Black.copy(alpha = 0.42f),
+    0.6f to Color.Black.copy(alpha = 0.7f),
+    1f to Color.Black.copy(alpha = 0.88f),
 )
 
 /**

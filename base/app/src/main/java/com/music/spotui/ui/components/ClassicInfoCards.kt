@@ -113,7 +113,7 @@ private fun CardTitle(text: String, action: String? = null, onAction: () -> Unit
 }
 
 @Composable
-private fun FollowPill(uri: String) {
+internal fun FollowPill(uri: String) {
     val scope = rememberCoroutineScope()
     var following by remember(uri) { mutableStateOf<Boolean?>(null) }
     androidx.compose.runtime.LaunchedEffect(uri) {

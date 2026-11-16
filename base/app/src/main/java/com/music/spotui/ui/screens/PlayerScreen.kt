@@ -412,7 +412,17 @@ fun PlayerScreen(navController: NavController) {
         // The content comes in after the sheet's background (see PlayerOverlay).
         val reveal = com.music.spotui.ui.navigation.LocalPlayerReveal.current
         val revealShift = with(androidx.compose.ui.platform.LocalDensity.current) { 24.dp.toPx() }
+        // The page's scroll: the cover (or the clip) holds its place and fades as the controls and
+        // the cards slide up over it, and the backdrop darkens under the cards.
+        val pageList = androidx.compose.foundation.lazy.rememberLazyListState()
+        val pagePx = constraints.maxHeight.toFloat().coerceAtLeast(1f)
+        val pageScrolled = {
+            if (pageList.firstVisibleItemIndex > 0) 1f
+            else (pageList.firstVisibleItemScrollOffset / (pagePx * 0.6f)).coerceIn(0f, 1f)
+        }
+        Box(Modifier.fillMaxSize().drawBehind { drawRect(Color.Black.copy(alpha = 0.6f * pageScrolled())) })
         androidx.compose.foundation.lazy.LazyColumn(
+            state = pageList,
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer { val r = reveal(); alpha = r; translationY = (1f - r) * revealShift }
@@ -480,7 +490,16 @@ fun PlayerScreen(navController: NavController) {
             // The margins used to be taken off the height-bound side too, a cover 48dp smaller
             // than the room it had on most phones (reported: it looks small).
             val coverInset = ((artSide - minOf(contentWidth - 48.dp, maxHeight)) / 2).coerceAtLeast(0.dp)
-            Box(modifier = Modifier.size(artSide).pointerInput(immersive, videoOn, canvasOn) {
+            Box(modifier = Modifier.size(artSide).graphicsLayer {
+                if (!immersive && pageList.firstVisibleItemIndex == 0) {
+                    val sy = pageList.firstVisibleItemScrollOffset.toFloat()
+                    val fade = (sy / (artSide.toPx() * 0.9f).coerceAtLeast(1f)).coerceIn(0f, 1f)
+                    translationY = sy
+                    scaleX = 1f - 0.08f * fade
+                    scaleY = 1f - 0.08f * fade
+                    alpha = 1f - fade
+                }
+            }.pointerInput(immersive, videoOn, canvasOn) {
                 detectTapGestures(onTap = {
                     // A tap on a Canvas hides the rest to show the whole clip. A plain cover has
                     // nothing more to show: blown up to the screen's height it was only cropped

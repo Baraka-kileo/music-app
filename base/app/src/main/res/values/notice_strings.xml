@@ -35,4 +35,7 @@
     <string name="clips_make">Make</string>
     <string name="clips_playlist_name">From Clips</string>
     <string name="clips_playlist_made">Playlist made</string>
+    <string name="clips_watch_row">Playlists you can watch</string>
+    <string name="clips_for_you">Music for you</string>
+    <string name="clips_followers">%1$s followers</string>
 </resources>
