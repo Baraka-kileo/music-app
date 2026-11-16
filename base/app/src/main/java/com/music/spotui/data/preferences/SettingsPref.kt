@@ -392,6 +392,18 @@ object PlayerModesPref {
  * transport. On by default; off, the phone's volume keys still do it, and the bottom row moves up
  * into its place while the cover and the other controls stay where they are (#186).
  */
+/** "Lyric line on the player": over a Canvas, the line being sung shows above the title. */
+object LyricLinePref {
+    private const val KEY = "player_lyric_line"
+    var on by androidx.compose.runtime.mutableStateOf(prefs(com.music.spotui.di.Graph.app).getBoolean(KEY, true))
+        private set
+
+    fun set(c: Context, value: Boolean) {
+        on = value
+        prefs(c).edit().putBoolean(KEY, value).apply()
+    }
+}
+
 /** "Big video in the mini player": with a music video on, a large clip above the mini player instead of a small one in it. */
 object MiniVideoBigPref {
     private const val KEY = "mini_video_big"

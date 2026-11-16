@@ -537,12 +537,26 @@ fun ImmersivePlayer(
                             .offset {
                                 // Inside the cover as it is drawn: it steps back while paused.
                                 val inset = artSize() * ((1f - pauseScale.value) / 2f) + 12.dp
-                                IntOffset((artStart() + inset).roundToPx(), (artTop() + artSize() - inset - 32.dp + 18.dp).roundToPx())
+                                // Over a Canvas (no cover) it sits just above the title, at its start.
+                                if (canvasOn) IntOffset(left.roundToPx(), (titleTop() - 46.dp).roundToPx())
+                                else IntOffset((artStart() + inset).roundToPx(), (artTop() + artSize() - inset - 32.dp + 18.dp).roundToPx())
                             }
                             .graphicsLayer { alpha = 1f - p() },
                     ) {
                         com.music.spotui.ui.components.VideoSwitchPill(on = videoOn)
                     }
+
+                    // ---- The line being sung, over a Canvas, above the title (a setting) ----
+                    if (canvasOn && panel == Panel.NONE && com.music.spotui.data.preferences.LyricLinePref.on) Box(
+                        Modifier
+                            .offset {
+                                val pill = if (videoReady || videoOn) 46.dp else 0.dp
+                                IntOffset(left.roundToPx(), (titleTop() - pill - 8.dp - 64.dp).roundToPx())
+                            }
+                            .width(contentWidth).height(64.dp)
+                            .graphicsLayer { alpha = 1f - p() },
+                        contentAlignment = Alignment.BottomStart,
+                    ) { LiveLyricLine(onOpen = { panel = Panel.LYRICS }) }
 
                     // ---- Title + round glyphs ----
                     Row(
@@ -605,7 +619,7 @@ fun ImmersivePlayer(
                 }
             }
             ImmersiveInfoCards(
-                state, actions, onOpenLyrics = { panel = Panel.LYRICS },
+                state, actions, onOpenLyrics = { panel = Panel.LYRICS }, onOpenQueue = { panel = Panel.QUEUE },
                 modifier = Modifier.widthIn(max = PLAYER_MAX_WIDTH + PLAYER_GUTTER * 2).fillMaxWidth()
                     .align(Alignment.CenterHorizontally).padding(horizontal = PLAYER_GUTTER)
                     .navigationBarsPadding().padding(bottom = 32.dp),
@@ -1002,3 +1016,27 @@ private fun InfoHint(open: Boolean, onToggle: () -> Unit) {
 
 /** Whether the music video is taller than wide (fitted to the height, not the width). */
 internal object MusicVideoAspect { fun tall() = com.music.spotui.video.MusicVideoController.aspect.floatValue < 1f }
+
+/** The lyric line being sung now, large and bold, fading from line to line. Tap: the lyrics. */
+@Composable
+private fun LiveLyricLine(onOpen: () -> Unit) {
+    val vm: com.music.spotui.ui.viewmodel.LyricsViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    val song = com.music.spotui.di.Graph.currentSongState
+    val st = com.music.spotui.ui.screens.rememberLyricsState(vm, song.title.value, song.singer.value)
+    val lyrics = (st as? com.music.spotui.ui.viewmodel.LyricsViewModel.State.Loaded)?.lyrics
+    if (lyrics == null || !lyrics.synced) return
+    val line by androidx.compose.runtime.produceState("", lyrics) {
+        while (true) {
+            val pos = com.music.spotui.di.SongPlayer.getCurrentPosition()
+            value = lyrics.lines.lastOrNull { it.timeMs in 1..pos + 150 }?.text?.trim().orEmpty()
+            kotlinx.coroutines.delay(200)
+        }
+    }
+    androidx.compose.animation.Crossfade(targetState = line, animationSpec = tween(220), label = "liveLine") { t ->
+        Text(
+            t, color = Color.White, fontSize = 20.sp, lineHeight = 25.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+            maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onOpen() },
+        )
+    }
+}

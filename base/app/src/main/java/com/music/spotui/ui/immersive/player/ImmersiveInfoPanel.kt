@@ -120,6 +120,7 @@ internal fun ImmersiveInfoCards(
     state: ImmersivePlayerState,
     actions: ImmersivePlayerActions,
     onOpenLyrics: () -> Unit,
+    onOpenQueue: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val tint = LocalPlayerTint.current
@@ -142,7 +143,9 @@ internal fun ImmersiveInfoCards(
             return@Column
         }
         if (info.artist != null) { SectionTitle(stringResource(R.string.artist_subtitle)); ArtistCard(info, actions) }
+        UpNextCard(onOpenQueue)
         info.credits?.let { SectionTitle(stringResource(R.string.track_credits)); CreditsCard(it, actions) }
+        info.artist?.let { ExploreCard(it, state, actions) }
         info.about?.let { a ->
             SectionTitle(stringResource(R.string.lyrics_meaning_about))
             GlassCard { Text(a, color = tint, fontSize = 15.sp, lineHeight = 22.sp, maxLines = 12, overflow = TextOverflow.Ellipsis) }
@@ -354,6 +357,59 @@ private fun CreditsCard(credits: app.myspoti.api.Credits, actions: ImmersivePlay
                     ) { Text(p.name.take(1).uppercase(), color = tint, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
                     Spacer(Modifier.width(10.dp))
                     Text(p.name, color = tint, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+/** The next song, with a way into the queue. */
+@OptIn(ExperimentalGlideComposeApi::class)
+@Composable
+private fun UpNextCard(onOpenQueue: () -> Unit) {
+    val q = SongPlayer.engineQueue.value
+    val next = (q.queued.firstOrNull() ?: q.nextUp.firstOrNull())?.song ?: return
+    val tint = LocalPlayerTint.current
+    GlassCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.notice_up_next), color = tint, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text(
+                stringResource(R.string.notice_open_queue), color = Immersive.Accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clip(RoundedCornerShape(50)).clickable { Haptics.tick(); onOpenQueue() }.padding(horizontal = 6.dp, vertical = 4.dp),
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { onOpenQueue() }) {
+            GlideImage(model = next.coverUri, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(56.dp).clip(RoundedCornerShape(10.dp)))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(next.title, color = tint, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(next.singer, color = tint.copy(alpha = 0.6f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+/** "Explore <artist>": big tiles into the artist and the album. */
+@OptIn(ExperimentalGlideComposeApi::class)
+@Composable
+private fun ExploreCard(page: app.myspoti.api.ArtistPage, state: ImmersivePlayerState, actions: ImmersivePlayerActions) {
+    val tint = LocalPlayerTint.current
+    val a = page.artist
+    val photo = (page.headerImages.ifEmpty { a.images }).maxByOrNull { it.width ?: 0 }?.url
+    GlassCard {
+        Text(stringResource(R.string.notice_explore, a.name), color = tint, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            listOf(
+                Triple(stringResource(R.string.notice_songs_by, a.name), photo) { actions.openArtistRef(app.myspoti.api.ArtistRef(a.uri, a.name)) },
+                Triple(stringResource(R.string.notice_from_album), state.coverUrl) { actions.openAlbum() },
+            ).forEach { (label, img, go) ->
+                Box(Modifier.weight(1f).aspectRatio(0.78f).clip(RoundedCornerShape(14.dp)).background(tint.copy(alpha = 0.1f)).clickable { Haptics.click(); go() }) {
+                    GlideImage(model = img, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)))))
+                    Text(label, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.align(Alignment.BottomStart).padding(12.dp))
                 }
             }
         }

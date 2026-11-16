@@ -4,4 +4,14 @@
     <string name="player_info_hint">Lyrics · Artist · Credits</string>
     <string name="settings_mini_video_title">Big video in the mini player</string>
     <string name="settings_mini_video_detail">With a music video on, show it large above the mini player instead of small inside it</string>
+    <string name="settings_lyric_line_title">Lyric line on the player</string>
+    <string name="settings_lyric_line_detail">Over a Canvas, the line being sung shows above the song title. Tap it for the full lyrics</string>
+    <string name="notice_up_next">Up next</string>
+    <string name="notice_open_queue">Open queue</string>
+    <string name="notice_explore">Explore %1$s</string>
+    <string name="notice_songs_by">Songs by %1$s</string>
+    <string name="notice_from_album">From the album</string>
+    <string name="notice_plays_next">Plays next</string>
+    <string name="notice_sleep_timer">Sleep timer</string>
+    <string name="notice_end_of_song">End of song</string>
 </resources>

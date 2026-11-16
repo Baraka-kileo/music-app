@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -521,6 +522,14 @@ private fun QueueEntry(row: QRow, removed: SnapshotStateList<String>, dragging: 
             removed += row.key
             SongPlayer.removeFromQueue(item)
             true
+        } else if (value == SwipeToDismissBoxValue.StartToEnd) {
+            // Swiped right: this song plays next (the row springs back).
+            SongPlayer.playNext(item.uri.substringAfterLast(':'))
+            com.music.spotui.ui.components.AppNotice.show(
+                title = com.music.spotui.di.Graph.app.getString(R.string.notice_plays_next),
+                subtitle = item.song.title, coverUrl = item.song.coverUri, tone = com.music.spotui.ui.components.AppNotice.Tone.SUCCESS,
+            )
+            false
         } else {
             false
         }
@@ -532,7 +541,7 @@ private fun QueueEntry(row: QRow, removed: SnapshotStateList<String>, dragging: 
     val alpha by animateFloatAsState(if (dimmed) DIMMED_ALPHA else 1f, tween(160), label = "dim")
     SwipeToDismissBox(
         state = dismiss,
-        enableDismissFromStartToEnd = false,
+        enableDismissFromStartToEnd = true,
         // No swipe while the row is carried.
         gesturesEnabled = !dragging,
         modifier = Modifier
@@ -542,7 +551,7 @@ private fun QueueEntry(row: QRow, removed: SnapshotStateList<String>, dragging: 
         backgroundContent = {
             // Drawn only while swiping: the row is transparent, so at rest this × showed
             // through behind the drag handle.
-            if (dismiss.dismissDirection != SwipeToDismissBoxValue.Settled) {
+            if (dismiss.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
                 Box(
                     Modifier.fillMaxSize().padding(end = 4.dp),
                     contentAlignment = Alignment.CenterEnd,
@@ -553,6 +562,13 @@ private fun QueueEntry(row: QRow, removed: SnapshotStateList<String>, dragging: 
                         tint = Immersive.TextSecondary,
                         modifier = Modifier.size(22.dp),
                     )
+                }
+            } else if (dismiss.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
+                Box(
+                    Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp)).background(Immersive.Accent.copy(alpha = 0.35f)).padding(start = 14.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    Text(stringResource(R.string.notice_plays_next), color = Color.White, style = Immersive.BodyStrong)
                 }
             }
         },
@@ -596,6 +612,42 @@ private fun QueueHeader(
             stringResource(R.string.immersive_queue_repeat),
             repeatMode != 0,
             onRepeat,
+        )
+        Spacer(Modifier.width(8.dp))
+        SleepToggle()
+    }
+}
+
+/**
+ * The sleep timer, beside shuffle and repeat: each tap steps off, 15, 30, 60 min, end of song;
+ * while it runs the minutes left count down inside the button.
+ */
+@Composable
+private fun SleepToggle() {
+    val endsAt = SongPlayer.sleepEndsAt.value
+    val steps = listOf<Int?>(15, 30, 60, 0, null)
+    var step by remember { mutableStateOf(-1) }
+    val left by androidx.compose.runtime.produceState(0L, endsAt) {
+        while (endsAt != null && endsAt > 0) { value = (endsAt - SystemClock.elapsedRealtime()).coerceAtLeast(0); delay(1000) }
+    }
+    val on = endsAt != null
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .height(36.dp).widthIn(min = 36.dp)
+            .clip(RoundedCornerShape(50))
+            .background(if (on) Color.White else Color.White.copy(alpha = 0.14f))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                com.music.spotui.di.Haptics.tick()
+                step = (step + 1) % steps.size
+                SongPlayer.setSleepTimer(steps[step])
+            }
+            .padding(horizontal = if (on) 10.dp else 0.dp),
+    ) {
+        if (!on) Icon(com.music.spotui.ui.design.AppIcons.Bedtime, contentDescription = stringResource(R.string.notice_sleep_timer), tint = Color.White, modifier = Modifier.size(20.dp))
+        else Text(
+            if (endsAt!! < 0) stringResource(R.string.notice_end_of_song) else "${(left / 60000) + 1}m",
+            color = Color.Black, fontSize = androidx.compose.ui.unit.TextUnit(13f, androidx.compose.ui.unit.TextUnitType.Sp), fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
         )
     }
 }
