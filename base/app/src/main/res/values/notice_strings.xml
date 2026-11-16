@@ -22,4 +22,17 @@
     <string name="share_theme_gradient">Gradient</string>
     <string name="share_theme_solid">Solid</string>
     <string name="share_card_send">Share</string>
+    <string name="clips_title">Clips</string>
+    <string name="clips_entry_detail">Short videos of songs picked for you. Swipe up for the next</string>
+    <string name="clips_why_liked">From your Liked Songs</string>
+    <string name="clips_why_top">One of your top songs lately</string>
+    <string name="clips_why_artist">Because you listen to %1$s</string>
+    <string name="clips_empty">Nothing to show yet. Sign in to Spotify and like a few songs</string>
+    <string name="clips_added_to_queue">Added to queue</string>
+    <string name="clips_play_full">Play full song</string>
+    <string name="clips_make_playlist">Make a playlist from these</string>
+    <string name="clips_make_playlist_detail">The %1$d songs you liked here</string>
+    <string name="clips_make">Make</string>
+    <string name="clips_playlist_name">From Clips</string>
+    <string name="clips_playlist_made">Playlist made</string>
 </resources>

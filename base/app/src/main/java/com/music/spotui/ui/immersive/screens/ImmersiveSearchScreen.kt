@@ -242,6 +242,7 @@ fun ImmersiveSearchScreen(navController: NavController) {
                         },
                     )
                 } else {
+                    item(key = "search:clips") { com.music.spotui.ui.components.ClipsEntryCard(Modifier.padding(horizontal = Immersive.Gutter, vertical = 8.dp)) }
                     item(key = "search:browse-header") { SectionHeader(stringResource(R.string.browse_all)) }
                     items(tiles.chunked(browseCols), key = { row -> "browse:" + row.first().key }) { row ->
                         BrowseTileRow(row = row, columns = browseCols) { tile ->

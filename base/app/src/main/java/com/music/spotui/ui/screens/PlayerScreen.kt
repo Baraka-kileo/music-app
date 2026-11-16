@@ -377,7 +377,9 @@ fun PlayerScreen(navController: NavController) {
         val shortWindow = com.music.spotui.ui.components.windowSize().heightDp < SHORT_PLAYER_DP
         val lyricsPeek = if (!com.music.spotui.data.preferences.PlayerLyricsCardPref.shown) 0
             else if (shortWindow) SHORT_PLAYER_PEEK_DP else PLAYER_PEEK_DP
-        val pillAboveTitle = canvasUrl != null && !videoOn
+        // With a Canvas, and with the music video (as the official app: the clip on top, the switch
+        // just under it at the start of the line, then the song).
+        val pillAboveTitle = (canvasUrl != null && !videoOn) || showVideo
         if (canvasUrl != null && !videoOn) {
             CanvasVideo(
                 url = canvasUrl,
@@ -510,7 +512,8 @@ fun PlayerScreen(navController: NavController) {
                 }
             }) {
             if (showVideo) Box(
-                contentAlignment = Alignment.Center,
+                // At the foot of the art's room, right over the switch and the song.
+                contentAlignment = Alignment.BottomCenter,
                 modifier = Modifier.fillMaxSize(),
             ) {
                 // The full-screen button in the clip's corner: under it, it overlapped the pills.
@@ -590,7 +593,7 @@ fun PlayerScreen(navController: NavController) {
                 // Over a Canvas: the line being sung, above the pill (a setting), and the pill at the
                 // start of the line, as in the official app.
                 Box(modifier = Modifier.fillMaxWidth().height(if (shortWindow) 36.dp else 52.dp), contentAlignment = if (pillAboveTitle) Alignment.TopStart else Alignment.TopCenter) {
-                    if (pillAboveTitle && com.music.spotui.data.preferences.LyricLinePref.on) Box(
+                    if (canvasUrl != null && !videoOn && com.music.spotui.data.preferences.LyricLinePref.on) Box(
                         Modifier.fillMaxWidth().height(64.dp).offset(y = if (pillIn > 0f) (-70).dp else (-34).dp),
                         contentAlignment = Alignment.BottomStart,
                     ) { com.music.spotui.ui.immersive.player.LiveLyricLine(onOpen = { showLyrics = true }) }

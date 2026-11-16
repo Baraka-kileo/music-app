@@ -148,6 +148,8 @@ fun App() {
         // "Not interested" and its Undo, over the pages and the players.
         com.music.spotui.ui.components.HiddenSongUndo()
         // The app's own notification pill (likes, saves, errors), over everything.
+        // Clips: the full-screen video feed, over everything but the notices.
+        com.music.spotui.ui.components.ClipsFeedHost()
         com.music.spotui.ui.components.AppNoticeHost()
         // A sponsor read skipped in a podcast (SponsorBlock), and its Undo.
         com.music.spotui.podcast.SponsorSkipUndo()

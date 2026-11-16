@@ -267,6 +267,8 @@ fun SumUpSearchScreen(
                     if (song != null) com.music.spotui.ui.components.SwipeToQueue(song, content = row) else row()
                 }
             } else {
+                // Clips: the video feed, above the categories.
+                item(key = "clips") { com.music.spotui.ui.components.ClipsEntryCard(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) }
                 // ── Spotify-style "Browse all" category grid ──
                 item {
                     // Real Spotify opens a genre *catalogue* (a page of curated
