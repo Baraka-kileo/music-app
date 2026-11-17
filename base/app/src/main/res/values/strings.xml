@@ -23,4 +23,5 @@
     <string name="extension_change_write">Now also allowed to send to Spotify: %1$s</string>
     <string name="youtube_download_source_detail">Built-in · audio quality depends on YouTube; not lossless</string>
     <string name="download_needs_review">No matching recording · tap to retry</string>
+    <string name="download_list_incomplete">Playlist did not finish loading. Refresh it before downloading.</string>
 </resources>

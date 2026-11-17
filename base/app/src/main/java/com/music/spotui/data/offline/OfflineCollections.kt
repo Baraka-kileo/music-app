@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -40,11 +42,15 @@ data class OfflineCollection(
  */
 object OfflineCollections {
     private const val TAG = "OfflineLists"
-    private const val SYNC_EVERY_MS = 6 * 3_600_000L
+    private const val SYNC_EVERY_MS = 15 * 60_000L
     private lateinit var file: File
     private val lock = Any()
     // A refresh that fails (no network, a page that cannot be read) is logged, never a crash of the app.
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, e -> Log.w(TAG, "refresh failed: ${e.javaClass.simpleName}: ${e.message}") })
+    private val refreshLock = Mutex()
+    private val editLock = Any()
+    private val edits = mutableMapOf<String, MutableMap<String, Boolean>>()
+    private val editJobs = mutableMapOf<String, kotlinx.coroutines.Job>()
 
     val collections: SnapshotStateMap<String, OfflineCollection> = mutableStateMapOf()
     /** Songs downloaded on their own, kept whatever the lists do. */
@@ -56,10 +62,19 @@ object OfflineCollections {
         // Songs downloaded before lists existed belong to nothing: they stay until a list
         // that held them is downloaded again and drops them (e.g. a renewed Blend).
         runCatching { read(file.readText()) }
+        // The process may remain open much longer than the initial startup refresh.
+        scope.launch { while (true) { delay(15 * 60_000L); refreshAll(context.applicationContext) } }
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+        runCatching {
+            cm?.registerDefaultNetworkCallback(object : android.net.ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: android.net.Network) { refreshAll(context.applicationContext) }
+            })
+        }
     }
 
     /** Reads the downloaded lists again (main thread): another account's downloads were put in place. */
     fun reopen() {
+        synchronized(editLock) { editJobs.values.forEach { it.cancel() }; editJobs.clear(); edits.clear() }
         synchronized(lock) { collections.clear(); singles.clear() }
         runCatching { read(file.readText()) }
     }
@@ -115,6 +130,10 @@ object OfflineCollections {
 
     /** Download a list as a whole, and keep it in step from now on. */
     fun download(page: ContextPageModel, quality: com.music.spotui.data.preferences.DownloadQuality? = null) {
+        if (!page.complete || !page.completeForSync) {
+            android.widget.Toast.makeText(Graph.app, app.myspoti.engine.R.string.download_list_incomplete, android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
         // An episode in a list is not a track: it stays out of the collection, and the
         // list download never enqueues it (its own menu row is the way to download an episode).
         val ids = page.tracks.map { it.spotifyTrackId }.filter { it.isNotBlank() && !isEpisodeKey(it) }.toSet()
@@ -128,6 +147,7 @@ object OfflineCollections {
 
     /** Stop keeping a list: its songs go, unless another reason keeps them. */
     fun remove(uri: String) {
+        synchronized(editLock) { editJobs.remove(uri)?.cancel(); edits.remove(uri) }
         val c = collections.remove(uri) ?: return
         save()
         com.music.spotui.data.api.ScreenCache.dropOfflinePage(uri.substringAfterLast(':'))
@@ -135,6 +155,7 @@ object OfflineCollections {
     }
 
     fun removeAll() {
+        synchronized(editLock) { editJobs.values.forEach { it.cancel() }; editJobs.clear(); edits.clear() }
         collections.clear()
         synchronized(lock) { singles.clear() }
         save()
@@ -144,17 +165,21 @@ object OfflineCollections {
      * The list's current songs (from a complete page): new ones are downloaded, those
      * that left it are deleted unless something else keeps them.
      */
-    fun sync(page: ContextPageModel) {
+    fun sync(page: ContextPageModel, allowRemoval: Boolean = true) {
         val c = collections[page.uri] ?: return
-        if (!page.complete) return
+        val pending = synchronized(editLock) { edits[page.uri]?.toMap().orEmpty() }
+        if (!CollectionSyncRules.canReconcile(page.complete, page.completeForSync, page.tracks.map { it.spotifyTrackId }.toSet(), pending)) return
         // Episodes are never part of a downloaded list: they have their own queue and their
         // downloaded copies are kept by their own key, not by the list that shows them.
         val songs = page.tracks.filter { it.spotifyTrackId.isNotBlank() && !isEpisodeKey(it.spotifyTrackId) }
         val ids = songs.map { it.spotifyTrackId }.toSet()
-        val gone = c.trackIds - ids
-        collections[page.uri] = c.copy(name = page.name, trackIds = ids, syncedAt = System.currentTimeMillis())
+        // Screen pages may be cached or optimistic. Only a fresh authoritative background read
+        // may remove tracks or advance the full-sync timestamp.
+        val gone = if (allowRemoval) c.trackIds - ids else emptySet()
+        collections[page.uri] = c.copy(name = page.name, trackIds = CollectionSyncRules.retained(c.trackIds, ids, allowRemoval),
+            syncedAt = if (allowRemoval) System.currentTimeMillis() else c.syncedAt)
         save()
-        keepPage(page)
+        if (allowRemoval) keepPage(page)
         val missing = songs.filter { !OfflineStore.isDownloaded(it.spotifyTrackId) && OfflineStore.status[it.spotifyTrackId] == null }
         if (missing.isNotEmpty()) OfflineDownloader.enqueue(missing, com.music.spotui.data.preferences.DownloadQuality.saved(c.quality), auto = true)
         gone.filterNot { isKept(it) || isEpisodeKey(it) }.forEach { OfflineDownloader.remove(it) }
@@ -178,24 +203,32 @@ object OfflineCollections {
         return ContextPageModel(uri = uri, type = c.type, name = c.name, coverUri = songs.first().coverUri, tracks = songs)
     }
 
-    /** Brings every downloaded list up to date (at start, at most every 6 hours, online only). */
+    /** Brings downloaded lists up to date at startup and periodically while the app is running. */
     fun refreshAll(context: Context, force: Boolean = false) {
         scope.launch {
             delay(15_000)
+            refreshLock.withLock {
             if (!OfflineStore.isOnline(context)) return@launch
             // On mobile data the lists are not even read: the sync waits for Wi-Fi.
             if (com.music.spotui.data.DataSaver.metered) { waitForWifi(); return@launch }
-            val due = collections.values.filter { force || System.currentTimeMillis() - it.syncedAt > SYNC_EVERY_MS }
+            val due = withContext(Dispatchers.Main) { collections.values.filter { force || System.currentTimeMillis() - it.syncedAt > SYNC_EVERY_MS }.toList() }
             for (c in due) {
                 // One list that fails does not stop the others.
                 try {
                     val page = withTimeoutOrNull(60_000) { loadComplete(c) } ?: continue
-                    withContext(Dispatchers.Main) { sync(page) }
+                    withContext(Dispatchers.Main) {
+                        val pending = synchronized(editLock) { edits[c.uri]?.toMap().orEmpty() }
+                        if (CollectionSyncRules.reflectsEdits(page.tracks.map { it.spotifyTrackId }.toSet(), pending)) {
+                            sync(page)
+                            synchronized(editLock) { if (edits[c.uri] == pending) edits.remove(c.uri) }
+                        }
+                    }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Throwable) {
                     Log.w(TAG, "${c.name} not refreshed: ${e.javaClass.simpleName}: ${e.message}")
                 }
+            }
             }
         }
     }
@@ -204,14 +237,34 @@ object OfflineCollections {
      * One downloaded list changed from the app (a song added to it): read again and synced at
      * once, so the new song is on the phone without opening the list (Wi-Fi rule as above).
      */
-    fun refreshOne(context: Context, uri: String) {
-        val c = collections[uri] ?: return
-        scope.launch {
-            delay(1_500) // Spotify's own copy of the list catches up first.
-            if (!OfflineStore.isOnline(context)) return@launch
-            if (com.music.spotui.data.DataSaver.metered) { waitForWifi(); return@launch }
-            val page = withTimeoutOrNull(60_000) { loadComplete(c) } ?: return@launch
-            withContext(Dispatchers.Main) { sync(page) }
+    fun refreshOne(context: Context, uri: String, expected: Map<String, Boolean> = emptyMap()) {
+        if (!collections.containsKey(uri)) return
+        synchronized(editLock) {
+            if (expected.isNotEmpty()) edits.getOrPut(uri) { mutableMapOf() }.putAll(expected)
+            editJobs.remove(uri)?.cancel()
+            editJobs[uri] = scope.launch {
+                try {
+                    for (wait in listOf(1_500L, 3_000L, 6_000L, 12_000L)) {
+                        delay(wait)
+                        if (!OfflineStore.isOnline(context) || com.music.spotui.data.DataSaver.metered) { waitForWifi(); return@launch }
+                        val c = withContext(Dispatchers.Main) { collections[uri] } ?: return@launch
+                        val page = try { withTimeoutOrNull(60_000) { loadComplete(c) } }
+                        catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                        catch (e: Exception) { Log.w(TAG, "$uri: refresh failed: ${e.javaClass.simpleName}"); null }
+                        if (page == null) continue
+                        val pending = synchronized(editLock) { edits[uri]?.toMap().orEmpty() }
+                        if (!CollectionSyncRules.reflectsEdits(page.tracks.map { it.spotifyTrackId }.toSet(), pending)) continue
+                        withContext(Dispatchers.Main) { sync(page) }
+                        synchronized(editLock) { if (edits[uri] == pending) edits.remove(uri) }
+                        return@launch
+                    }
+                    Log.w(TAG, "$uri: Spotify has not confirmed recent edits; will retry later")
+                    waitForWifi()
+                } finally {
+                    val job = kotlinx.coroutines.currentCoroutineContext()[kotlinx.coroutines.Job]
+                    synchronized(editLock) { if (editJobs[uri] === job) editJobs.remove(uri) }
+                }
+            }
         }
     }
 
@@ -220,8 +273,8 @@ object OfflineCollections {
         val id = c.uri.substringAfterLast(":")
         val flow = when (c.type) {
             "album" -> api.getAlbumPage(id, stored = false)
-            "liked" -> api.getLikedPage()
-            else -> api.getPlaylistPage(id)
+            "liked" -> api.getLikedPage(full = true, freshOnly = true)
+            else -> api.getPlaylistPage(id, force = true, strictComplete = true)
         }
         // A flow that ends without a complete page (the player never ready) is no page, not an error.
         return (flow.firstOrNull { it is Response.Error || (it is Response.Success && it.data.complete) } as? Response.Success)?.data

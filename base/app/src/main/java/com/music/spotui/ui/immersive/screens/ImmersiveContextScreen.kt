@@ -853,7 +853,7 @@ private fun ContextHeader(
                     st == OfflineStatus.Queued || st is OfflineStatus.Downloading
                 }
                 val listKept = OfflineCollections.isDownloaded(p.uri)
-                LaunchedEffect(listKept, p.complete, p.tracks.size) { if (listKept && p.complete) OfflineCollections.sync(p) }
+                LaunchedEffect(listKept, p.complete, p.tracks.size) { if (listKept && p.complete) OfflineCollections.sync(p, allowRemoval = false) }
                 DownloadCircle(downloadedCount, ids.size, busy, listKept) {
                     if (listKept) onAskRemoveDownloads()
                     else DownloadAsk.start(context) { q ->

@@ -28,7 +28,7 @@ object SpotifySync {
             val ok = runCatching { api.playlists.addTracks("spotify:playlist:$playlistId", listOf("spotify:track:$trackId")) }
                 .onFailure { Log.w(TAG, "add $trackId to $playlistId failed: ${it.message}") }.isSuccess
             if (ok) { membershipCache[playlistId]?.add(trackId); Api.invalidatePlaylist(playlistId) }
-            if (ok) com.music.spotui.data.offline.OfflineCollections.refreshOne(context.applicationContext, "spotify:playlist:$playlistId")
+            if (ok) com.music.spotui.data.offline.OfflineCollections.refreshOne(context.applicationContext, "spotify:playlist:$playlistId", mapOf(trackId to true))
             onDone(ok)
         }
     }
@@ -45,7 +45,8 @@ object SpotifySync {
                 .onFailure { Log.w(TAG, "add ${uris.size} songs to $playlistId failed: ${it.message}") }.isSuccess
             // Part of it may be in even when refused: read the playlist again when asked.
             membershipCache.remove(playlistId); Api.invalidatePlaylist(playlistId)
-            com.music.spotui.data.offline.OfflineCollections.refreshOne(context.applicationContext, "spotify:playlist:$playlistId")
+            val expected = if (ok) uris.filter { it.startsWith("spotify:track:") }.associate { it.substringAfterLast(':') to true } else emptyMap()
+            com.music.spotui.data.offline.OfflineCollections.refreshOne(context.applicationContext, "spotify:playlist:$playlistId", expected)
             onDone(ok)
         }
     }
@@ -63,7 +64,11 @@ object SpotifySync {
                 for (chunk in uris.chunked(LIKE_CHUNK)) { api.library.add(chunk); sent += chunk.size }
             }.onFailure { Log.w(TAG, "like ${uris.size} songs failed after $sent: ${it.message}") }.isSuccess
             uris.take(sent).forEach { com.music.spotui.di.SongPlayer.library[it] = true }
-            if (sent > 0) com.music.spotui.di.SongPlayer.likedChanges.value++
+            if (sent > 0) {
+                com.music.spotui.di.SongPlayer.likedChanges.value++
+                val expected = uris.take(sent).filter { it.startsWith("spotify:track:") }.associate { it.substringAfterLast(':') to true }
+                com.music.spotui.data.offline.OfflineCollections.refreshOne(com.music.spotui.di.Graph.app, "spotify:collection:tracks", expected)
+            }
             onDone(ok)
         }
     }
@@ -84,7 +89,10 @@ object SpotifySync {
                 api.playlists.removeTracks(uri, listOf(uid))
             }.onFailure { Log.w(TAG, "remove row $rowUid ($trackId) from $playlistId failed: ${it.message}") }.isSuccess
             // The song may still be in the playlist through another row: read it again when asked.
-            if (ok) { membershipCache.remove(playlistId); Api.invalidatePlaylist(playlistId) }
+            if (ok) {
+                membershipCache.remove(playlistId); Api.invalidatePlaylist(playlistId)
+                com.music.spotui.data.offline.OfflineCollections.refreshOne(context.applicationContext, "spotify:playlist:$playlistId")
+            }
             onDone(ok)
         }
     }
@@ -102,7 +110,10 @@ object SpotifySync {
                 check(uids.isNotEmpty()) { "track not in playlist" }
                 api.playlists.removeTracks(uri, uids)
             }.onFailure { Log.w(TAG, "remove $trackId from $playlistId failed: ${it.message}") }.isSuccess
-            if (ok) { membershipCache[playlistId]?.remove(trackId); Api.invalidatePlaylist(playlistId) }
+            if (ok) {
+                membershipCache[playlistId]?.remove(trackId); Api.invalidatePlaylist(playlistId)
+                com.music.spotui.data.offline.OfflineCollections.refreshOne(context.applicationContext, "spotify:playlist:$playlistId", mapOf(trackId to false))
+            }
             onDone(ok)
         }
     }

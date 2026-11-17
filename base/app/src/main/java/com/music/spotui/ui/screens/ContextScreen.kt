@@ -472,7 +472,7 @@ class ContextViewModel(
                 Api.invalidatePlaylist(id)
                 val now = (_page.value as? Response.Success)?.data?.takeIf { it.uri == current.uri } ?: return@withContext
                 com.music.spotui.data.api.PagePrefetch.refreshed(id, now)
-                com.music.spotui.data.offline.OfflineCollections.sync(now)
+                com.music.spotui.data.offline.OfflineCollections.sync(now, allowRemoval = false)
             } else if (_page.value === updated) {
                 _page.value = Response.Success(current)
                 recent[k] = Response.Success(current)
@@ -974,7 +974,7 @@ private fun ContextContent(navController: NavController, vm: ContextViewModel, p
                         }
                         // A list downloaded as a whole stays in step with Spotify (new songs in, gone songs out).
                         val listKept = com.music.spotui.data.offline.OfflineCollections.isDownloaded(p.uri)
-                        LaunchedEffect(listKept, p.complete, p.tracks.size) { if (listKept && p.complete) com.music.spotui.data.offline.OfflineCollections.sync(p) }
+                        LaunchedEffect(listKept, p.complete, p.tracks.size) { if (listKept && p.complete) com.music.spotui.data.offline.OfflineCollections.sync(p, allowRemoval = false) }
                         if (onSpotify) com.music.spotui.ui.components.DownloadListButton(downloadedCount, ids.size, busy, kept = listKept, touch = com.music.spotui.ui.components.MinTouch) {
                             if (listKept) askRemoveDownloads = true
                             else {
@@ -1574,7 +1574,11 @@ object SmartShuffle {
         recommended.value = recommended.value - id
         if (!list.startsWith("spotify:playlist:")) {
             if (SongPlayer.currentTrackId == id) SongPlayer.setLiked(true)
-            else keepScope.launch { runCatching { MyspotiRuntime.api.library.add(listOf("spotify:track:$id")) } }
+            else keepScope.launch {
+                runCatching { MyspotiRuntime.api.library.add(listOf("spotify:track:$id")) }.onSuccess {
+                    com.music.spotui.data.offline.OfflineCollections.refreshOne(context.applicationContext, "spotify:collection:tracks", mapOf(id to true))
+                }
+            }
             android.widget.Toast.makeText(context, context.getString(R.string.snackbar_added_to_liked_songs), android.widget.Toast.LENGTH_SHORT).show()
             return
         }

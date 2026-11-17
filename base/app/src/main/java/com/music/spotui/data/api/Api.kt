@@ -849,7 +849,7 @@ class Api constructor(
      * and a like or unlike anywhere else land there); after that, with no list on storage, or
      * with [full] (a pull-to-refresh), every page is read.
      */
-    suspend fun getLikedPage(full: Boolean = false): Flow<Response<ContextPageModel>> = flow {
+    suspend fun getLikedPage(full: Boolean = false, freshOnly: Boolean = false): Flow<Response<ContextPageModel>> = flow {
         fun page(tracks: List<SongsModel>, complete: Boolean) = ContextPageModel(
             uri = "spotify:collection:tracks",
             type = "liked",
@@ -862,15 +862,16 @@ class Api constructor(
             complete = complete,
         )
         if (LikedCache.tracks == null) LikedCache.tracks = withContext(Dispatchers.IO) { ScreenCache.liked.read() }
-        LikedCache.tracks?.let { emit(Response.Success(page(it, true))) } ?: emit(Response.Loading())
-        if (!ready()) { if (LikedCache.tracks == null) emit(Response.Error(notSignedIn())); return@flow }
+        if (!freshOnly) LikedCache.tracks?.let { emit(Response.Success(page(it, true))) } ?: emit(Response.Loading())
+        else emit(Response.Loading())
+        if (!ready()) { if (freshOnly || LikedCache.tracks == null) emit(Response.Error(notSignedIn())); return@flow }
         val known = LikedCache.tracks
         if (!full && known != null) {
             val at = withContext(Dispatchers.IO) { ScreenCache.likedFullAt() }
             if (at != null && System.currentTimeMillis() - at < LIKED_FULL_MS) {
                 val head = runCatching { likedHead() }.getOrElse { if (it is CancellationException) throw it; null }
                 // The list shown stays when Spotify cannot be reached.
-                if (head == null) return@flow
+                if (head == null) { if (freshOnly) emit(Response.Error(notSignedIn())); return@flow }
                 // A head that does not reach the list known (more than a page of new likes) cannot be merged.
                 if (LikedCache.reaches(head, known)) {
                     val merged = LikedCache.merge(head, known)
@@ -889,7 +890,7 @@ class Api constructor(
         val tracks = runCatching { allLiked { if (first) emit(Response.Success(page(it, false))) } }.getOrElse {
             if (it is CancellationException) throw it
             Log.e("Api", "getLikedPage failed", it)
-            if (LikedCache.tracks == null) emit(Response.Error(context.getString(R.string.couldnt_load, context.getString(R.string.collection_liked_songs_title))))
+            if (freshOnly || LikedCache.tracks == null) emit(Response.Error(context.getString(R.string.couldnt_load, context.getString(R.string.collection_liked_songs_title))))
             return@flow
         }
         LikedCache.tracks = tracks
@@ -1013,7 +1014,7 @@ class Api constructor(
      * songs, so reopening it does not read every page again. An edit made here drops them
      * ([invalidatePlaylist]); [force] (a reload) reads everything.
      */
-    suspend fun getPlaylistPage(playlistId: String, force: Boolean = false): Flow<Response<ContextPageModel>> = flow {
+    suspend fun getPlaylistPage(playlistId: String, force: Boolean = false, strictComplete: Boolean = false): Flow<Response<ContextPageModel>> = flow {
         emit(Response.Loading())
         if (!ready()) { emit(Response.Error(notSignedIn())); return@flow }
         val uri = playlistUri(playlistId)
@@ -1065,7 +1066,7 @@ class Api constructor(
             val meta = listOf(saves, durationAndCount).filter { it.isNotBlank() }.joinToString(" • ")
             // A playlist without a cover of its own shows the mosaic of its songs' albums, as in the official app.
             val cover = header.coverUri.ifBlank { com.music.spotui.ui.components.mosaicCoverFor(songs.take(200).map { it.coverUri }) }
-            return Response.Success(header.copy(coverUri = cover, metaLine = meta, tracks = songs.toList(), complete = done))
+            return Response.Success(header.copy(coverUri = cover, metaLine = meta, tracks = songs.toList(), complete = done, completeForSync = done && !failed))
         }
         if (firstPage == null) {
             songs += fresh!!
@@ -1093,7 +1094,10 @@ class Api constructor(
                     }
                 }
                 // A page that failed: what came before it stays, marked complete so nothing waits.
-                if (failed && songs.isNotEmpty()) emit(publish(done = true))
+                if (failed && songs.isNotEmpty()) {
+                    if (strictComplete) emit(Response.Error(context.getString(R.string.couldnt_load, pl.name)))
+                    else emit(publish(done = true))
+                }
             }
         }
         if (failed && songs.isEmpty()) emit(Response.Error(context.getString(R.string.couldnt_load, pl.name)))

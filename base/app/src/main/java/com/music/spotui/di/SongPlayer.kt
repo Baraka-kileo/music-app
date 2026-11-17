@@ -2598,7 +2598,10 @@ object SongPlayer {
             libraryLock.withLock {
                 runCatching { writeLibrary(uri, on) }.onSuccess {
                     app.myspoti.host.android.Logbook.log("library: $uri ${if (on) "saved" else "removed"} on Spotify")
-                    if (track) likedChanges.value++
+                    if (track) {
+                        likedChanges.value++
+                        com.music.spotui.data.offline.OfflineCollections.refreshOne(Graph.app, LIKED_CONTEXT, mapOf(trackIdOf(uri) to on))
+                    }
                     listEdit?.let(com.music.spotui.data.api.LibraryEdits::confirm)
                     // Followed or saved: the Library reads its list again once Spotify has it.
                     if (!track && on) com.music.spotui.data.api.LibraryEdits.reloadSoon()
@@ -2635,7 +2638,13 @@ object SongPlayer {
     /** The library changes made offline ([com.music.spotui.data.LibraryOutbox]), sent once Spotify is reachable. */
     fun startLibraryOutbox(context: Context) {
         com.music.spotui.data.LibraryOutbox.init(context, scope,
-            sender = { uri, on -> libraryLock.withLock { writeLibrary(uri, on) }; if (uri.startsWith(SPOTIFY_TRACK_PREFIX)) likedChanges.value++ },
+            sender = { uri, on ->
+                libraryLock.withLock { writeLibrary(uri, on) }
+                if (uri.startsWith(SPOTIFY_TRACK_PREFIX)) {
+                    likedChanges.value++
+                    com.music.spotui.data.offline.OfflineCollections.refreshOne(context.applicationContext, LIKED_CONTEXT, mapOf(trackIdOf(uri) to on))
+                }
+            },
             // The engine is started after the app's graph: wait for it, then for Spotify to answer,
             // then for the session's account (unknown after a session lost: it may be another one).
             ready = { awaitEngine(); api.ready.first { it }; com.music.spotui.data.api.ProfileCache.awaitId(context, ACCOUNT_WAIT_MS) },

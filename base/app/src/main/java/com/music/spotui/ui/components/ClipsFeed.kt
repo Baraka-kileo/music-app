@@ -243,7 +243,13 @@ private fun ClipPage(clip: Clip, active: Boolean, saved: MutableList<SongsModel>
         liked = true
         if (saved.none { it.url == s.url }) saved += s
         scope.launch { heart.snapTo(1f); heart.animateTo(0f, tween(700)) }
-        scope.launch { runCatching { MyspotiRuntime.api.library.add(listOf("spotify:track:" + s.spotifyTrackId)) }.onFailure { liked = false } }
+        scope.launch {
+            runCatching { MyspotiRuntime.api.library.add(listOf("spotify:track:" + s.spotifyTrackId)) }
+                .onSuccess {
+                    com.music.spotui.data.offline.OfflineCollections.refreshOne(context.applicationContext,
+                        "spotify:collection:tracks", mapOf(s.spotifyTrackId to true))
+                }.onFailure { liked = false }
+        }
         AppNotice.show(context.getString(R.string.immersive_player_added_to_liked), s.title, coverUrl = s.coverUri, tone = AppNotice.Tone.LIKE)
     }
     Box(
