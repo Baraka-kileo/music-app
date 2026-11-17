@@ -185,12 +185,17 @@ private fun NoticePill(n: AppNotice.Item) {
     ) {
         val lead = Modifier.size(38.dp).clip(RoundedCornerShape(50))
         if (n.coverUrl != null) {
-            Box(lead.background(Color.White.copy(alpha = 0.08f))) {
-                GlideImage(model = n.coverUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            Box(Modifier.size(42.dp)) {
+                Box(lead.background(Color.White.copy(alpha = 0.08f))) {
+                    GlideImage(model = n.coverUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                }
+                // Outside the round cover, large enough to read its shape, ringed in the pill's own
+                // colour (a star at 11 dp in 16, cut by the cover, read as a heart: reported).
                 if (n.icon != null) Box(
-                    Modifier.align(Alignment.BottomEnd).size(16.dp).clip(RoundedCornerShape(50)).background(accent),
+                    Modifier.align(Alignment.BottomEnd).size(20.dp).clip(RoundedCornerShape(50))
+                        .background(Color(0xFF141418)).padding(2.dp).clip(RoundedCornerShape(50)).background(accent),
                     contentAlignment = Alignment.Center,
-                ) { Icon(n.icon, null, tint = Color.White, modifier = Modifier.size(11.dp)) }
+                ) { Icon(n.icon, null, tint = Color.White, modifier = Modifier.size(12.dp)) }
             }
         } else {
             val bg = when (n.tone) {
