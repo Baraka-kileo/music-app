@@ -578,28 +578,11 @@ fun ImmersivePlayer(
                         }
                     }
 
-                    // ---- Switch to video / to audio: on the cover's lower corner, gone with a panel open ----
-                    if ((videoReady || videoOn) && panel == Panel.NONE) Box(
-                        Modifier
-                            .offset {
-                                // Inside the cover as it is drawn: it steps back while paused.
-                                val inset = artSize() * ((1f - pauseScale.value) / 2f) + 12.dp
-                                // Over a Canvas (no cover) it sits just above the title, at its start.
-                                if (canvasOn) IntOffset(left.roundToPx(), (titleTop() - 46.dp).roundToPx())
-                                else IntOffset((artStart() + inset).roundToPx(), (artTop() + artSize() - inset - 32.dp + 18.dp).roundToPx())
-                            }
-                            .graphicsLayer { alpha = 1f - p() },
-                    ) {
-                        com.music.spotui.ui.components.VideoSwitchPill(on = videoOn)
-                    }
-
                     // ---- The line being sung, above the title (a setting) ----
                     if (lineOn) Box(
                         Modifier
                             .offset {
-                                // Over a Canvas the video pill sits just above the title; over a cover it is on the cover.
-                                val y = if (canvasOn) titleTop() - (if (videoReady || videoOn) 46.dp else 0.dp) - 8.dp - 64.dp
-                                else titleTop() - 64.dp - 2.dp
+                                val y = titleTop() - 64.dp - 2.dp
                                 IntOffset(left.roundToPx(), y.roundToPx())
                             }
                             .width(contentWidth).height(64.dp)
@@ -637,6 +620,9 @@ fun ImmersivePlayer(
                             onSource = { showQuality = true },
                             onSourceLong = { showNerd = true },
                             onSaveTo = { state.song?.let { com.music.spotui.ui.components.AppNotice.openSaveTo(it) } },
+                            // The video switch has one place, beside the like, whatever shows above
+                            // (reported: a pill that moved between the cover's corner and the title).
+                            video = if ((videoReady || videoOn) && panel == Panel.NONE) videoOn else null,
                         )
                     }
                 }
