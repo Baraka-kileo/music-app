@@ -40,12 +40,17 @@ object ProfileCache {
         if (!fetching.compareAndSet(false, true)) return
         MyspotiRuntime.scope.launch {
             try {
+                var failures = 0
                 while (true) {
                     val requestGeneration = generation.get()
                     MyspotiRuntime.api.ready.first { it }
-                    val me = runCatching { MyspotiRuntime.api.users.me() }.getOrNull()
+                    val read = runCatching { MyspotiRuntime.api.users.me() }
                     // The session was lost meanwhile: this profile may be the account before, the next one's is read.
                     if (generation.get() != requestGeneration) continue
+                    // A failed read (the session still starting, the network) is tried again a few times:
+                    // read once at launch, the profile stayed unknown ("•" for the avatar, no history) for the run.
+                    if (read.isFailure && failures < PROFILE_RETRIES) { failures++; kotlinx.coroutines.delay(2_000L * failures); continue }
+                    val me = read.getOrNull()
                     // No account (an anonymous token): nothing is kept, the next session's is read.
                     if (me == null || me.username.isBlank()) return@launch
                     name = me.name
@@ -85,3 +90,6 @@ object ProfileCache {
         }
     }
 }
+
+/** Reads of the profile tried again after a failure, 2, 4, 6 then 8 s apart. */
+private const val PROFILE_RETRIES = 4

@@ -5,6 +5,7 @@
  */
 package com.music.spotui.ui.immersive.screens
 
+import androidx.compose.material.icons.filled.Person
 import com.music.spotui.ui.immersive.sheets.ImmersiveGlassSheet
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -107,7 +108,9 @@ internal fun AvatarDisc(
                 border = false,
             )
         } else {
-            Text(text = initial, style = Immersive.BodyStrong.copy(color = Immersive.Page, fontWeight = FontWeight.Bold))
+            // No name known: a person, not a bullet.
+            if (initial.isBlank() || initial == "•") androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Person, contentDescription = contentDescription, tint = Immersive.Page, modifier = Modifier.size(size * 0.55f))
+            else Text(text = initial, style = Immersive.BodyStrong.copy(color = Immersive.Page, fontWeight = FontWeight.Bold))
         }
     }
 }
