@@ -411,8 +411,9 @@ fun ImmersivePlayer(
                 Modifier.fillMaxSize().graphicsLayer { alpha = canvasOpen.value * (0.85f + 0.15f * maxOf(collapse.value, scrolled())) }
                     .background(CanvasShade),
             )
-            // Scrolled down: the clip dims further under the cards.
-            Box(Modifier.fillMaxSize().drawBehind { drawRect(Color.Black.copy(alpha = 0.6f * scrolled())) })
+            // Scrolled down: the clip gives way to the same near-black as a cover's page, so the cards
+            // read on solid ground (reported: the video and its burned-in words showed between them).
+            Box(Modifier.fillMaxSize().drawBehind { drawRect(Color(0xFF121212).copy(alpha = scrolled())) })
         }
         // An AutoMix mix: the content draws in with it and springs back after it, the backdrop stays.
         Box(Modifier.fillMaxSize().mixSqueeze(mixMotion)) {
