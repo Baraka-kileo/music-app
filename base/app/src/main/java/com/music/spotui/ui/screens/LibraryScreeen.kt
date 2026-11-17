@@ -137,13 +137,8 @@ fun LibraryScreen(navController: NavController) {
     // The filter chips under the title; the chosen one is kept while the screen is open.
     var chip by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(com.music.spotui.data.local.LibraryChip.ALL) }
 
-    if (showAccount) {
-        AccountSheet(
-            account = (account as? Response.Success)?.data ?: AccountModel(),
-            navController = navController,
-            onDismiss = { showAccount = false },
-        )
-    }
+    // The avatar opens the same profile drawer as Home's.
+    if (showAccount) ProfileSheet(onOpen = { route -> showAccount = false; navController.navigate(route) }) { showAccount = false }
 
     Column(
         modifier = Modifier
@@ -162,6 +157,14 @@ fun LibraryScreen(navController: NavController) {
                 .fillMaxWidth()
                 .padding(16.dp, 12.dp, 16.dp, 8.dp)
         ) {
+            // Avatar on the left, as on Home and in the official app.
+            com.music.spotui.ui.components.ProfileAvatar(
+                url = com.music.spotui.data.api.ProfileCache.imageUrl,
+                name = com.music.spotui.data.api.ProfileCache.name,
+                size = 34.dp,
+                modifier = Modifier.clickable { showAccount = true },
+            )
+            Spacer(Modifier.width(12.dp))
             Text(
                 text = stringResource(R.string.navigationbar_musicappitems_yourlibrary_title),
                 fontWeight = FontWeight.Bold,
@@ -178,12 +181,7 @@ fun LibraryScreen(navController: NavController) {
             )
             var creating by remember { mutableStateOf(false) }
             if (creating) LibraryCreateSheet(navController, onDismiss = { creating = false }, onLibraryChanged = { libraryViewModel.load() })
-            Icon(
-                painter = painterResource(R.drawable.ic_add),
-                contentDescription = stringResource(R.string.create_playlist_content_description),
-                tint = AppText,
-                modifier = Modifier.pressable(0.96f) { creating = true }.padding(end = 14.dp).size(22.dp),
-            )
+            // Search, then add, as in the official app.
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = stringResource(R.string.library_search_text_hint),
@@ -192,25 +190,17 @@ fun LibraryScreen(navController: NavController) {
                         searchActive = !searchActive
                         if (!searchActive) searchQuery = ""
                     }
-                    .padding(end = 14.dp)
-                    .size(22.dp)
+                    .padding(end = 18.dp)
+                    .size(24.dp)
                     ,
             )
-            Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .background(tone(0xFF3A3A3A))
-                    .clickable { showAccount = true },
-                contentAlignment = Alignment.Center
-            ) {
-                val avatar = (account as? Response.Success)?.data?.imageUrl.orEmpty()
-                if (avatar.isNotBlank()) {
-                    AccountAvatar(avatar, 34.dp)
-                } else {
-                    Icon(Icons.Default.Person, contentDescription = stringResource(R.string.account_title), tint = AppText, modifier = Modifier.size(20.dp))
-                }
-            }
+            Icon(
+                painter = painterResource(R.drawable.ic_add),
+                contentDescription = stringResource(R.string.create_playlist_content_description),
+                tint = AppText,
+                modifier = Modifier.pressable(0.96f) { creating = true }.size(24.dp)
+                    ,
+            )
         }
 
         LibraryChipRow(chip) { chip = com.music.spotui.data.local.LibraryChips.toggle(chip, it) }

@@ -239,37 +239,17 @@ private fun HomeHeaderRow(navController: NavController, facet: String, onFacet: 
         // takes them in (and the margin up to the separator) without moving anything.
         modifier = Modifier.fillMaxWidth(),
     ) {
-        val avatarUrl = com.music.spotui.data.api.ProfileCache.imageUrl
-        val initial = com.music.spotui.data.api.ProfileCache.name
-            ?.trim()?.firstOrNull()?.uppercase() ?: "•"
+        // Same avatar as everywhere else: picture, else the name's letter, else a person icon.
         Box(
             modifier = Modifier
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { showProfile = true }
                 .padding(start = 16.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
         ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(34.dp)
-                .clip(CircleShape)
-                .background(Color(0xFFE8622C)),
-        ) {
-            if (avatarUrl != null) {
-                GlideImage(
-                    model = avatarUrl,
-                    contentScale = ContentScale.Crop,
-                    contentDescription = stringResource(R.string.recently_played_user_profile),
-                    modifier = Modifier.size(34.dp),
-                )
-            } else {
-                Text(
-                    text = initial,
-                    color = Color.Black,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-        }
+            com.music.spotui.ui.components.ProfileAvatar(
+                url = com.music.spotui.data.api.ProfileCache.imageUrl,
+                name = com.music.spotui.data.api.ProfileCache.name,
+                size = 34.dp,
+            )
         }
         WhatsNewBell { navController.navigate(com.music.spotui.ui.navigation.Routes.WhatsNew.route) }
         // B31: a separator between the profile and the options, reported missing from this
@@ -512,7 +492,7 @@ private fun WhatsNewBell(onClick: () -> Unit) {
  */
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
-private fun ProfileSheet(onOpen: (route: String) -> Unit = {}, onDismiss: () -> Unit) {
+internal fun ProfileSheet(onOpen: (route: String) -> Unit = {}, onDismiss: () -> Unit) {
     val name = com.music.spotui.data.api.ProfileCache.name.orEmpty()
     val avatar = com.music.spotui.data.api.ProfileCache.imageUrl
     val hasAccount = com.music.spotui.data.preferences.AccountProviderPref.id != app.myspoti.api.account.AccountProviders.NONE
