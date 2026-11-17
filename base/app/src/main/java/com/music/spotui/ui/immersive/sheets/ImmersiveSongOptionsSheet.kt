@@ -126,10 +126,10 @@ fun ImmersiveSongOptionsSheet(
         ImmersiveSheetDivider()
 
         ImmersiveSheetRow(
-            icon = if (liked) null else com.music.spotui.ui.design.AppIcons.AddCircleOutline,
+            // The look's like is the star, as in the player (not the official app's plus and tick).
+            icon = if (liked) com.music.spotui.ui.design.AppIcons.Star else com.music.spotui.ui.design.AppIcons.StarBorder,
             label = stringResource(if (liked) R.string.collection_liked_songs_title else R.string.aligned_curation_context_menu_item_add_to_liked_songs),
             enabled = hasId,
-            leading = if (liked) ({ LikedTick() }) else null,
         ) {
             SongPlayer.setTrackSaved(song.spotifyTrackId, !liked)
             toast(context.getString(if (liked) R.string.snackbar_removed_from_liked_songs else R.string.snackbar_added_to_liked_songs))
