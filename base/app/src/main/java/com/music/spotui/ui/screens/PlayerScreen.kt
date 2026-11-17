@@ -377,9 +377,9 @@ fun PlayerScreen(navController: NavController) {
         val shortWindow = com.music.spotui.ui.components.windowSize().heightDp < SHORT_PLAYER_DP
         val lyricsPeek = if (!com.music.spotui.data.preferences.PlayerLyricsCardPref.shown) 0
             else if (shortWindow) SHORT_PLAYER_PEEK_DP else PLAYER_PEEK_DP
-        // With a Canvas, and with the music video (as the official app: the clip on top, the switch
-        // just under it at the start of the line, then the song).
-        val pillAboveTitle = (canvasUrl != null && !videoOn) || showVideo
+        // Always as the official app: under the cover, the Canvas or the video, at the start of the
+        // line above the song (reported: over a cover it floated centred on the art instead).
+        val pillAboveTitle = true
         if (canvasUrl != null && !videoOn) {
             CanvasVideo(
                 url = canvasUrl,
@@ -770,6 +770,21 @@ fun PlayerScreen(navController: NavController) {
                 onOpenAlbum = { openNowPlayingAlbum(playerViewModel, songSinger, titleScope) { navController.navigate(it) } },
             )
         }
+        }
+        // Scrolled past the controls: the official app's slim bar at the top (title, artist, add,
+        // play/pause, the progress line), in the song's colour.
+        val headerOn by remember { androidx.compose.runtime.derivedStateOf { pageList.firstVisibleItemIndex > 0 || pageList.firstVisibleItemScrollOffset > pagePx * 0.7f } }
+        if (!immersive) androidx.compose.animation.AnimatedVisibility(
+            visible = headerOn && !showLyrics && !showQueue,
+            enter = androidx.compose.animation.fadeIn(tween(180)),
+            exit = androidx.compose.animation.fadeOut(tween(180)),
+            modifier = Modifier.align(Alignment.TopCenter),
+        ) {
+            ClassicScrolledBar(
+                title = songTitle, artist = songSinger, liked = isLiked.value, playing = songPlayingState, tone = dominentColor,
+                onLike = { playerViewModel.updateLikeState(!isLiked.value) },
+                onPlayPause = { if (songPlayingState) SongPlayer.pause() else SongPlayer.play() },
+            )
         }
         // Immersive: one compact strip at the bottom of the full-bleed artwork, the official
         // app's collapsed layout. It swallows taps, so only the artwork leaves the mode.
@@ -1810,5 +1825,44 @@ private object PlayerIcons {
         moveTo(4.5f, 10f); horizontalLineTo(19.5f)
         moveTo(4.5f, 14.5f); horizontalLineTo(19.5f)
         moveTo(4.5f, 19f); horizontalLineTo(19.5f)
+    }
+}
+
+/** The Classic player's bar once scrolled down, as the official app's: title and artist, add, play/pause, progress. */
+@Composable
+private fun ClassicScrolledBar(
+    title: String, artist: String, liked: Boolean, playing: Boolean, tone: Color,
+    onLike: () -> Unit, onPlayPause: () -> Unit,
+) {
+    val ground = androidx.compose.ui.graphics.lerp(tone, Color.Black, 0.35f)
+    Column(Modifier.fillMaxWidth().background(ground).statusBarsPadding()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 8.dp),
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text(artist, color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            }
+            // The look's own like: the plus and the green tick.
+            LikeButton(liked = liked, size = 24.dp, touch = 44.dp, onClick = onLike)
+            Spacer(Modifier.width(4.dp))
+            androidx.compose.material3.IconButton(onClick = { com.music.spotui.di.Haptics.tick(); onPlayPause() }) {
+                androidx.compose.material3.Icon(
+                    if (playing) com.music.spotui.ui.design.AppIcons.Pause else com.music.spotui.ui.design.AppIcons.PlayArrow,
+                    contentDescription = null, tint = Color.White,
+                )
+            }
+        }
+        val pos by androidx.compose.runtime.produceState(0f) {
+            while (true) {
+                val d = SongPlayer.getDuration()
+                value = if (d > 0) (SongPlayer.getCurrentPosition().toFloat() / d).coerceIn(0f, 1f) else 0f
+                kotlinx.coroutines.delay(500)
+            }
+        }
+        Box(Modifier.fillMaxWidth().height(2.dp).background(Color.White.copy(alpha = 0.25f)).drawBehind {
+            drawRect(Color.White, size = size.copy(width = size.width * pos))
+        })
     }
 }
