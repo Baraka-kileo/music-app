@@ -245,7 +245,7 @@ cd base
 - Install / launch:
 
 ```bash
-adb install -r base/app/build/outputs/apk/debug/<apk>
+adb install -r base/app/build/outputs/apk/debug/app-debug.apk
 adb shell monkey -p app.orpheon.beta.dev -c android.intent.category.LAUNCHER 1
 ```
 
