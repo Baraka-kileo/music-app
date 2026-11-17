@@ -47,7 +47,7 @@ fun DownloadBadge(status: OfflineStatus?, size: Dp = 16.dp, modifier: Modifier =
             else CircularProgressIndicator(progress = { status.progress }, color = Green, trackColor = AppText.copy(alpha = 0.2f),
                 strokeWidth = 2.dp, modifier = Modifier.size(size))
         }
-        OfflineStatus.Failed, OfflineStatus.Unavailable -> Icon(Icons.Outlined.ErrorOutline,
+        OfflineStatus.Failed, OfflineStatus.Unavailable, OfflineStatus.NeedsReview -> Icon(Icons.Outlined.ErrorOutline,
             stringResource(R.string.download_badge_error_content_description),
             tint = Color(0xFFE22134), modifier = modifier.size(size))
     }

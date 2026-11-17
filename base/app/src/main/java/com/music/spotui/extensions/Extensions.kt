@@ -555,7 +555,11 @@ object Extensions {
         // The account's player is a source only with Spotify as the music account (SongPlayer.accountPlays):
         // with YouTube Music or none, its row is not offered and every extension is asked.
         val withAccount = action == Action.AUDIO_SOURCE && com.music.spotui.di.SongPlayer.accountPlays
-        val entries = if (withAccount) ids + ACCOUNT_SOURCE + YOUTUBE_SOURCE else ids
+        val entries = when {
+            withAccount -> ids + ACCOUNT_SOURCE + YOUTUBE_SOURCE
+            action == Action.DOWNLOAD_SOURCE -> ids + YOUTUBE_SOURCE
+            else -> ids
+        }
         return r.bySourceOrder(action.key, Area.AUDIO.key, entries) { it }
     }
 
@@ -814,7 +818,7 @@ object Extensions {
     fun statusOf(id: String): app.myspoti.extensions.ExtensionStatus? = health.last(id)
 
     /** An enabled extension gives songs' download files (without one, downloads say to install one). */
-    fun hasDownloadSource(): Boolean { providedState.value; return isReady && (providing(Hook.DOWNLOAD_SOURCE).isNotEmpty() || startingDownloadSource()) }
+    fun hasDownloadSource(): Boolean { providedState.value; return true } // Built-in YouTube is always available as a choice.
 
     /** The app is still starting the extensions on at launch, a download source among them. */
     private fun startingDownloadSource(): Boolean =
@@ -839,6 +843,7 @@ object Extensions {
         fit: (List<DownloadFile>) -> Int,
         bestFit: Int,
         graceMs: (bestSoFar: Int) -> Long,
+        only: Set<String>? = null,
         use: suspend (List<DownloadOffer>) -> T?,
     ): T? {
         if (!isReady) throw NotAnswering("extensions not started yet")
@@ -854,7 +859,7 @@ object Extensions {
         val answers = ConcurrentHashMap<String, Outcome>()
         var offered = false
         val taken = HookDispatch.inRounds(
-            available(Hook.DOWNLOAD_SOURCE),
+            available(Hook.DOWNLOAD_SOURCE).filter { only == null || it.first in only },
             ask = { (id, rt) ->
                 val a = ask(id, rt, Hook.DOWNLOAD_SOURCE, input, DOWNLOAD_MS) { DownloadFile.parseList(it).takeIf { l -> l.isNotEmpty() } }
                 answers[id] = a.outcome
@@ -869,9 +874,9 @@ object Extensions {
             // A source that could not answer (busy, a timeout, a rate limit, set aside) has not said the song is not
             // there, nor has one on that was not asked: told apart from "no source has it", so the song is retried
             // instead of marked unavailable.
-            val silent = providing(Hook.DOWNLOAD_SOURCE).map { it.first }.mapNotNull { id ->
+            val silent = providing(Hook.DOWNLOAD_SOURCE).map { it.first }.filter { only == null || it in only }.mapNotNull { id ->
                 (cooldown.reason(id)?.let { "$id set aside: $it" } ?: answers[id]?.takeIf { it.silent }?.let { "$id ${it.describe()}" })?.let { id to it }
-            } + downloadNotAsked()
+            } + downloadNotAsked().filter { only == null || it.first in only }
             if (silent.isNotEmpty()) {
                 val why = silent.joinToString("; ") { it.second }
                 Logbook.log("download: ${track.title} not found, not marked unavailable: $why")

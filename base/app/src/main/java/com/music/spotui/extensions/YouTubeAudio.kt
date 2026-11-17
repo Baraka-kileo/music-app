@@ -13,24 +13,33 @@ import kotlinx.coroutines.runInterruptible
 
 /** Melo's match and stream resolver, used as a built-in audio source. */
 internal object YouTubeAudio {
+    class NoMatchingRecording : java.io.IOException("No convincing YouTube recording matched")
     private val locks = Array(64) { Any() }
     private val refusedClients = java.util.concurrent.ConcurrentHashMap<String, String>()
     private val store by lazy { MatchStore(Graph.app) }
-    suspend fun resolve(track: TrackInfo): AudioStream? = try {
+    suspend fun resolve(track: TrackInfo): AudioStream? = try { resolveChecked(track) }
+    catch (e: kotlinx.coroutines.CancellationException) { throw e }
+    catch (e: InterruptedException) { Thread.currentThread().interrupt(); throw e }
+    catch (e: Exception) {
+        app.myspoti.host.android.Logbook.log("melo_youtube: lookup failed ${e.javaClass.simpleName}")
+        null
+    }
+    suspend fun resolveChecked(track: TrackInfo, requireConfident: Boolean = false): AudioStream =
         runInterruptible(Dispatchers.IO) {
             synchronized(locks[(track.id.hashCode() and Int.MAX_VALUE) % locks.size]) {
                 val started = android.os.SystemClock.elapsedRealtime()
                 val q = MatchQuery(track.id, track.title, track.artist, track.durationMs.coerceIn(0, Int.MAX_VALUE.toLong()).toInt(), track.album)
-                if (q.key.isBlank() || q.title.isBlank() || q.artists.isBlank()) return@synchronized null
-                var video = store.find(q.key)
+                if (q.key.isBlank() || q.title.isBlank() || q.artists.isBlank()) throw NoMatchingRecording()
+                var video = store.find(q.key, if (requireConfident) TrackMatcher.CONFIDENT.toFloat() else 0f)
                 if (video == null) {
                     val text = TrackMatcher.searchText(q)
                     val songs = MeloSearch.search(text, false)
                     val best = TrackMatcher.bestMatch(q, songs, emptyList())
                     val chosen = if (best != null && best.second >= TrackMatcher.CONFIDENT) best else
                         TrackMatcher.bestMatch(q, songs, MeloSearch.search(text, true))
-                    video = chosen?.first?.id ?: return@synchronized null
-                    store.remember(q.key, video)
+                    if (chosen == null || (requireConfident && chosen.second < TrackMatcher.CONFIDENT)) throw NoMatchingRecording()
+                    video = chosen.first.id
+                    store.remember(q.key, video, chosen.second.toFloat())
                 }
                 val excluded = refusedClients.remove(video)?.let(::setOf).orEmpty()
                 val stream = MeloStreamResolver.stream(video, excluded)
@@ -42,12 +51,6 @@ internal object YouTubeAudio {
                     source = "YouTube:$video:${stream.contentLength}")
             }
         }
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-    catch (e: InterruptedException) { Thread.currentThread().interrupt(); throw e }
-    catch (e: Exception) {
-        app.myspoti.host.android.Logbook.log("melo_youtube: lookup failed ${e.javaClass.simpleName}")
-        null
-    }
     fun refused(track: TrackInfo) {
         store.find(track.id)?.let {
             MeloStreamResolver.cachedStream(it)?.client?.let { client -> refusedClients[it] = client }

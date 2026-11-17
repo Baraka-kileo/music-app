@@ -21,4 +21,6 @@
     <string name="account_page_detail">Plan, privacy and devices, on spotify.com</string>
     <string name="player_source_downloaded">Downloaded</string>
     <string name="extension_change_write">Now also allowed to send to Spotify: %1$s</string>
+    <string name="youtube_download_source_detail">Built-in · audio quality depends on YouTube; not lossless</string>
+    <string name="download_needs_review">No matching recording · tap to retry</string>
 </resources>

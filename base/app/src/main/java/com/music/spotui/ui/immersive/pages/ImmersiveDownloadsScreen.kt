@@ -189,6 +189,7 @@ fun ImmersiveDownloadsScreen(navController: NavController) {
                     val status = OfflineStore.status[r.trackId]
                     val line = when (status) {
                         OfflineStatus.Unavailable -> stringResource(R.string.download_unavailable)
+                        OfflineStatus.NeedsReview -> stringResource(R.string.download_needs_review)
                         OfflineStatus.Failed ->
                             (OfflineStore.notAnswering[r.trackId]?.let { stringResource(R.string.download_source_not_answering, it) }
                                 ?: stringResource(R.string.download_badge_error_content_description)) + " · " + stringResource(R.string.download_retry)
@@ -199,7 +200,7 @@ fun ImmersiveDownloadsScreen(navController: NavController) {
                         subtitle = line,
                         imageUrl = r.coverUrl,
                         round = false,
-                        onClick = { if (status == OfflineStatus.Failed) OfflineDownloader.retry(r.trackId) },
+                        onClick = { if (status == OfflineStatus.Failed || status == OfflineStatus.NeedsReview) OfflineDownloader.retry(r.trackId) },
                         modifier = Modifier.animateItem(),
                         trailing = {
                             DownloadBadge(status, size = 20.dp)

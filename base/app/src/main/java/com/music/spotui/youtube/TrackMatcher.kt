@@ -29,7 +29,7 @@ object TrackMatcher {
         return versionPatterns.filterValues { it.containsMatchIn(text) }.keys
     }
     fun searchText(query: MatchQuery): String {
-        val version = versions(query.title + " " + query.album)
+        val version = versions(query.title + " " + query.album) - versions(query.title.coreTitle())
         val terms = version.joinToString(" ") { if (it == "sped") "sped up" else it }
         return "${query.title.coreTitle()} ${query.artists.substringBefore(',').trim()} $terms".trim()
     }

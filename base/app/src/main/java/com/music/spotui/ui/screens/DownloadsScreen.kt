@@ -199,11 +199,11 @@ fun DownloadsScreen(navController: NavController) {
             // Songs still on their way (or that could not be downloaded).
             items(waiting, key = { "w:" + it.trackId }) { r ->
                 val status = OfflineStore.status[r.trackId]
-                val problem = status == OfflineStatus.Failed || status == OfflineStatus.Unavailable
+                val problem = status == OfflineStatus.Failed || status == OfflineStatus.Unavailable || status == OfflineStatus.NeedsReview
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = animatedRow().fillMaxWidth()
-                        .pressable(0.97f) { if (status == OfflineStatus.Failed) OfflineDownloader.retry(r.trackId) }
+                        .pressable(0.97f) { if (status == OfflineStatus.Failed || status == OfflineStatus.NeedsReview) OfflineDownloader.retry(r.trackId) }
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                 ) {
                     GlideImage(
@@ -215,6 +215,7 @@ fun DownloadsScreen(navController: NavController) {
                         Text(r.title, color = AppText.copy(alpha = 0.6f), fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         val line = when (status) {
                             OfflineStatus.Unavailable -> stringResource(R.string.download_unavailable)
+                            OfflineStatus.NeedsReview -> stringResource(R.string.download_needs_review)
                             OfflineStatus.Failed -> (OfflineStore.notAnswering[r.trackId]?.let { stringResource(R.string.download_source_not_answering, it) }
                                 ?: stringResource(R.string.download_badge_error_content_description)) + " · " + stringResource(R.string.download_retry)
                             else -> stringResource(R.string.download_notification_downloading)

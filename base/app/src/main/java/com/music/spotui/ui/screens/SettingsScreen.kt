@@ -350,7 +350,7 @@ fun SettingsScreen(navController: NavController) {
             if (ext?.hidesAppQuality != true) DownloadQualityPicker()
             ext?.let { ExtensionSectionSettings(it) }
             // Where downloads come from: the download-source extensions, in the order they are asked.
-            if (com.music.spotui.extensions.Extensions.sources(app.myspoti.extensions.Action.DOWNLOAD_SOURCE).isNotEmpty()) Column(
+            if (com.music.spotui.extensions.Extensions.savedSourceLine(app.myspoti.extensions.Action.DOWNLOAD_SOURCE).isNotEmpty()) Column(
                 Modifier.fillMaxWidth().clickable { tab = TAB_SOURCES }.padding(horizontal = 20.dp, vertical = 10.dp),
             ) {
                 Text(stringResource(R.string.sources_download_title), color = AppText, fontSize = 16.sp)
@@ -598,7 +598,7 @@ private fun ExtensionSettingsRows(navController: NavController) {
 private fun SourcesBlock(action: app.myspoti.extensions.Action, navController: NavController) {
     val registry by com.music.spotui.extensions.Extensions.registry.collectAsStateWithLifecycle()
     val audio = action == app.myspoti.extensions.Action.AUDIO_SOURCE
-    if (!audio && remember(registry) { com.music.spotui.extensions.Extensions.sources(action).isEmpty() }) return
+    if (!audio && action != app.myspoti.extensions.Action.DOWNLOAD_SOURCE && remember(registry) { com.music.spotui.extensions.Extensions.sources(action).isEmpty() }) return
     Section(if (audio) R.string.sources_audio_title else R.string.sources_download_title)
     SourceOrderList(action, withAccount = audio, look = SourceLook.Classic, onOpen = { navController.navigate(installedRoute(it)) })
     Text(stringResource(if (audio) R.string.sources_audio_footer else R.string.sources_download_footer), color = AppMuted, fontSize = 12.sp,

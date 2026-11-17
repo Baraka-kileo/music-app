@@ -97,7 +97,10 @@ internal fun SourceOrderList(action: Action, withAccount: Boolean, look: SourceL
             } else if (id == YOUTUBE_SOURCE) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().then(rowPadding)) {
                     Rank(i + 1, look)
-                    Column(Modifier.weight(1f)) { Text("YouTube", style = look.name); Text(stringResource(R.string.sources_ready), style = look.line) }
+                    Column(Modifier.weight(1f)) {
+                        Text("YouTube", style = look.name)
+                        Text(stringResource(if (action == Action.DOWNLOAD_SOURCE) R.string.youtube_download_source_detail else R.string.sources_ready), style = look.line)
+                    }
                     arrows()
                 }
             } else if (e != null) {

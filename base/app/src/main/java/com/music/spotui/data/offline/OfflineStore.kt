@@ -82,6 +82,8 @@ sealed interface OfflineStatus {
     data object Done : OfflineStatus
     /** No recording that matches the Spotify track was found. */
     data object Unavailable : OfflineStatus
+    /** No confident match: a retry or a different source may resolve it. */
+    data object NeedsReview : OfflineStatus
     /** Network or storage error: can be tried again. */
     data object Failed : OfflineStatus
 }

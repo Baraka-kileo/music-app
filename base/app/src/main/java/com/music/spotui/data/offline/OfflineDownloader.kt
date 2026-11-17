@@ -274,6 +274,9 @@ object OfflineDownloader {
                 null
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: com.music.spotui.extensions.YouTubeAudio.NoMatchingRecording) {
+                Log.i(TAG, "${r.title}: no matching YouTube recording")
+                OfflineStatus.NeedsReview
             } catch (e: Unavailable) {
                 Log.i(TAG, "${r.title}: ${e.message}")
                 OfflineStatus.Unavailable
@@ -388,16 +391,23 @@ object OfflineDownloader {
     private suspend fun resolveAndFetch(r: Request, meta: Meta, out: File, quality: com.music.spotui.data.preferences.DownloadQuality): Fetched {
         val track = com.music.spotui.extensions.Extensions.trackInfo(r.trackId, meta.title, meta.artist, meta.album, meta.durationMs, meta.coverUrl)
             .copy(isrc = meta.isrc)
+        val source = com.music.spotui.extensions.YOUTUBE_SOURCE
+        val order = com.music.spotui.extensions.Extensions.sourceLine(app.myspoti.extensions.Action.DOWNLOAD_SOURCE)
+        val before = order.takeWhile { it != source }.toSet()
+        val after = order.dropWhile { it != source }.drop(1).toSet()
         val seen = mutableListOf<String>()
         var tried = 0
         // The last error of a file that could not be fetched (not refused or failed a check): the song is then
         // a download that failed and can be tried again, not a recording that was not found.
         var fetchError: Exception? = null
-        val fetched = com.music.spotui.extensions.Extensions.download(
+        suspend fun extensions(ids: Set<String>): Fetched? {
+            if (ids.isEmpty()) return null
+            return com.music.spotui.extensions.Extensions.download(
             track, queryQuality(quality),
             fit = { files -> files.maxOf { downloadFit(quality, it) } },
             bestFit = BEST_FIT,
             graceMs = { best -> if (best >= BEST_FIT) GRACE_BEST_MS else GRACE_MS },
+            only = ids,
         ) { offers ->
             seen += offers.map { it.name }
             val files = downloadOrder(quality, offers.map { it.files })
@@ -407,13 +417,59 @@ object OfflineDownloader {
                 fetchOne(r, meta, out, file, offers[i].extensionId, offers[i].name) { fetchError = it }
             }
         }
+        }
+        val first = try { extensions(before) } catch (e: com.music.spotui.extensions.Extensions.NotAnswering) {
+            Log.w(TAG, "Download extensions not ready: ${e.message}"); null
+        }
+        if (first != null) {
+            com.music.spotui.extensions.Extensions.downloaded(first.extensionId, meta.title)
+            return first
+        }
+        if (source in order) try { fetchYouTube(r, meta, track, out)?.let { return it } }
+        catch (e: CancellationException) { throw e }
+        catch (e: Exception) { fetchError = e }
+        val fetched = extensions(after)
         if (fetched != null) {
             com.music.spotui.extensions.Extensions.downloaded(fetched.extensionId, meta.title)
             return fetched
         }
-        if (seen.isEmpty()) throw Unavailable("no download source has this song")
+        if (fetchError is com.music.spotui.extensions.YouTubeAudio.NoMatchingRecording) throw fetchError!!
         fetchError?.let { throw IOException("none of the $tried files from ${seen.joinToString()} could be fetched: ${it.message}", it) }
+        if (seen.isEmpty()) throw Unavailable("no download source has a matching recording")
         throw Unavailable("none of the $tried files from ${seen.joinToString()} could be used")
+    }
+
+    /** Download the same built-in audio stream used for playback; never treat a partial file as complete. */
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    private suspend fun fetchYouTube(r: Request, meta: Meta, track: app.myspoti.extensions.TrackInfo, out: File): Fetched? {
+        val stream = com.music.spotui.extensions.YouTubeAudio.resolveChecked(track, requireConfident = true)
+        val total = stream.source?.substringAfterLast(':')?.toLongOrNull() ?: -1L
+        val mime = stream.mimeType.orEmpty().lowercase()
+        val format = when {
+            mime.contains("webm") -> "webm"
+            mime.contains("mp4") -> "m4a"
+            else -> return null
+        }
+        val data: androidx.media3.datasource.DataSource = if (total > 0)
+            com.music.spotui.youtube.RangedAudioDataSource(total) else com.music.spotui.extensions.MediaDataSource()
+        val spec = androidx.media3.datasource.DataSpec.Builder().setUri(stream.url).setHttpRequestHeaders(stream.headers).build()
+        val watcher = if (total > 0) scope.launch {
+            while (isActive) {
+                setStatus(r.trackId, OfflineStatus.Downloading((out.length().toFloat() / total).coerceIn(0f, 0.99f)))
+                delay(400)
+            }
+        } else null
+        try {
+            runInterruptible(Dispatchers.IO) {
+                YouTubeTransfer.copy(data, spec, out, ::yieldToPlayer)
+                if (out.length() < 10_000) throw IOException("YouTube audio too short")
+                checkAudio(out, meta)
+            }
+            return Fetched("YouTube Music · ${stream.codec.orEmpty().uppercase()}", false, com.music.spotui.extensions.YOUTUBE_SOURCE, lossy = format)
+        } catch (e: CancellationException) { throw e }
+        catch (e: InterruptedException) { Thread.currentThread().interrupt(); throw e }
+        catch (e: Exception) { Log.w(TAG, "YouTube download failed for ${meta.title}: ${e.message}"); out.delete(); throw e }
+        finally { watcher?.cancel(); runCatching { data.close() } }
     }
 
     /**
