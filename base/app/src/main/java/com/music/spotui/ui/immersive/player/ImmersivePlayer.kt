@@ -65,6 +65,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material.icons.rounded.AddCircleOutline
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.Text
@@ -384,13 +386,10 @@ fun ImmersivePlayer(
         Box(Modifier.fillMaxSize().then(if (meshRecording != null) Modifier.layerBackdrop(meshRecording) else Modifier)) {
             PlayerBackdrop(palette, outgoingPalette, blend, state.coverUrl)
         }
-        // A shade behind the words: soft at the foot of the player (the controls read over any
-        // colour), and deeper as the cards scroll up over the cover.
+        // Scrolled down, the backdrop gives way to the official page's near-black under the cards
+        // (no shade behind the player's own words).
         if (canvasUrl == null) Box(
-            Modifier.fillMaxSize().drawBehind {
-                drawRect(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.38f)))
-                drawRect(Color.Black.copy(alpha = 0.55f * scrolled()))
-            },
+            Modifier.fillMaxSize().drawBehind { drawRect(Color(0xFF121212).copy(alpha = scrolled())) },
         )
         if (canvasUrl != null) {
             com.music.spotui.ui.screens.CanvasVideo(
@@ -661,11 +660,21 @@ fun ImmersivePlayer(
             ImmersiveInfoCards(
                 state, actions, onOpenLyrics = { panel = Panel.LYRICS }, onOpenQueue = { panel = Panel.QUEUE },
                 tones = songCardTones(palette),
+                // The cards carry their own 16 dp margins, as the official ones.
                 modifier = Modifier.widthIn(max = PLAYER_MAX_WIDTH + PLAYER_GUTTER * 2).fillMaxWidth()
-                    .align(Alignment.CenterHorizontally).padding(horizontal = PLAYER_GUTTER)
+                    .align(Alignment.CenterHorizontally)
                     .navigationBarsPadding().padding(bottom = 32.dp),
             )
             }
+            // Scrolled past the controls: the official app's slim bar at the top (title, add, pause,
+            // the progress line), in the song's colour.
+            val headerOn by remember { derivedStateOf { pageScroll.value > pageHpx * 0.7f } }
+            androidx.compose.animation.AnimatedVisibility(
+                visible = headerOn && panel == Panel.NONE,
+                enter = androidx.compose.animation.fadeIn(tween(180)),
+                exit = androidx.compose.animation.fadeOut(tween(180)),
+                modifier = Modifier.align(Alignment.TopCenter),
+            ) { ScrolledHeader(state, actions, songCardTones(palette).bar) }
             }
         }
         }
@@ -1063,6 +1072,48 @@ private fun InfoHint(open: Boolean, onToggle: () -> Unit) {
 
 /** Whether the music video is taller than wide (fitted to the height, not the width). */
 internal object MusicVideoAspect { fun tall() = com.music.spotui.video.MusicVideoController.aspect.floatValue < 1f }
+
+/** The bar at the top of the scrolled player: title and artist, add/added, play/pause, the progress line. */
+@Composable
+private fun ScrolledHeader(state: ImmersivePlayerState, actions: ImmersivePlayerActions, tone: Color) {
+    val ground = androidx.compose.ui.graphics.lerp(tone, Color.Black, 0.35f)
+    Column(Modifier.fillMaxWidth().background(ground).statusBarsPadding()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 8.dp),
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(state.title, color = Color.White, fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text(state.artist, color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp,
+                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            }
+            androidx.compose.material3.IconButton(onClick = { Haptics.confirm(); actions.toggleLike() }) {
+                androidx.compose.material3.Icon(
+                    if (state.liked) Icons.Rounded.CheckCircle else Icons.Rounded.AddCircleOutline,
+                    contentDescription = null, tint = if (state.liked) Color(0xFF1ED760) else Color.White,
+                )
+            }
+            androidx.compose.material3.IconButton(onClick = { Haptics.tick(); actions.playPause() }) {
+                androidx.compose.material3.Icon(
+                    if (state.playing) com.music.spotui.ui.design.AppIcons.Pause else com.music.spotui.ui.design.AppIcons.PlayArrow,
+                    contentDescription = null, tint = Color.White,
+                )
+            }
+        }
+        // The progress line, read twice a second.
+        val now by androidx.compose.runtime.rememberUpdatedState(state)
+        val pos by androidx.compose.runtime.produceState(0L) {
+            while (true) { value = now.positionMs(); kotlinx.coroutines.delay(500) }
+        }
+        Box(
+            Modifier.fillMaxWidth().height(2.dp).background(Color.White.copy(alpha = 0.25f)).drawBehind {
+                val d = now.durationMs.coerceAtLeast(1L)
+                drawRect(Color.White, size = size.copy(width = size.width * (pos.toFloat() / d).coerceIn(0f, 1f)))
+            },
+        )
+    }
+}
 
 /** The playing song's synced lyrics, or null (none, not synced, or still loading). */
 @Composable

@@ -44,4 +44,6 @@
     <string name="lyric_line_hidden">Lyric line hidden</string>
     <string name="lyric_line_hidden_detail">Turn it back on in Settings, Player</string>
     <string name="notice_undo">Undo</string>
+    <string name="notice_similar_to">Similar to %1$s</string>
+    <string name="notice_see_more">see more</string>
 </resources>

@@ -127,6 +127,33 @@ internal fun ImmersiveInfoCards(
     tones: SongCardTones = SongCardTones.Neutral,
     modifier: Modifier = Modifier,
 ) {
+    // Scrolled down, the page is the official app's: the live lyrics card in the song's colour,
+    // then flat dark cards (about the artist, up next, credits, explore…), no glass.
+    Column(modifier) {
+        com.music.spotui.ui.screens.InlineLyrics(
+            title = state.title, artist = state.artist, album = state.album,
+            accentColor = tones.bar, onExpand = onOpenLyrics,
+        )
+        com.music.spotui.ui.components.ClassicInfoCards(
+            trackId = state.trackId, title = state.title, artist = state.artist, coverUrl = state.coverUrl,
+            navController = null,
+            onOpenQueue = onOpenQueue,
+            onOpenAlbum = { actions.openAlbum() },
+            onOpenArtist = { actions.openArtistRef(it) },
+        )
+    }
+}
+
+/** The earlier glass cards (kept for the info panel's parts). */
+@Composable
+private fun ImmersiveGlassInfoCards(
+    state: ImmersivePlayerState,
+    actions: ImmersivePlayerActions,
+    onOpenLyrics: () -> Unit,
+    onOpenQueue: () -> Unit = {},
+    tones: SongCardTones = SongCardTones.Neutral,
+    modifier: Modifier = Modifier,
+) {
     val info = rememberSongInfo(state)
     // The cards take the song's colour (a deep shade of the cover), crossfading on a skip.
     val bar by androidx.compose.animation.animateColorAsState(tones.bar, androidx.compose.animation.core.tween(600), label = "lyricsBar")

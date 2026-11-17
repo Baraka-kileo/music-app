@@ -5,6 +5,7 @@ import androidx.compose.material.icons.filled.OndemandVideo
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,12 +63,14 @@ fun ClassicInfoCards(
     title: String,
     artist: String,
     coverUrl: String,
-    navController: NavController,
+    navController: NavController?,
     onOpenQueue: () -> Unit,
     onOpenAlbum: () -> Unit,
+    /** Opens an artist; by default through [navController] (the Immersive player has its own way). */
+    onOpenArtist: ((app.myspoti.api.ArtistRef) -> Unit)? = null,
 ) {
     val info = com.music.spotui.ui.immersive.player.rememberSongInfo(trackId, title, artist)
-    val openArtist: (app.myspoti.api.ArtistRef) -> Unit = { navController.navigate(ArtistChooser.routeOf(it)) }
+    val openArtist: (app.myspoti.api.ArtistRef) -> Unit = onOpenArtist ?: { navController?.navigate(ArtistChooser.routeOf(it)) }
     Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 40.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         info?.artist?.let { ArtistAbout(it, openArtist) }
         UpNext(onOpenQueue)
@@ -87,9 +90,18 @@ fun ClassicInfoCards(
             Card {
                 CardTitle(stringResource(R.string.notice_explore, a.name))
                 Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Tile(stringResource(R.string.notice_songs_by, a.name), photo, Modifier.weight(1f)) { openArtist(app.myspoti.api.ArtistRef(a.uri, a.name)) }
-                    Tile(stringResource(R.string.notice_from_album), coverUrl, Modifier.weight(1f)) { onOpenAlbum() }
+                // As the official card: songs by the artist, a similar artist, the album; a row that scrolls.
+                val similar = page.related.firstOrNull()
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()),
+                ) {
+                    Tile(stringResource(R.string.notice_songs_by, a.name), photo, Modifier.width(132.dp)) { openArtist(app.myspoti.api.ArtistRef(a.uri, a.name)) }
+                    if (similar != null) Tile(
+                        stringResource(R.string.notice_similar_to, a.name),
+                        similar.images.maxByOrNull { it.width ?: 0 }?.url, Modifier.width(132.dp),
+                    ) { openArtist(app.myspoti.api.ArtistRef(similar.uri, similar.name)) }
+                    Tile(stringResource(R.string.notice_from_album), coverUrl, Modifier.width(132.dp)) { onOpenAlbum() }
                 }
             }
         }
@@ -151,7 +163,14 @@ private fun ArtistAbout(page: app.myspoti.api.ArtistPage, openArtist: (app.myspo
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(a.name, color = CardText, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    // The name with the blue verified badge, as the official card.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(a.name, color = CardText, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                        if (a.verified) androidx.compose.material3.Icon(
+                            com.music.spotui.ui.design.AppIcons.Verified, contentDescription = stringResource(R.string.verified_artist),
+                            tint = Color(0xFF4CB3FF), modifier = Modifier.padding(start = 6.dp).size(18.dp),
+                        )
+                    }
                     a.monthlyListeners?.let {
                         Text(stringResource(R.string.monthly_listeners_text, java.text.NumberFormat.getIntegerInstance().format(it)), color = CardSub, fontSize = 14.sp)
                     }
@@ -166,6 +185,10 @@ private fun ArtistAbout(page: app.myspoti.api.ArtistPage, openArtist: (app.myspo
                         plain, color = CardSub, fontSize = 14.sp, lineHeight = 20.sp,
                         maxLines = if (expanded) Int.MAX_VALUE else 3, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.clickable { expanded = !expanded },
+                    )
+                    if (!expanded && plain.length > 140) Text(
+                        stringResource(R.string.notice_see_more), color = CardText, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 2.dp).clickable { expanded = true },
                     )
                 }
             }
