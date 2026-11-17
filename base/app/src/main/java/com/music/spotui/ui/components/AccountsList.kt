@@ -78,6 +78,8 @@ fun AccountsList(onLeave: () -> Unit = {}) {
     Column(Modifier.fillMaxWidth()) {
         shown.forEach { account ->
             val active = account.profile == list.active
+            // Signed in but another music account chosen (or none): not "in use". Reported: "In use" beside "None".
+            val inUse = active && com.music.spotui.data.preferences.AccountProviderPref.id == app.myspoti.api.account.AccountProviders.SPOTIFY
             // The account in use: its name and picture as read now, before they are saved.
             val name = (if (active) com.music.spotui.data.api.ProfileCache.name else null) ?: account.name
             val image = (if (active) com.music.spotui.data.api.ProfileCache.imageUrl else null) ?: account.imageUrl
@@ -100,13 +102,13 @@ fun AccountsList(onLeave: () -> Unit = {}) {
                         false -> stringResource(R.string.accounts_plan_free)
                         null -> null
                     }
-                    val detail = listOfNotNull(plan, if (active) stringResource(R.string.accounts_in_use) else null).joinToString(" · ")
-                    if (detail.isNotEmpty()) Text(detail, color = if (active) look.accent else look.muted, fontSize = 12.sp)
+                    val detail = listOfNotNull(plan, when { inUse -> stringResource(R.string.accounts_in_use); active -> stringResource(R.string.accounts_not_in_use); else -> null }).joinToString(" · ")
+                    if (detail.isNotEmpty()) Text(detail, color = if (inUse) look.accent else look.muted, fontSize = 12.sp)
                 }
-                if (active) Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.accounts_in_use), tint = look.accent,
+                if (inUse) Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.accounts_in_use), tint = look.accent,
                     modifier = Modifier.padding(horizontal = 12.dp).size(22.dp))
                 // The account in use is removed by "Log out"; the others from here.
-                else IconButton(onClick = { remove = account }) {
+                else if (!active) IconButton(onClick = { remove = account }) {
                     Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.accounts_remove), tint = look.muted, modifier = Modifier.size(20.dp))
                 }
             }

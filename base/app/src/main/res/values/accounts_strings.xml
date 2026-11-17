@@ -9,6 +9,7 @@
     <string name="accounts_add_single_detail">Signs this account out and opens Spotify\'s sign-in</string>
     <string name="accounts_not_signed_in">Not signed in</string>
     <string name="accounts_in_use">In use</string>
+    <string name="accounts_not_in_use">Signed in, not in use</string>
     <string name="accounts_plan_premium">Premium</string>
     <string name="accounts_plan_free">Free</string>
     <string name="accounts_switch_title">Switch to %1$s?</string>
