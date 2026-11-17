@@ -4,6 +4,14 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TrackMatcherTest {
+    @Test fun spedUpSearchRetainsVersionAndRejectsOriginal() {
+        val sped = MatchQuery("sp2", "Someone You Loved (Sped Up)", "Lewis Capaldi", 160_000)
+        val original = YouTubeCandidate("original", "Someone You Loved", "Lewis Capaldi", 180_000)
+        val version = YouTubeCandidate("sped", "Someone You Loved (Speed Up)", "Lewis Capaldi", 160_000)
+        assertTrue(TrackMatcher.searchText(sped).contains("sped up"))
+        assertEquals("sped", TrackMatcher.bestMatch(sped, listOf(original, version), emptyList())?.first?.id)
+        assertNull(TrackMatcher.bestMatch(sped, listOf(original), emptyList()))
+    }
     private val query = MatchQuery("sp1", "Halo", "Beyoncé", 240_000, "Album")
     private fun hit(id: String, title: String = "Halo", artist: String = "Beyoncé", duration: Int = 240_000) =
         YouTubeCandidate(id, title, artist, duration)

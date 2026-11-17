@@ -13,7 +13,26 @@ data class MatchQuery(val key: String, val title: String, val artists: String, v
 data class YouTubeCandidate(val id: String, val title: String, val subtitle: String, val durationMs: Int, val album: String = "")
 
 object TrackMatcher {
-    fun searchText(query: MatchQuery): String = "${query.title.coreTitle()} ${query.artists.substringBefore(',').trim()}".trim()
+    private val versionPatterns = linkedMapOf(
+        "sped" to Regex("\\b(?:sped\\s*up|speed\\s*up|speedup|spedup)\\b"),
+        "slowed" to Regex("\\b(?:slowed|slow\\s*down)\\b"),
+        "nightcore" to Regex("\\bnightcore\\b"),
+        "live" to Regex("\\blive\\b"),
+        "remix" to Regex("\\b(?:remix|rmx)\\b"),
+        "acoustic" to Regex("\\bacoustic\\b"),
+        "instrumental" to Regex("\\binstrumental\\b"),
+        "karaoke" to Regex("\\bkaraoke\\b"),
+        "cover" to Regex("\\bcover\\b"),
+    )
+    internal fun versions(title: String): Set<String> {
+        val text = normalize(title)
+        return versionPatterns.filterValues { it.containsMatchIn(text) }.keys
+    }
+    fun searchText(query: MatchQuery): String {
+        val version = versions(query.title + " " + query.album)
+        val terms = version.joinToString(" ") { if (it == "sped") "sped up" else it }
+        return "${query.title.coreTitle()} ${query.artists.substringBefore(',').trim()} $terms".trim()
+    }
     /** The candidate with the highest score, if it reaches [ACCEPTED]. Songs get a small advantage over videos. */
     fun bestMatch(query: MatchQuery, songs: List<YouTubeCandidate>, videos: List<YouTubeCandidate>): Pair<YouTubeCandidate, Double>? =
         (songs.map { it to score(query, it) + SONG_BONUS } + videos.map { it to score(query, it) })
@@ -22,6 +41,11 @@ object TrackMatcher {
 
     /** 0..1: title (45 %), artist (35 %) and duration (20 %), minus versions the original is not. */
     fun score(query: MatchQuery, candidate: YouTubeCandidate): Double {
+        // A version requested by the Spotify item must also be named on the result.
+        // In particular, a normal recording cannot stand in for a sped-up one.
+        val requested = versions(query.title + " " + query.album)
+        val offered = versions(candidate.title + " " + candidate.album)
+        if (requested != offered) return 0.0
         val title = titleSimilarity(query.title, candidate.title)
         if (title < MIN_TITLE) return 0.0
         val artist = artistSimilarity(query.artists, candidate.subtitle, candidate.title)

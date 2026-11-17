@@ -4,7 +4,8 @@ import android.content.Context
 
 /** Only stable track/video identifiers are persisted; stream addresses expire separately. */
 internal class MatchStore(context: Context) {
-    private val preferences = context.applicationContext.getSharedPreferences("melo_youtube_matches", Context.MODE_PRIVATE)
+    // v2 invalidates old matches made without symmetric version checks.
+    private val preferences = context.applicationContext.getSharedPreferences("melo_youtube_matches_v2", Context.MODE_PRIVATE)
 
     fun find(trackId: String): String? = preferences.getString(trackId, null)?.takeIf(::validVideoId)
 
