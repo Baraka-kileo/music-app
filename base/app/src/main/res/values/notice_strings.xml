@@ -46,4 +46,5 @@
     <string name="notice_undo">Undo</string>
     <string name="notice_similar_to">Similar to %1$s</string>
     <string name="notice_see_more">see more</string>
+    <string name="settings_logout_confirm">Are you sure you want to log out?</string>
 </resources>

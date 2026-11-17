@@ -32,6 +32,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Search
@@ -77,19 +78,40 @@ fun SettingsScreen(navController: NavController) {
     // A page inside Settings (Transitions and AutoMix's options): its own screen, back returns to the tab.
     var sub by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     androidx.activity.compose.BackHandler(enabled = sub != null) { sub = null }
-    // One tab per group (see below); kept up here so a search hit can open one.
-    var tab by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0) }
+    // As the official Settings: a list of groups (ROOT), each one its own page; kept up here so a
+    // search hit can open one. Back from a group returns to the list.
+    var tab by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(ROOT) }
+    androidx.activity.compose.BackHandler(enabled = sub == null && tab != ROOT) { tab = ROOT }
     // Settings' search: null while closed.
     var query by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     androidx.activity.compose.BackHandler(enabled = query != null) { query = null }
+    val tabs = listOf(R.string.settings_section_playback, R.string.settings_sources_tab, R.string.settings_section_lyrics, R.string.settings_section_downloads,
+        R.string.settings_tab_appearance, R.string.settings_tab_about, R.string.accounts_title, R.string.settings_section_library)
     Column(Modifier.fillMaxSize().background(AppBackground).statusBarsPadding()) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(4.dp)) {
-            IconButton(onClick = { if (sub != null) sub = null else navController.popBackStack() }) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 4.dp)) {
+            IconButton(onClick = {
+                when {
+                    sub != null -> sub = null
+                    tab != ROOT -> tab = ROOT
+                    else -> navController.popBackStack()
+                }
+            }) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.accessibility_navigate_back), tint = AppText)
             }
-            Text(stringResource(if (sub == SUB_TRANSITIONS) R.string.settings_transitions_title else R.string.settings_title),
-                color = AppText, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            if (sub == null) IconButton(onClick = { query = if (query == null) "" else null }) {
+            // The page's name, centred as the official header.
+            Text(
+                stringResource(
+                    when {
+                        sub == SUB_TRANSITIONS -> R.string.settings_transitions_title
+                        tab != ROOT -> tabs[tab]
+                        else -> R.string.settings_title
+                    },
+                ),
+                color = AppText, fontSize = 16.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+            )
+            if (sub != null || tab != ROOT) Spacer(Modifier.width(48.dp))
+            else IconButton(onClick = { query = if (query == null) "" else null }) {
                 Icon(androidx.compose.material.icons.Icons.Default.Search, contentDescription = stringResource(R.string.settings_search), tint = AppText)
             }
         }
@@ -136,25 +158,11 @@ fun SettingsScreen(navController: NavController) {
             }
             return@Column
         }
-        // One tab per group, shown in [TAB_ORDER]: where the music comes from first (the music
-        // account, then the sources that play and download), then how it is listened to, then the app.
-        val tabs = listOf(R.string.settings_section_playback, R.string.settings_sources_tab, R.string.settings_section_lyrics, R.string.settings_section_downloads,
-            R.string.settings_tab_appearance, R.string.settings_tab_about, R.string.accounts_title, R.string.settings_section_library)
-        androidx.compose.material3.ScrollableTabRow(
-            selectedTabIndex = TAB_ORDER.indexOf(tab).coerceAtLeast(0), containerColor = Color.Transparent, contentColor = AppText, edgePadding = 12.dp,
-            indicator = { positions ->
-                androidx.compose.material3.TabRowDefaults.SecondaryIndicator(
-                    Modifier.tabIndicatorOffset(positions[TAB_ORDER.indexOf(tab).coerceAtLeast(0)]), color = com.music.spotui.ui.theme.AppAccent)
-            },
-            divider = { HorizontalDivider(color = tone(0xFF2A2A2A)) },
-        ) {
-            TAB_ORDER.forEach { i ->
-                androidx.compose.material3.Tab(
-                    selected = tab == i, onClick = { tab = i },
-                    text = { Text(stringResource(tabs[i]), fontSize = 14.sp, fontWeight = if (tab == i) FontWeight.Bold else FontWeight.Normal) },
-                    selectedContentColor = AppText, unselectedContentColor = AppMuted,
-                )
-            }
+        // The groups, shown in [TAB_ORDER]: where the music comes from first (the music account,
+        // then the sources that play and download), then how it is listened to, then the app.
+        if (tab == ROOT) {
+            SettingsRoot(TAB_ORDER.map { it to tabs[it] }) { tab = it }
+            return@Column
         }
         Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).navigationBarsPadding()) {
             // The first source of each order, when it is an extension announcing settings in that tab.
@@ -667,6 +675,54 @@ private fun AccentRow(look: com.music.spotui.data.preferences.Look) {
  * crossfade. The default is 0: off, as before.
  */
 private const val SUB_TRANSITIONS = "transitions"
+/** The list of groups, the first page of Settings. */
+private const val ROOT = -1
+
+/**
+ * The first page of Settings, as the official one: the groups in a plain list, each opening its
+ * page, and "Log out" at the foot (asked first: it signs the account out of the phone).
+ */
+@Composable
+private fun SettingsRoot(groups: List<Pair<Int, Int>>, onOpen: (Int) -> Unit) {
+    var askLogout by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding()) {
+        groups.forEach { (id, title) ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().clickable { com.music.spotui.di.Haptics.tick(); onOpen(id) }
+                    .padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 16.dp),
+            ) {
+                Text(stringResource(title), color = AppText, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = AppMuted)
+            }
+        }
+        if (com.music.spotui.data.preferences.AccountProviderPref.id != app.myspoti.api.account.AccountProviders.NONE) Box(
+            Modifier.fillMaxWidth().padding(top = 28.dp), contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                stringResource(R.string.connect_device_menu_logout), color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.White)
+                    .clickable { askLogout = true }.padding(horizontal = 32.dp, vertical = 12.dp),
+            )
+        }
+        Spacer(Modifier.height(com.music.spotui.ui.components.bottomBarsSpace()))
+    }
+    if (askLogout) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { askLogout = false },
+        title = { Text(stringResource(R.string.connect_device_menu_logout), color = AppText) },
+        text = { Text(stringResource(R.string.settings_logout_confirm), color = AppMuted) },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = {
+                askLogout = false
+                com.music.spotui.di.SessionActions.logout(com.music.spotui.di.Graph.app)
+            }) { Text(stringResource(R.string.connect_device_menu_logout), color = com.music.spotui.ui.theme.AppAccent) }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = { askLogout = false }) { Text(stringResource(android.R.string.cancel), color = AppText) }
+        },
+        containerColor = tone(0xFF282828),
+    )
+}
 private const val TAB_SOURCES = 1
 private const val TAB_LYRICS = 2
 private const val TAB_DOWNLOADS = 3
