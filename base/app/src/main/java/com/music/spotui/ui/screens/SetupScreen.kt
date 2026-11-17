@@ -263,7 +263,7 @@ private fun AccountStep(onNext: () -> Unit, beforeSignIn: Boolean = false) {
                         if (ytm.signedIn) stringResource(R.string.settings_ytm_signed_in) else stringResource(R.string.setup_account_ytm_detail)
                     else -> stringResource(R.string.setup_account_none_detail)
                 }
-                // A coloured tile per choice (plain icons, no service's logo).
+                // A coloured tile per choice.
                 val icon = when (id) {
                     providers.SPOTIFY -> Icons.Rounded.GraphicEq
                     providers.YTMUSIC -> Icons.Rounded.PlayArrow

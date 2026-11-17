@@ -1,6 +1,6 @@
 # Project overview
 
-This is an Android music app built on [Myspoti / Orpheon](https://github.com/kota-zo/myspoti) (GPL-3.0). It is written in Kotlin with Jetpack Compose. The app has one engine and two complete interfaces ("looks") that the user switches between in Settings.
+This is an Android music app built on Myspoti / Orpheon (GPL-3.0). It is written in Kotlin with Jetpack Compose. The app has one engine and two complete interfaces ("looks") that the user switches between in Settings.
 
 - **Classic**: follows the familiar Spotify mobile layout (dark, green accent, list-first).
 - **Immersive**: the app's own glass design, loosely inspired by Apple Music: blurred cover colours, floating tab bar, large type, glass sheets.
