@@ -36,6 +36,8 @@ import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.gestures.awaitVerticalTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.verticalDrag
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.heightIn
@@ -93,6 +95,9 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
+import androidx.compose.animation.togetherWith
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -667,15 +672,18 @@ fun ImmersivePlayer(
                     .navigationBarsPadding().padding(bottom = 32.dp),
             )
             }
-            // Scrolled past the controls: the official app's slim bar at the top (title, add, pause,
-            // the progress line), in the song's colour.
+            // Scrolled past the controls: a floating bar at the top (cover, title, star, pause, the
+            // progress line) in the song's colour; a tap brings the player back.
             val headerOn by remember { derivedStateOf { pageScroll.value > pageHpx * 0.7f } }
             androidx.compose.animation.AnimatedVisibility(
                 visible = headerOn && panel == Panel.NONE,
-                enter = androidx.compose.animation.fadeIn(tween(180)),
-                exit = androidx.compose.animation.fadeOut(tween(180)),
+                enter = androidx.compose.animation.fadeIn(tween(180)) + androidx.compose.animation.slideInVertically(tween(240)) { -it / 2 },
+                exit = androidx.compose.animation.fadeOut(tween(160)) + androidx.compose.animation.slideOutVertically(tween(200)) { -it / 2 },
                 modifier = Modifier.align(Alignment.TopCenter),
-            ) { ScrolledHeader(state, actions, songCardTones(palette).bar) }
+            ) {
+                val headerScope = androidx.compose.runtime.rememberCoroutineScope()
+                ScrolledHeader(state, actions, songCardTones(palette).bar) { headerScope.launch { pageScroll.animateScrollTo(0) } }
+            }
             }
         }
         }
@@ -901,8 +909,16 @@ private fun PlayerControlsBlock(
     onToggleQueue: () -> Unit,
     onOpenDevices: () -> Unit,
 ) {
+    // The queue open: the transport steps down (smaller, less room around it) so more of the list
+    // shows; reported as the controls taking too much of the screen under the queue.
+    val small by androidx.compose.animation.core.animateFloatAsState(if (queueOpen) QUEUE_CONTROLS_SCALE else 1f, tween(PANEL_TRAVEL_MS), label = "controlsSmall")
     PlayerScrubber(state = state, onSeek = actions.seekTo)
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(8.dp * small))
+    Box(Modifier.fillMaxWidth().layout { m, c ->
+        val pl = m.measure(c)
+        val h = (pl.height * small).roundToInt()
+        layout(pl.width, h) { pl.placeWithLayer(0, (h - pl.height) / 2) { scaleX = small; scaleY = small } }
+    }) {
     TransportRow(
         isPlaying = state.playing,
         isLoading = state.buffering,
@@ -910,6 +926,7 @@ private fun PlayerControlsBlock(
         onPlayPause = actions.playPause,
         onNext = actions.next,
     )
+    }
     Spacer(Modifier.height(if (showVolume) 12.dp else 4.dp))
     if (showVolume) {
         VolumeRow(volume)
@@ -933,7 +950,7 @@ private fun PlayerControlsBlock(
     val extTrack = remember(state.title, state.artist) { com.music.spotui.extensions.Extensions.currentTrack() }
     com.music.spotui.extensions.MirrorIndicator()
     com.music.spotui.extensions.ExtensionPlayerButtons(extTrack)
-    Spacer(Modifier.height(18.dp))
+    Spacer(Modifier.height(18.dp - 12.dp * ((1f - small) / (1f - QUEUE_CONTROLS_SCALE))))
 }
 
 /**
@@ -1074,45 +1091,64 @@ private fun InfoHint(open: Boolean, onToggle: () -> Unit) {
 /** Whether the music video is taller than wide (fitted to the height, not the width). */
 internal object MusicVideoAspect { fun tall() = com.music.spotui.video.MusicVideoController.aspect.floatValue < 1f }
 
-/** The bar at the top of the scrolled player: title and artist, add/added, play/pause, the progress line. */
+/**
+ * The bar at the top of the scrolled player, in the look's own shape: a floating rounded bar in the
+ * song's colour with the cover, title and artist, the star like and play/pause in the player's round
+ * glyphs, and the progress as a line along its foot. Tap: back up to the player.
+ */
 @Composable
-private fun ScrolledHeader(state: ImmersivePlayerState, actions: ImmersivePlayerActions, tone: Color) {
-    val ground = androidx.compose.ui.graphics.lerp(tone, Color.Black, 0.35f)
-    Column(Modifier.fillMaxWidth().background(ground).statusBarsPadding()) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 8.dp),
+private fun ScrolledHeader(state: ImmersivePlayerState, actions: ImmersivePlayerActions, tone: Color, onBackToTop: () -> Unit = {}) {
+    val ground = androidx.compose.ui.graphics.lerp(tone, Color.Black, 0.45f)
+    val shape = RoundedCornerShape(20.dp)
+    Box(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 10.dp, vertical = 6.dp)) {
+        Column(
+            Modifier.fillMaxWidth()
+                .shadow(16.dp, shape, clip = false)
+                .clip(shape)
+                .background(ground.copy(alpha = 0.94f))
+                .border(0.6.dp, Color.White.copy(alpha = 0.14f), shape)
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { Haptics.tick(); onBackToTop() },
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(state.title, color = Color.White, fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                Text(state.artist, color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp,
-                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-            }
-            androidx.compose.material3.IconButton(onClick = { Haptics.confirm(); actions.toggleLike() }) {
-                androidx.compose.material3.Icon(
-                    if (state.liked) Icons.Rounded.CheckCircle else Icons.Rounded.AddCircleOutline,
-                    contentDescription = null, tint = if (state.liked) Color(0xFF1ED760) else Color.White,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            ) {
+                com.music.spotui.ui.immersive.components.ImmersiveCover(
+                    url = state.coverUrl, modifier = Modifier.size(40.dp), shape = RoundedCornerShape(8.dp),
+                    contentDescription = null, border = false,
+                )
+                Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                    Text(state.title, style = Immersive.BodyStrong, color = Color.White,
+                        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text(state.artist, style = Immersive.Caption, color = Color.White.copy(alpha = 0.7f),
+                        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
+                // The same star as beside the credits: one like across the look.
+                CircleGlyph(
+                    icon = if (state.liked) com.music.spotui.ui.design.AppIcons.Star else com.music.spotui.ui.design.AppIcons.StarBorder,
+                    contentDescription = stringResource(if (state.liked) R.string.immersive_player_unlike else R.string.immersive_player_like),
+                    onClick = actions.toggleLike,
+                    active = state.liked,
+                )
+                Spacer(Modifier.width(8.dp))
+                CircleGlyph(
+                    icon = if (state.playing) com.music.spotui.ui.design.AppIcons.Pause else com.music.spotui.ui.design.AppIcons.PlayArrow,
+                    contentDescription = state.title,
+                    onClick = actions.playPause,
                 )
             }
-            androidx.compose.material3.IconButton(onClick = { Haptics.tick(); actions.playPause() }) {
-                androidx.compose.material3.Icon(
-                    if (state.playing) com.music.spotui.ui.design.AppIcons.Pause else com.music.spotui.ui.design.AppIcons.PlayArrow,
-                    contentDescription = null, tint = Color.White,
-                )
+            // The progress line, read twice a second.
+            val now by androidx.compose.runtime.rememberUpdatedState(state)
+            val pos by androidx.compose.runtime.produceState(0L) {
+                while (true) { value = now.positionMs(); kotlinx.coroutines.delay(500) }
             }
+            Box(
+                Modifier.fillMaxWidth().height(2.dp).background(Color.White.copy(alpha = 0.18f)).drawBehind {
+                    val d = now.durationMs.coerceAtLeast(1L)
+                    drawRect(Color.White, size = size.copy(width = size.width * (pos.toFloat() / d).coerceIn(0f, 1f)))
+                },
+            )
         }
-        // The progress line, read twice a second.
-        val now by androidx.compose.runtime.rememberUpdatedState(state)
-        val pos by androidx.compose.runtime.produceState(0L) {
-            while (true) { value = now.positionMs(); kotlinx.coroutines.delay(500) }
-        }
-        Box(
-            Modifier.fillMaxWidth().height(2.dp).background(Color.White.copy(alpha = 0.25f)).drawBehind {
-                val d = now.durationMs.coerceAtLeast(1L)
-                drawRect(Color.White, size = size.copy(width = size.width * (pos.toFloat() / d).coerceIn(0f, 1f)))
-            },
-        )
     }
 }
 
@@ -1124,6 +1160,9 @@ internal fun rememberLiveLyrics(): com.music.spotui.data.entity.Lyrics? {
     val st = com.music.spotui.ui.screens.rememberLyricsState(vm, song.title.value, song.singer.value)
     return (st as? com.music.spotui.ui.viewmodel.LyricsViewModel.State.Loaded)?.lyrics?.takeIf { it.synced }
 }
+
+/** The transport's size while the queue is open (see PlayerControlsBlock). */
+private const val QUEUE_CONTROLS_SCALE = 0.72f
 
 /** Room above the title for the lyric line, over a cover (two lines of 16 sp and a gap). */
 private val LYRIC_LINE_ROOM = 52.dp
@@ -1140,7 +1179,21 @@ internal fun LiveLyricLine(onOpen: () -> Unit, lyrics: com.music.spotui.data.ent
         }
     }
     val ctx = androidx.compose.ui.platform.LocalContext.current
-    androidx.compose.animation.Crossfade(targetState = line, animationSpec = tween(220), label = "liveLine") { t ->
+    // Each new line rises in from below as the one before goes up and fades, as in the lyrics view.
+    androidx.compose.animation.AnimatedContent(
+        targetState = line,
+        transitionSpec = {
+            (androidx.compose.animation.slideInVertically(tween(380, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it / 2 } +
+                androidx.compose.animation.fadeIn(tween(300, delayMillis = 60)))
+                .togetherWith(
+                    androidx.compose.animation.slideOutVertically(tween(320)) { -it / 2 } +
+                        androidx.compose.animation.fadeOut(tween(200)),
+                )
+                .using(androidx.compose.animation.SizeTransform(clip = false))
+        },
+        contentAlignment = Alignment.BottomStart,
+        label = "liveLine",
+    ) { t ->
         Text(
             t, color = Color.White, fontSize = 16.sp, lineHeight = 21.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
             maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
