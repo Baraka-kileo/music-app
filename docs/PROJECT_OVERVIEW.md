@@ -15,7 +15,7 @@ Recent Immersive captures from the emulator (360×800):
 
 | Home | Library | Search | Player | Player, scrolled |
 |---|---|---|---|---|
-| ![](overview/im_home.png) | ![](overview/im_library.png) | ![](overview/im_search.png) | ![](overview/im_player.png) | ![](overview/im_scroll2.png) |
+| ![](iterations/audit/im_home.png) | ![](iterations/audit/im_library.png) | ![](iterations/audit/im_search.png) | ![](iterations/audit/im_player.png) | ![](iterations/audit/im_scroll2.png) |
 
 More shots: `docs/screenshots/` (album, artist), and the `shot-*.png` files in the repo root.
 
