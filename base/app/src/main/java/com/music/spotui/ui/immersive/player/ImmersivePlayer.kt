@@ -807,7 +807,8 @@ private fun RowScope.PlayerCredits(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = if (state.adPlaying) stringResource(R.string.immersive_player_ad) else state.title,
-                style = Immersive.Title.copy(fontSize = 20.sp, lineHeight = lineH),
+                // One clear lead: the title larger than the artist (both were 20 sp, reported as cluttered).
+                style = Immersive.Title.copy(fontSize = 22.sp, lineHeight = 26.sp),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
@@ -838,8 +839,8 @@ private fun RowScope.PlayerCredits(
             val lineScrolls = com.music.spotui.ui.components.rememberArtistLineScrolls(state.artist)
             Text(
                 text = credit?.takeIf { !lineScrolls.value } ?: androidx.compose.ui.text.AnnotatedString(state.artist),
-                style = Immersive.Title.copy(fontSize = 20.sp, lineHeight = lineH, fontWeight = FontWeight.W500),
-                color = tint.copy(alpha = 0.55f),
+                style = Immersive.Title.copy(fontSize = 17.sp, lineHeight = lineH, fontWeight = FontWeight.Normal),
+                color = tint.copy(alpha = 0.6f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 onTextLayout = { if (it.hasVisualOverflow) lineScrolls.value = true },
@@ -1195,7 +1196,8 @@ internal fun LiveLyricLine(onOpen: () -> Unit, lyrics: com.music.spotui.data.ent
         label = "liveLine",
     ) { t ->
         Text(
-            t, color = Color.White, fontSize = 16.sp, lineHeight = 21.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+            // Under the title in weight: a line to glance at, not a second headline.
+            t, color = Color.White.copy(alpha = 0.78f), fontSize = 15.sp, lineHeight = 20.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
             maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             // Tap: the full lyrics. Long press: hide the line (the setting), with an undo.
             modifier = Modifier.combinedClickable(
