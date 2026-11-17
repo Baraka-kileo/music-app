@@ -138,12 +138,17 @@ class SpotifyCatalog(private val gql: Gql, private val http: app.myspoti.spotify
         }
     }
 
+    /** Verified by either field: the reputation trait is missing from some answers, where profile.verified says it
+     *  (reported: no badge on verified artists). */
+    private fun verifiedOf(a: kotlinx.serialization.json.JsonElement?, base: Artist): Boolean =
+        a.bool("onPlatformReputationTrait.verification.isVerified") == true || base.verified
+
     private suspend fun artistUnion(uri: Uri) =
         gql.query("queryArtistOverview", vars("uri" to uri, "locale" to "", "preReleaseV2" to false)).entity("data.artistUnion", "queryArtistOverview")
 
     override suspend fun artist(uri: Uri): Artist {
         val a = artistUnion(uri)
-        return artist(a)?.copy(verified = a.bool("onPlatformReputationTrait.verification.isVerified") ?: false)
+        return artist(a)?.let { it.copy(verified = verifiedOf(a, it)) }
             ?: throw GqlException("queryArtistOverview", "bad artist")
     }
 
@@ -152,7 +157,7 @@ class SpotifyCatalog(private val gql: Gql, private val http: app.myspoti.spotify
 
     override suspend fun artistPage(uri: Uri): app.myspoti.api.ArtistPage {
         val a = artistUnion(uri)
-        val base = artist(a)?.copy(verified = a.bool("onPlatformReputationTrait.verification.isVerified") ?: false)
+        val base = artist(a)?.let { it.copy(verified = verifiedOf(a, it)) }
             ?: throw GqlException("queryArtistOverview", "bad artist")
         return app.myspoti.api.ArtistPage(
             artist = base,
