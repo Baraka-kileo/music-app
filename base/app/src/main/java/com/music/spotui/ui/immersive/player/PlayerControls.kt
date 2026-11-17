@@ -258,7 +258,7 @@ internal fun CircleGlyph(
 }
 
 /** The skip glyphs' touch box, beside the larger play button. */
-private val PLAYER_SKIP_TOUCH_SIZE = 56.dp
+private val PLAYER_SKIP_TOUCH_SIZE = 48.dp
 
 /**
  * The skip glyphs are drawn a little flatter than they are wide, so the pair reads lower and
@@ -276,10 +276,11 @@ internal fun TransportRow(
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
 ) {
-    val playSize = 70.dp
-    val playTouch = 80.dp
+    // Compact: the transport sits low and small, the cover or the video gets the room.
+    val playSize = 54.dp
+    val playTouch = 64.dp
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp),
         // SpaceAround, not SpaceEvenly: the outer margins take half a gap.
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically,
@@ -287,7 +288,7 @@ internal fun TransportRow(
         TransportGlyph(
             icon = com.music.spotui.ui.design.AppIcons.SkipPrevious,
             contentDescription = stringResource(R.string.immersive_player_previous),
-            size = 50.dp,
+            size = 38.dp,
             touchSize = PLAYER_SKIP_TOUCH_SIZE,
             heightScale = PLAYER_SKIP_HEIGHT_SCALE,
             onClick = onPrevious,
@@ -312,7 +313,7 @@ internal fun TransportRow(
         TransportGlyph(
             icon = com.music.spotui.ui.design.AppIcons.SkipNext,
             contentDescription = stringResource(R.string.immersive_player_next),
-            size = 64.dp,
+            size = 48.dp,
             touchSize = PLAYER_SKIP_TOUCH_SIZE,
             heightScale = PLAYER_SKIP_HEIGHT_SCALE,
             onClick = onNext,

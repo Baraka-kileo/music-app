@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -123,21 +124,26 @@ internal fun ImmersiveInfoCards(
     actions: ImmersivePlayerActions,
     onOpenLyrics: () -> Unit,
     onOpenQueue: () -> Unit = {},
+    tones: SongCardTones = SongCardTones.Neutral,
     modifier: Modifier = Modifier,
 ) {
     val info = rememberSongInfo(state)
+    // The cards take the song's colour (a deep shade of the cover), crossfading on a skip.
+    val bar by androidx.compose.animation.animateColorAsState(tones.bar, androidx.compose.animation.core.tween(600), label = "lyricsBar")
+    val ground by androidx.compose.animation.animateColorAsState(tones.card, androidx.compose.animation.core.tween(600), label = "cardGround")
     // Solid cards with white words: over the moving backdrop the see-through ones were hard to read.
-    androidx.compose.runtime.CompositionLocalProvider(LocalPlayerTint provides Color.White, LocalSolidCards provides true) {
+    androidx.compose.runtime.CompositionLocalProvider(LocalPlayerTint provides Color.White, LocalSolidCards provides true, LocalCardGround provides ground) {
     val tint = LocalPlayerTint.current
     Column(modifier) {
-        val shape = RoundedCornerShape(20.dp)
+        // A slim bar, its top peeking at the foot of the player.
+        val shape = RoundedCornerShape(14.dp)
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().clip(shape).background(Immersive.Accent.copy(alpha = 0.85f))
-                .clickable { Haptics.tick(); onOpenLyrics() }.padding(horizontal = 18.dp, vertical = 22.dp),
+            modifier = Modifier.fillMaxWidth().clip(shape).background(bar)
+                .clickable { Haptics.tick(); onOpenLyrics() }.padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
-            Text(stringResource(R.string.immersive_player_lyrics), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            Text("›", color = Color.White, fontSize = 26.sp)
+            Text(stringResource(R.string.immersive_player_lyrics), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text("›", color = Color.White, fontSize = 20.sp)
         }
         Spacer(Modifier.height(16.dp))
         if (info == null) {
@@ -160,9 +166,31 @@ internal fun ImmersiveInfoCards(
 }
 
 internal val LocalSolidCards = androidx.compose.runtime.staticCompositionLocalOf { false }
+internal val LocalCardGround = androidx.compose.runtime.compositionLocalOf { Color(0xFF1E1E25) }
+
+/** The Lyrics bar's colour and the cards' ground, from the song's cover. */
+internal data class SongCardTones(val bar: Color, val card: Color) {
+    companion object { val Neutral = SongCardTones(Color(0xFF3A3A44), Color(0xFF1E1E25)) }
+}
+
+/**
+ * Deep shades of the cover's first colour with real chroma (the same pick as the player tint);
+ * a grey cover keeps neutral cards rather than a colour that is nowhere on it.
+ */
+internal fun songCardTones(palette: com.music.spotui.ui.look.MeshPalette): SongCardTones {
+    // The cover's strongest colour (the first one could be a faint wash: purple cards on an orange cover).
+    fun chroma(c: Color) = maxOf(c.red, c.green, c.blue) - minOf(c.red, c.green, c.blue)
+    val source = palette.colors.filter { chroma(it) >= 0.08f }.maxByOrNull { chroma(it) }
+        ?: return SongCardTones.Neutral
+    val hsl = FloatArray(3)
+    androidx.core.graphics.ColorUtils.colorToHSL(source.toArgb(), hsl)
+    hsl[1] = hsl[1].coerceIn(0.25f, 0.55f)
+    fun at(l: Float) = Color(androidx.core.graphics.ColorUtils.HSLToColor(floatArrayOf(hsl[0], hsl[1], l)))
+    return SongCardTones(bar = at(0.36f), card = at(0.17f))
+}
 
 @Composable
-private fun cardGround(): Color = if (LocalSolidCards.current) Color(0xFF1E1E25) else LocalPlayerTint.current.copy(alpha = 0.08f)
+private fun cardGround(): Color = if (LocalSolidCards.current) LocalCardGround.current else LocalPlayerTint.current.copy(alpha = 0.08f)
 
 @Composable
 private fun SectionTitle(text: String) {

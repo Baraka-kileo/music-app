@@ -418,7 +418,8 @@ object MiniVideoBigPref {
 
 object PlayerVolumePref {
     private const val KEY = "immersive_player_volume"
-    var on by androidx.compose.runtime.mutableStateOf(prefs(com.music.spotui.di.Graph.app).getBoolean(KEY, true))
+    // Off by default: the controls stay small at the foot of the player. A switch in Settings.
+    var on by androidx.compose.runtime.mutableStateOf(prefs(com.music.spotui.di.Graph.app).getBoolean(KEY, false))
         private set
 
     fun set(c: Context, value: Boolean) {

@@ -437,10 +437,17 @@ fun ImmersivePlayer(
             // credits, the song's story). Off while lyrics or the queue are open.
             val pageH = maxHeight
             LaunchedEffect(panel) { if (panel != Panel.NONE) pageScroll.animateScrollTo(0) }
+            // The line being sung, above the title (a setting): only for a song with synced lyrics.
+            // Over a cover the title steps up to make room for it; with no lyrics it stays low.
+            val liveLyrics = rememberLiveLyrics()
+            val lineOn = liveLyrics != null && panel == Panel.NONE && com.music.spotui.data.preferences.LyricLinePref.on
+            val lineRoom by androidx.compose.animation.core.animateDpAsState(
+                if (lineOn && !canvasOn) LYRIC_LINE_ROOM else 0.dp, tween(300), label = "lineRoom",
+            )
             Column(Modifier.fillMaxSize().verticalScroll(pageScroll, enabled = panel == Panel.NONE)) {
             // The top of the lyrics card shows at the foot of the player (as the official app), so the
             // page reads as one that scrolls; gone while a panel is open.
-            val peek by androidx.compose.animation.core.animateDpAsState(if (panel == Panel.NONE) 56.dp else 0.dp, tween(PANEL_TRAVEL_MS), label = "peek")
+            val peek by androidx.compose.animation.core.animateDpAsState(if (panel == Panel.NONE) 40.dp else 0.dp, tween(PANEL_TRAVEL_MS), label = "peek")
             Column(Modifier.fillMaxWidth().height(pageH - peek).statusBarsPadding().then(if (panel == Panel.NONE) Modifier.padding(bottom = 8.dp) else Modifier.navigationBarsPadding())) {
                 // The handle: always hands its drags to the sheet.
                 PlayerDismissStrip(tint) { actions.close() }
@@ -457,21 +464,23 @@ fun ImmersivePlayer(
                 BoxWithConstraints(Modifier.weight(1f, fill = !window.large).heightIn(max = blockMax).fillMaxWidth()) {
                     val contentWidth = minOf(maxWidth - PLAYER_GUTTER * 2, PLAYER_MAX_WIDTH)
                     val left = (maxWidth - contentWidth) / 2
-                    val fullArt = minOf(contentWidth, maxHeight - ART_BOX_TOP_PAD - ART_TITLE_GAP - HEADER_HEIGHT - 16.dp)
+                    val fullW = maxWidth
+                    val fullArt = minOf(contentWidth, maxHeight - ART_BOX_TOP_PAD - ART_TITLE_GAP - HEADER_HEIGHT - 16.dp - lineRoom)
                         .coerceAtLeast(THUMB_SIZE)
                     // While the player is whole the credits sit just above the scrubber and the cover is
                     // centred in the room above them (centred as a pair, the spare height of a tall
                     // phone all went between the credits and the scrubber: reported as the like and
                     // more glyphs sitting far too high).
-                    val spare = (maxHeight - ART_BOX_TOP_PAD - fullArt - ART_TITLE_GAP - HEADER_HEIGHT - 16.dp)
+                    val spare = (maxHeight - ART_BOX_TOP_PAD - fullArt - ART_TITLE_GAP - HEADER_HEIGHT - 16.dp - lineRoom)
                         .coerceAtLeast(0.dp)
-                    val groupTop = spare / 2
+                    // Most of the spare height goes above the cover: it sits close over the title.
+                    val groupTop = spare * 0.7f
                     // Functions of the collapse, called at placement and measure: composition never reads them.
                     fun p() = collapse.value
                     fun artSize(): Dp = lerp(fullArt, THUMB_SIZE, p())
                     fun artTop(): Dp = ART_BOX_TOP_PAD + lerp(groupTop, 0.dp, p())
                     fun artStart(): Dp = left + lerp((contentWidth - fullArt) / 2, 0.dp, p())
-                    fun titleTop(): Dp = ART_BOX_TOP_PAD + lerp(spare + fullArt + ART_TITLE_GAP, 0.dp, p())
+                    fun titleTop(): Dp = ART_BOX_TOP_PAD + lerp(spare + fullArt + ART_TITLE_GAP + lineRoom, 0.dp, p())
                     fun titleStart(): Dp = lerp(0.dp, THUMB_SIZE + 12.dp, p())
                     // The credits only crawl while they are the screen: over a list they would pull the eye.
                     val scrolls by remember { derivedStateOf { collapse.value < 0.01f } }
@@ -546,10 +555,19 @@ fun ImmersivePlayer(
                         )
                         if (!showVideo) SongBlendCover(blend, Modifier.fillMaxSize()) { it.override(COVER_DECODE_PX) }
                         // The clip at its own shape (wide, square or tall), centred where the cover was.
+                        // A wide clip runs the full width of the screen, edge to edge (narrowing back
+                        // into the thumbnail as the player collapses); a tall one keeps the square.
                         if (showVideo) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            val tall = MusicVideoAspect.tall()
                             com.music.spotui.ui.components.VideoSurface(
-                                modifier = Modifier.clip(RoundedCornerShape(14.dp)),
-                                fitHeight = MusicVideoAspect.tall(),
+                                modifier = if (tall) Modifier.clip(RoundedCornerShape(14.dp)) else Modifier.layout { measurable, c ->
+                                    val w = androidx.compose.ui.util.lerp(fullW.toPx(), c.maxWidth.toFloat(), p()).toInt()
+                                    val placeable = measurable.measure(Constraints(minWidth = w, maxWidth = w))
+                                    layout(c.maxWidth, c.maxHeight) {
+                                        placeable.place((c.maxWidth - w) / 2, (c.maxHeight - placeable.height) / 2)
+                                    }
+                                },
+                                fitHeight = tall,
                                 onTap = { mv.fullscreen.value = true },
                             )
                         }
@@ -570,17 +588,19 @@ fun ImmersivePlayer(
                         com.music.spotui.ui.components.VideoSwitchPill(on = videoOn)
                     }
 
-                    // ---- The line being sung, over a Canvas, above the title (a setting) ----
-                    if (canvasOn && panel == Panel.NONE && com.music.spotui.data.preferences.LyricLinePref.on) Box(
+                    // ---- The line being sung, above the title (a setting) ----
+                    if (lineOn) Box(
                         Modifier
                             .offset {
-                                val pill = if (videoReady || videoOn) 46.dp else 0.dp
-                                IntOffset(left.roundToPx(), (titleTop() - pill - 8.dp - 64.dp).roundToPx())
+                                // Over a Canvas the video pill sits just above the title; over a cover it is on the cover.
+                                val y = if (canvasOn) titleTop() - (if (videoReady || videoOn) 46.dp else 0.dp) - 8.dp - 64.dp
+                                else titleTop() - 64.dp - 2.dp
+                                IntOffset(left.roundToPx(), y.roundToPx())
                             }
                             .width(contentWidth).height(64.dp)
                             .graphicsLayer { alpha = 1f - p() },
                         contentAlignment = Alignment.BottomStart,
-                    ) { LiveLyricLine(onOpen = { panel = Panel.LYRICS }) }
+                    ) { LiveLyricLine(onOpen = { panel = Panel.LYRICS }, lyrics = liveLyrics) }
 
                     // ---- Title + round glyphs ----
                     Row(
@@ -634,16 +654,13 @@ fun ImmersivePlayer(
                         onToggleQueue = { panel = if (queueOpen) Panel.NONE else Panel.QUEUE },
                         onOpenDevices = { showDevices = true },
                     )
-                    // A hidden volume bar keeps its room, under the controls: without it the block got
-                    // shorter and the cover, the credits, the scrubber and the transport dropped into
-                    // the space it left (#186). Only the bottom row moves up.
-                    // The same sum as PlayerControlsBlock's: the larger gap above the bar, the bar, the gap below.
-                    if (!showVolume) Spacer(Modifier.height(12.dp - 4.dp + VOLUME_ROW_HEIGHT + 6.dp))
+                    // A hidden volume bar gives its room back: the controls stay compact at the foot.
                 }
                 }
             }
             ImmersiveInfoCards(
                 state, actions, onOpenLyrics = { panel = Panel.LYRICS }, onOpenQueue = { panel = Panel.QUEUE },
+                tones = songCardTones(palette),
                 modifier = Modifier.widthIn(max = PLAYER_MAX_WIDTH + PLAYER_GUTTER * 2).fillMaxWidth()
                     .align(Alignment.CenterHorizontally).padding(horizontal = PLAYER_GUTTER)
                     .navigationBarsPadding().padding(bottom = 32.dp),
@@ -1047,14 +1064,22 @@ private fun InfoHint(open: Boolean, onToggle: () -> Unit) {
 /** Whether the music video is taller than wide (fitted to the height, not the width). */
 internal object MusicVideoAspect { fun tall() = com.music.spotui.video.MusicVideoController.aspect.floatValue < 1f }
 
-/** The lyric line being sung now, large and bold, fading from line to line. Tap: the lyrics. */
+/** The playing song's synced lyrics, or null (none, not synced, or still loading). */
 @Composable
-internal fun LiveLyricLine(onOpen: () -> Unit) {
+internal fun rememberLiveLyrics(): com.music.spotui.data.entity.Lyrics? {
     val vm: com.music.spotui.ui.viewmodel.LyricsViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     val song = com.music.spotui.di.Graph.currentSongState
     val st = com.music.spotui.ui.screens.rememberLyricsState(vm, song.title.value, song.singer.value)
-    val lyrics = (st as? com.music.spotui.ui.viewmodel.LyricsViewModel.State.Loaded)?.lyrics
-    if (lyrics == null || !lyrics.synced) return
+    return (st as? com.music.spotui.ui.viewmodel.LyricsViewModel.State.Loaded)?.lyrics?.takeIf { it.synced }
+}
+
+/** Room above the title for the lyric line, over a cover (two lines of 16 sp and a gap). */
+private val LYRIC_LINE_ROOM = 52.dp
+
+/** The lyric line being sung now, large and bold, fading from line to line. Tap: the lyrics. */
+@Composable
+internal fun LiveLyricLine(onOpen: () -> Unit, lyrics: com.music.spotui.data.entity.Lyrics? = rememberLiveLyrics()) {
+    if (lyrics == null) return
     val line by androidx.compose.runtime.produceState("", lyrics) {
         while (true) {
             val pos = com.music.spotui.di.SongPlayer.getCurrentPosition()
