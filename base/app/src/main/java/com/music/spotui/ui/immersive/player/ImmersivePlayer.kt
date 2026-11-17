@@ -446,8 +446,12 @@ fun ImmersivePlayer(
             // Over a cover the title steps up to make room for it; with no lyrics it stays low.
             val liveLyrics = rememberLiveLyrics()
             val lineOn = liveLyrics != null && panel == Panel.NONE && com.music.spotui.data.preferences.LyricLinePref.on
+            // The video switch, as the official app's: one place in every case, under the cover (or the
+            // video) at the title's start (reported: it moved between the cover's corner and the title).
+            val pillOn = (videoReady || videoOn) && panel == Panel.NONE
             val lineRoom by androidx.compose.animation.core.animateDpAsState(
-                if (lineOn && !canvasOn) LYRIC_LINE_ROOM else 0.dp, tween(300), label = "lineRoom",
+                (if (lineOn && !canvasOn) LYRIC_LINE_ROOM else 0.dp) + (if (pillOn && !canvasOn) VIDEO_PILL_ROOM else 0.dp),
+                tween(300), label = "lineRoom",
             )
             Column(Modifier.fillMaxSize().verticalScroll(pageScroll, enabled = panel == Panel.NONE)) {
             // The top of the lyrics card shows at the foot of the player (as the official app), so the
@@ -578,16 +582,10 @@ fun ImmersivePlayer(
                         }
                     }
 
-                    // ---- Switch to video / to audio: on the cover's lower corner, gone with a panel open ----
-                    if ((videoReady || videoOn) && panel == Panel.NONE) Box(
+                    // ---- Switch to video / to audio: just above the title, at its start; gone with a panel open ----
+                    if (pillOn) Box(
                         Modifier
-                            .offset {
-                                // Inside the cover as it is drawn: it steps back while paused.
-                                val inset = artSize() * ((1f - pauseScale.value) / 2f) + 12.dp
-                                // Over a Canvas (no cover) it sits just above the title, at its start.
-                                if (canvasOn) IntOffset(left.roundToPx(), (titleTop() - 46.dp).roundToPx())
-                                else IntOffset((artStart() + inset).roundToPx(), (artTop() + artSize() - inset - 32.dp + 18.dp).roundToPx())
-                            }
+                            .offset { IntOffset(left.roundToPx(), (titleTop() - VIDEO_PILL_ROOM).roundToPx()) }
                             .graphicsLayer { alpha = 1f - p() },
                     ) {
                         com.music.spotui.ui.components.VideoSwitchPill(on = videoOn)
@@ -597,9 +595,8 @@ fun ImmersivePlayer(
                     if (lineOn) Box(
                         Modifier
                             .offset {
-                                // Over a Canvas the video pill sits just above the title; over a cover it is on the cover.
-                                val y = if (canvasOn) titleTop() - (if (videoReady || videoOn) 46.dp else 0.dp) - 8.dp - 64.dp
-                                else titleTop() - 64.dp - 2.dp
+                                // Above the video switch when there is one, else just above the title.
+                                val y = titleTop() - (if (pillOn) VIDEO_PILL_ROOM else 0.dp) - 64.dp - 2.dp
                                 IntOffset(left.roundToPx(), y.roundToPx())
                             }
                             .width(contentWidth).height(64.dp)
@@ -1160,6 +1157,9 @@ internal fun rememberLiveLyrics(): com.music.spotui.data.entity.Lyrics? {
     val st = com.music.spotui.ui.screens.rememberLyricsState(vm, song.title.value, song.singer.value)
     return (st as? com.music.spotui.ui.viewmodel.LyricsViewModel.State.Loaded)?.lyrics?.takeIf { it.synced }
 }
+
+/** Room above the title for the video switch (the pill and its gap). */
+private val VIDEO_PILL_ROOM = 44.dp
 
 /** The transport's size while the queue is open (see PlayerControlsBlock). */
 private const val QUEUE_CONTROLS_SCALE = 0.72f
