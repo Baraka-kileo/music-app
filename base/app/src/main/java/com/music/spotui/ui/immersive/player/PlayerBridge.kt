@@ -186,6 +186,9 @@ fun rememberImmersivePlayer(navController: NavController): ImmersivePlayerBridge
     )
 
     // Read at the moment of the tap, not captured: the lambdas below live as long as the screen.
+    // The song as it is now: [state] itself was the first song's for good (reported: the like notice
+    // and its "Change" named the song before).
+    val now by androidx.compose.runtime.rememberUpdatedState(state)
     val actions = remember(vm, navController) {
         ImmersivePlayerActions(
             playPause = {
@@ -227,19 +230,19 @@ fun rememberImmersivePlayer(navController: NavController): ImmersivePlayerBridge
             toggleLike = {
                 val on = !vm.likeState.value
                 vm.updateLikeState(on)
-                val song = state.song
+                val song = now.song
                 if (on) com.music.spotui.ui.components.AppNotice.show(
                     title = context.getString(R.string.immersive_player_added_to_liked),
-                    subtitle = state.title.takeIf { it.isNotBlank() }?.let { t -> if (state.artist.isBlank()) t else "$t · ${state.artist}" },
+                    subtitle = now.title.takeIf { it.isNotBlank() }?.let { t -> if (now.artist.isBlank()) t else "$t · ${now.artist}" },
                     icon = com.music.spotui.ui.design.AppIcons.Star,
-                    coverUrl = state.coverUrl,
+                    coverUrl = now.coverUrl,
                     tone = com.music.spotui.ui.components.AppNotice.Tone.LIKE,
                     actionLabel = if (song != null) context.getString(R.string.notice_change) else null,
                     onAction = song?.let { s -> { com.music.spotui.ui.components.AppNotice.openSaveTo(s) } },
                 ) else com.music.spotui.ui.components.AppNotice.show(
                     title = context.getString(R.string.snackbar_removed_from_liked_songs).trimEnd('.'),
-                    subtitle = state.title.takeIf { it.isNotBlank() },
-                    coverUrl = state.coverUrl,
+                    subtitle = now.title.takeIf { it.isNotBlank() },
+                    coverUrl = now.coverUrl,
                 )
             },
             openAlbum = {
