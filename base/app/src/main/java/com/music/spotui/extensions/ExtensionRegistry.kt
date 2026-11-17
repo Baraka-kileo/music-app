@@ -80,6 +80,7 @@ data class KeptVersion(val version: String, val versionCode: Int, val sha256: St
  * format): the extensions after it are not asked. "spotify" as the orders saved before it was named so.
  */
 const val ACCOUNT_SOURCE = "spotify"
+const val YOUTUBE_SOURCE = "builtin.youtube"
 
 /** A newer version that asks something the user has not accepted; the old one keeps running. */
 @Serializable

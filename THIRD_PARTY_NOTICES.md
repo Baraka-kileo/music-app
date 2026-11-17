@@ -165,6 +165,19 @@ By the EasyList authors. The tracker rule marked "EasyPrivacy" in the same list
 
 By coldMEW. The ad host `s0.2mdn.net` came from its list; it is now covered by uAssets' `2mdn.net`.
 
+## Melo — GPL-3.0
+
+https://github.com/aarush-io/melo (commit 0674e5d27d64c4d71e4dc48e0b65508954e03605).
+`base/app/src/main/java/com/music/spotui/youtube/TrackMatcher.kt` adapts Melo's
+`app/src/main/java/in/melo/data/youtube/TrackMatcher.kt`. The application remains
+licensed under GPL-3.0; see `LICENSE`.
+
+The YouTube client identities, decipher code, player resolver and search are adapted
+from Melo's YouTube integration. Melo credits Resona (https://github.com/code-saksham-hash/Resona,
+Copyright (c) 2026 Code.Saksham, MIT) and yt-dlp-android
+(https://github.com/HLahwani/yt-dlp-android, Copyright (c) 2026 Hamzeh Lahwani, MIT).
+Their full license notices are in `base/app/src/main/assets/licenses/`.
+
 ## Horologist and Wear Compose Material3 — Apache-2.0
 https://github.com/google/horologist
 

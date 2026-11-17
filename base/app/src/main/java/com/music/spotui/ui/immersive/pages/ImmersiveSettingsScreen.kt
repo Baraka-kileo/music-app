@@ -300,8 +300,8 @@ private val ImmersiveSourceLook = com.music.spotui.ui.screens.SourceLook(
 
 /** The order a source action asks extensions in, as a card ([com.music.spotui.ui.screens.SourceOrderList]); nothing without any such extension. */
 private fun androidx.compose.foundation.lazy.LazyListScope.sourcesGroup(action: app.myspoti.extensions.Action, navController: NavController) {
-    if (com.music.spotui.extensions.Extensions.sources(action).isEmpty()) return
     val audio = action == app.myspoti.extensions.Action.AUDIO_SOURCE
+    if (!audio && com.music.spotui.extensions.Extensions.sources(action).isEmpty()) return
     immersiveGroup("sources:${action.key}",
         headerRes = if (audio) R.string.sources_audio_title else R.string.sources_download_title,
         footerRes = if (audio) R.string.sources_audio_footer else R.string.sources_download_footer) {
@@ -315,7 +315,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.sourcesGroup(action: 
 
 /** Where the order of [action] is now: one row, with that order in a line, to the Sources page. */
 private fun androidx.compose.foundation.lazy.LazyListScope.sourcesLink(action: app.myspoti.extensions.Action, open: (SettingsPage) -> Unit) {
-    if (com.music.spotui.extensions.Extensions.sources(action).isEmpty()) return
+    if (action != app.myspoti.extensions.Action.AUDIO_SOURCE && com.music.spotui.extensions.Extensions.sources(action).isEmpty()) return
     immersiveGroup("sources-link:${action.key}") {
         row {
             ImmersiveGroupRow(

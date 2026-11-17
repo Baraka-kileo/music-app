@@ -598,7 +598,7 @@ private fun ExtensionSettingsRows(navController: NavController) {
 private fun SourcesBlock(action: app.myspoti.extensions.Action, navController: NavController) {
     val registry by com.music.spotui.extensions.Extensions.registry.collectAsStateWithLifecycle()
     val audio = action == app.myspoti.extensions.Action.AUDIO_SOURCE
-    if (remember(registry) { com.music.spotui.extensions.Extensions.sources(action).isEmpty() }) return
+    if (!audio && remember(registry) { com.music.spotui.extensions.Extensions.sources(action).isEmpty() }) return
     Section(if (audio) R.string.sources_audio_title else R.string.sources_download_title)
     SourceOrderList(action, withAccount = audio, look = SourceLook.Classic, onOpen = { navController.navigate(installedRoute(it)) })
     Text(stringResource(if (audio) R.string.sources_audio_footer else R.string.sources_download_footer), color = AppMuted, fontSize = 12.sp,

@@ -41,6 +41,7 @@ import app.myspoti.extensions.Area
 import com.music.spotui.extensions.Extensions
 import com.music.spotui.extensions.InstalledExtension
 import com.music.spotui.extensions.ACCOUNT_SOURCE
+import com.music.spotui.extensions.YOUTUBE_SOURCE
 import com.music.spotui.ui.theme.AppAccent
 import com.music.spotui.ui.theme.AppMuted
 import com.music.spotui.ui.theme.AppText
@@ -75,7 +76,7 @@ internal fun SourceOrderList(action: Action, withAccount: Boolean, look: SourceL
     val accountAt = line.indexOf(ACCOUNT_SOURCE)
     Column(Modifier.fillMaxWidth()) {
         lead?.takeIf { action == Action.AUDIO_SOURCE }?.let { id ->
-            val name = if (id == ACCOUNT_SOURCE) stringResource(R.string.sources_account) else registry.find(id)?.name ?: id
+            val name = if (id == ACCOUNT_SOURCE) stringResource(R.string.sources_account) else if (id == YOUTUBE_SOURCE) "YouTube" else registry.find(id)?.name ?: id
             Column(Modifier.fillMaxWidth().then(rowPadding)) {
                 Text(stringResource(R.string.source_pick_active, name), style = look.line.copy(color = look.accent))
                 TextButton(onClick = { Extensions.setSessionSource(null) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
@@ -93,6 +94,12 @@ internal fun SourceOrderList(action: Action, withAccount: Boolean, look: SourceL
                     Text(stringResource(R.string.sources_account_player) + " · " + stringResource(R.string.sources_account_detail), style = look.line, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 arrows()
+            } else if (id == YOUTUBE_SOURCE) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().then(rowPadding)) {
+                    Rank(i + 1, look)
+                    Column(Modifier.weight(1f)) { Text("YouTube", style = look.name); Text(stringResource(R.string.sources_ready), style = look.line) }
+                    arrows()
+                }
             } else if (e != null) {
                 SourceRow(e, i, action, errors[e.id], statuses[e.id], activity.lastOrNull { it.extensionId == e.id && it.area == Area.AUDIO },
                     below = accountAt in 0 until i, look, rowPadding, arrows) { onOpen(e.id) }
@@ -172,6 +179,6 @@ internal fun sourceLineSummary(action: Action): String? {
     val line = remember(registry, action) { Extensions.sourceLine(action) }
     if (line.none { it != ACCOUNT_SOURCE }) return null
     val account = stringResource(R.string.sources_account)
-    val names = line.take(3).map { if (it == ACCOUNT_SOURCE) account else registry.find(it)?.name ?: it }
+    val names = line.take(3).map { if (it == ACCOUNT_SOURCE) account else if (it == YOUTUBE_SOURCE) "YouTube" else registry.find(it)?.name ?: it }
     return names.joinToString(" › ") + if (line.size > 3) " …" else ""
 }

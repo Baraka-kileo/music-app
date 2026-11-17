@@ -68,4 +68,11 @@ class SessionSourceTest {
         // "Back to my order" meanwhile, an extension first again: the song stays on it.
         assertFalse(SessionSource.spotifyDue("4uLU6hMCjMI75M1A2tKUQC", "4uLU6hMCjMI75M1A2tKUQC", a))
     }
+    @Test fun builtInYouTubeCanLeadWithoutAnInstalledExtension() {
+        val saved = listOf(ACCOUNT_SOURCE, YOUTUBE_SOURCE)
+        val lead = SessionSource.pick(YOUTUBE_SOURCE, saved) { false }
+        assertEquals(YOUTUBE_SOURCE, lead)
+        assertEquals(listOf(YOUTUBE_SOURCE, ACCOUNT_SOURCE), SessionSource.choices(saved, lead) { false })
+        assertEquals(saved, SessionSource.choices(saved, null) { false })
+    }
 }

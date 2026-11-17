@@ -72,7 +72,7 @@ object ExtensionAudio {
     fun streamedBy(t: LocalTrack): String? =
         t.uri.takeIf { it.scheme == SCHEME }?.let { known[it.lastPathSegment.orEmpty()]?.stream?.providerId }?.let(::extensionName)
 
-    private fun extensionName(id: String?): String? = id?.let { Extensions.registry.value.find(it)?.name }
+    private fun extensionName(id: String?): String? = id?.let { if (it == YOUTUBE_SOURCE) "YouTube" else Extensions.registry.value.find(it)?.name }
 
     /** Bumped with each answer kept: the player's source line reads it to show an answer that came after the song changed. */
     val answers = androidx.compose.runtime.mutableIntStateOf(0)
@@ -99,7 +99,7 @@ object ExtensionAudio {
 
         fun put(trackId: String, s: AudioStream) {
             // A transformed file (decrypted, remuxed) is not replayed from a bare address.
-            if (s.transform != null || trackId.isBlank()) return
+            if (s.transform != null || trackId.isBlank() || s.providerId == YOUTUBE_SOURCE) return
             val json = kotlinx.serialization.json.buildJsonObject {
                 put("at", kotlinx.serialization.json.JsonPrimitive(System.currentTimeMillis()))
                 put("url", kotlinx.serialization.json.JsonPrimitive(s.url))
@@ -224,7 +224,7 @@ object ExtensionAudio {
         Saved.load()
         val key = u.lastPathSegment.orEmpty()
         if (again) {
-            known.remove(key)
+            if (known.remove(key)?.stream?.providerId == YOUTUBE_SOURCE) YouTubeAudio.refused(track(u))
             // Its address was refused: the attempt says so, the new ask is an attempt of its own.
             Extensions.noteAttempt(key) { it.copy(fallback = "asked the extensions again: its address was refused (expired or gone)") }
         }
@@ -295,7 +295,8 @@ object ExtensionAudio {
                     late.launch {
                         val s = try { runCatching { ask.await() }.getOrNull() } finally { awaited.remove(picked.spotifyTrackId) } ?: return@launch
                         keep(picked.spotifyTrackId, s)
-                        withContext(Dispatchers.Main) { com.music.spotui.di.SongPlayer.extensionAnsweredLate(picked.spotifyTrackId) }
+                        if (s.providerId != YOUTUBE_SOURCE)
+                            withContext(Dispatchers.Main) { com.music.spotui.di.SongPlayer.extensionAnsweredLate(picked.spotifyTrackId) }
                     }
                 } else app.myspoti.host.android.Logbook.log("audio: no extension had ${picked.title}: Spotify plays it")
                 return false

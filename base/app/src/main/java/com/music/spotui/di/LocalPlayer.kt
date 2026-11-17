@@ -334,11 +334,27 @@ object LocalPlayer {
         if (i == C.INDEX_UNSET) return
         val uri = p.getMediaItemAt(i).localConfiguration?.uri ?: return
         if (uri.scheme != com.music.spotui.extensions.ExtensionAudio.SCHEME) return
+        val youtube = com.music.spotui.extensions.Extensions.sourceLine(app.myspoti.extensions.Action.AUDIO_SOURCE)
+            .firstOrNull() == com.music.spotui.extensions.YOUTUBE_SOURCE
+        val second = if (youtube) p.currentTimeline.getNextWindowIndex(i, Player.REPEAT_MODE_OFF, p.shuffleModeEnabled)
+            .takeIf { it != C.INDEX_UNSET && it != p.currentMediaItemIndex && it != i }
+            ?.let { p.getMediaItemAt(it).localConfiguration?.uri }
+            ?.takeIf { it.scheme == com.music.spotui.extensions.ExtensionAudio.SCHEME } else null
         ahead = prefetch.launch {
             // Not at once: a song skipped in its first seconds would have cost its source an ask
             // for nothing, and sources limit how often they are asked (the song is asked anyway
             // when it starts).
-            kotlinx.coroutines.delay(AHEAD_DELAY_MS)
+            kotlinx.coroutines.delay(if (youtube) 1_000L else AHEAD_DELAY_MS)
+            if (youtube) {
+                while (isActive) {
+                    val ready = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        if (exo !== p) null else p.isPlaying && p.totalBufferedDuration >= 2_000
+                    }
+                    if (ready == null) return@launch
+                    if (ready) break
+                    kotlinx.coroutines.delay(250)
+                }
+            }
             // Over the network, which no player state shows: the service's Wi-Fi lock covers it.
             app.myspoti.host.android.PlaybackService.noteNetworkLoad()
             runCatching {
@@ -356,6 +372,11 @@ object LocalPlayer {
                 // skipped a few seconds into a flight).
                 if (cheap && isActive && !com.music.spotui.data.DataSaver.active)
                     com.music.spotui.data.offline.ExtStreamCache.cacheAhead(Graph.app, uri) { isActive }
+                if (youtube && cheap && isActive && !com.music.spotui.data.DataSaver.active && second != null) {
+                    val next = com.music.spotui.extensions.ExtensionAudio.resolve(second, ahead = true)
+                    if (next != null && isActive)
+                        com.music.spotui.data.offline.ExtStreamCache.cacheAhead(Graph.app, second) { isActive }
+                }
             }
         }
     }

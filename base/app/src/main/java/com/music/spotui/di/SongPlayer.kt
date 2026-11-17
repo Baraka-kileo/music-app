@@ -1640,11 +1640,11 @@ object SongPlayer {
      */
     fun audioSourcesChanged(added: List<String>, any: Boolean) {
         spotifyPlayed.clear()
-        if (!any) return
         val local = LocalPlayer.active.value
         // The song playing, or the one being asked (a source picked for it in the player), keeps its answer.
         com.music.spotui.extensions.ExtensionAudio.forgetAllBut(if (local) LocalPlayer.current()?.let(LocalPlayer::spotifyIdOf) else routingState.value)
         if (local) { LocalPlayer.sourcesChanged(); return }
+        if (!any) return
         if (added.isEmpty() || _activeDevice.value != null || routing || com.music.spotui.data.DataSaver.active) return
         val id = trackIdOf(_nowPlaying.value.uri).ifBlank { return }
         spotifyFallbackId = id

@@ -14,14 +14,14 @@ object SessionSource {
 
     /** [lead] while it can still lead: Spotify, or an extension of [saved] that is on; null otherwise. */
     fun valid(lead: String?, saved: List<String>, enabled: (String) -> Boolean): String? =
-        lead?.takeIf { it in saved && (it == ACCOUNT_SOURCE || enabled(it)) }
+        lead?.takeIf { it in saved && (it == ACCOUNT_SOURCE || it == YOUTUBE_SOURCE || enabled(it)) }
 
     /**
      * The lead [id] picked in the player gives: [id], or null when it is the source the user's own
      * order asks first already (the session is then on the user's order, nothing is temporary).
      */
     fun pick(id: String, saved: List<String>, enabled: (String) -> Boolean): String? =
-        valid(id, saved, enabled)?.takeIf { it != SectionSettings.leader(saved, enabled) }
+        valid(id, saved, enabled)?.takeIf { it != SectionSettings.leader(saved) { it == YOUTUBE_SOURCE || enabled(it) } }
 
     /**
      * Spotify was picked while the song an extension streams, [dueId], was paused: it stayed paused
@@ -34,5 +34,5 @@ object SessionSource {
 
     /** What the quality sheet offers: Spotify and the extensions on, in the [effective] order. */
     fun choices(saved: List<String>, lead: String?, enabled: (String) -> Boolean): List<String> =
-        effective(saved, valid(lead, saved, enabled)).filter { it == ACCOUNT_SOURCE || enabled(it) }
+        effective(saved, valid(lead, saved, enabled)).filter { it == ACCOUNT_SOURCE || it == YOUTUBE_SOURCE || enabled(it) }
 }

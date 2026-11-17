@@ -555,7 +555,8 @@ object Extensions {
         // The account's player is a source only with Spotify as the music account (SongPlayer.accountPlays):
         // with YouTube Music or none, its row is not offered and every extension is asked.
         val withAccount = action == Action.AUDIO_SOURCE && com.music.spotui.di.SongPlayer.accountPlays
-        return r.bySourceOrder(action.key, Area.AUDIO.key, if (withAccount) ids + ACCOUNT_SOURCE else ids) { it }
+        val entries = if (withAccount) ids + ACCOUNT_SOURCE + YOUTUBE_SOURCE else ids
+        return r.bySourceOrder(action.key, Area.AUDIO.key, entries) { it }
     }
 
     /** The order the source [action] asks in now: the user's, with the audio source picked for this session first ([SessionSource]). */
@@ -566,7 +567,12 @@ object Extensions {
     }
 
     /** Moves [id] (an extension, or [ACCOUNT_SOURCE]) up (negative [delta]) or down in the order the source [action] asks in. */
-    fun moveSource(action: Action, id: String, delta: Int) = update { r -> r.move(action.key, savedLine(r, action), id, delta) }
+    fun moveSource(action: Action, id: String, delta: Int) {
+        update { r -> r.move(action.key, savedLine(r, action), id, delta) }
+        if (action == Action.AUDIO_SOURCE) main.post {
+            com.music.spotui.di.SongPlayer.audioSourcesChanged(emptyList(), hasAudioSource())
+        }
+    }
 
     private val _sessionSource = MutableStateFlow<String?>(null)
 
@@ -594,6 +600,9 @@ object Extensions {
         _sessionSource.value = lead
         Logbook.log("audio: ${lead?.let { "$it first for this session" } ?: "back to the order of Settings"}")
         refreshProvided()
+        // Built-in sources do not appear in the extension runtime list, so changing only the
+        // built-in lead must also invalidate queued answers and warm the new next source.
+        main.post { com.music.spotui.di.SongPlayer.audioSourcesChanged(emptyList(), hasAudioSource()) }
     }
 
     /** The session's source still leads after [r] changed; turned off, removed or no longer a source, it leaves it. */
@@ -772,7 +781,7 @@ object Extensions {
         providedState.value
         // A Jam member's songs play on the host's device, sent there by Spotify: none through an extension here.
         if (app.myspoti.host.android.MyspotiRuntime.isStarted && app.myspoti.host.android.MyspotiRuntime.spotify.jam.member) return false
-        return isReady && (providing(Hook.AUDIO_SOURCE).isNotEmpty() || startingAudioSource())
+        return isReady && (line(_registry.value, Action.AUDIO_SOURCE).takeWhile { it != ACCOUNT_SOURCE }.contains(YOUTUBE_SOURCE) || providing(Hook.AUDIO_SOURCE).isNotEmpty() || startingAudioSource())
     }
 
     /** The audio-source extensions on at launch are still being started. */
@@ -931,10 +940,21 @@ object Extensions {
      * call is one [PlayAttempt] ([attempts]): the sources asked or skipped, and the one chosen.
      */
     suspend fun audio(track: TrackInfo, timeoutMs: Long = AUDIO_MS, ahead: Boolean = false): AudioStream? {
+        val order = sourceLine(Action.AUDIO_SOURCE).takeWhile { it != ACCOUNT_SOURCE }
+        if (YOUTUBE_SOURCE !in order) return audioExtensions(track, timeoutMs, ahead)
+        val before = order.takeWhile { it != YOUTUBE_SOURCE }.toSet()
+        val after = order.dropWhile { it != YOUTUBE_SOURCE }.drop(1).toSet()
+        if (before.isNotEmpty()) audioExtensions(track, timeoutMs, ahead, before, recordMiss = false)?.let { return it }
+        withTimeoutOrNull(timeoutMs) { YouTubeAudio.resolve(track) }?.let { return it }
+        if (after.isNotEmpty()) return audioExtensions(track, timeoutMs, ahead, after, recordMiss = false)
+        return null
+    }
+
+    private suspend fun audioExtensions(track: TrackInfo, timeoutMs: Long, ahead: Boolean, only: Set<String>? = null, recordMiss: Boolean = true): AudioStream? {
         if (!isReady) return null
         val attempt = attempts.start(track.id, track.title, ahead)
         // None had it a moment ago: not asked again (a queue reaching it, a replay, a resume).
-        if (misses.skips(track.id, ahead)) {
+        if (recordMiss && misses.skips(track.id, ahead)) {
             Logbook.log("audio: ${track.title}${if (ahead) " (ahead)" else ""} not asked again: no extension had it under a minute ago")
             attempts.update(attempt) { it.copy(fallback = "Spotify: no extension had it under a minute ago, not asked again") }
             return null
@@ -962,7 +982,7 @@ object Extensions {
                 Logbook.log("audio: ${it.id} skipped ($why)")
                 skipped += PlayAttempt.Ask(it.id, Outcome.Skipped().key, 0, why)
             }
-        val asked = available(Hook.AUDIO_SOURCE, skipped)
+        val asked = available(Hook.AUDIO_SOURCE, skipped).filter { only == null || it.first in only }
         if (asked.isEmpty()) {
             attempts.update(attempt) { it.copy(asked = skipped.toList(), fallback = "Spotify: no source to ask") }
             return null
@@ -981,7 +1001,7 @@ object Extensions {
         // A source cut short because one above it answered was not needed.
         val all = skipped + asked.map { (id, _) -> answers[id] ?: PlayAttempt.Ask(id, Outcome.Skipped().key, ms, "not needed: another source answered first") }
         if (found == null) {
-            Logbook.log("audio: no extension had $label ($ms ms)"); misses.record(track.id, ahead)
+            Logbook.log("audio: no extension had $label ($ms ms)"); if (recordMiss) misses.record(track.id, ahead)
             attempts.update(attempt) { it.copy(asked = all, fallback = "Spotify: no extension had it") }
             return null
         }
@@ -1001,6 +1021,7 @@ object Extensions {
      * busy) or is not a running audio source.
      */
     suspend fun audioFrom(id: String, track: TrackInfo): AudioStream? {
+        if (id == YOUTUBE_SOURCE) return withTimeoutOrNull(AUDIO_MS) { YouTubeAudio.resolve(track) }
         if (!isReady) return null
         val rt = runtimes[id]?.takeIf { _registry.value.find(id)?.enabled == true && it.provides(Hook.AUDIO_SOURCE) && !health.inactive(id) } ?: return null
         val attempt = attempts.start(track.id, track.title)

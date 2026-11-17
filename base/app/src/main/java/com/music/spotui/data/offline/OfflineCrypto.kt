@@ -215,6 +215,14 @@ object OfflineCrypto {
             active = net
             val spec = dataSpec.buildUpon().setUri(Uri.parse(stream.url))
                 .setHttpRequestHeaders(dataSpec.httpRequestHeaders + stream.headers).build()
+            if (stream.providerId == com.music.spotui.extensions.YOUTUBE_SOURCE) {
+                val size = stream.source?.substringAfterLast(':')?.toLongOrNull() ?: -1L
+                if (size > 0) {
+                    val ranges = com.music.spotui.youtube.RangedAudioDataSource(size)
+                    active = ranges
+                    try { return ranges.open(spec) } catch (e: IOException) { ranges.close(); throw e }
+                }
+            }
             stream.transform?.let { transform ->
                 val aligned = dataSpec.position / transform.segmentBytes * transform.segmentBytes
                 val skip = dataSpec.position - aligned

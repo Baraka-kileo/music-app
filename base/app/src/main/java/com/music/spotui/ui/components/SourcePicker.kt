@@ -38,6 +38,7 @@ import com.music.spotui.di.SongPlayer
 import com.music.spotui.extensions.ExtensionAudio
 import com.music.spotui.extensions.Extensions
 import com.music.spotui.extensions.ACCOUNT_SOURCE
+import com.music.spotui.extensions.YOUTUBE_SOURCE
 import com.music.spotui.ui.immersive.Immersive
 import com.music.spotui.ui.immersive.pages.ImmersiveChoiceRow
 import com.music.spotui.ui.immersive.pages.ImmersiveGroupRow
@@ -70,7 +71,7 @@ fun SourcePicker(modifier: Modifier = Modifier) {
     val ids = remember(registry, lead) { Extensions.audioChoices().sortedBy { it != ACCOUNT_SOURCE } }
     if (ids.none { it != ACCOUNT_SOURCE } || uri.startsWith("spotify:episode:")) return
     val account = stringResource(R.string.sources_account)
-    val names = remember(ids, registry, account) { ids.associateWith { if (it == ACCOUNT_SOURCE) account else registry.find(it)?.name ?: it } }
+    val names = remember(ids, registry, account) { ids.associateWith { if (it == ACCOUNT_SOURCE) account else if (it == YOUTUBE_SOURCE) "YouTube" else registry.find(it)?.name ?: it } }
     val playing = remember(uri, local, answers, SongPlayer.routing) {
         when {
             SongPlayer.routing -> null
