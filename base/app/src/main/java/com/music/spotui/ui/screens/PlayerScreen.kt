@@ -327,6 +327,10 @@ fun PlayerScreen(navController: NavController) {
         if (com.music.spotui.data.DataSaver.active && mv.on.value) mv.setOn(false)
     }
     val videoOn = mv.on.value && videoMatchesTrack && !remote && com.music.spotui.data.preferences.MusicVideoPref.on
+    // The clip of this song is still being checked: the pill shows faded, with a spinner.
+    val videoChecking = !videoReady && !videoOn && !remote && !audioBuffering && displayedTrackId.isNotBlank() && actualTrackId == displayedTrackId &&
+        !com.music.spotui.data.DataSaver.active && com.music.spotui.data.preferences.MusicVideoPref.on &&
+        mv.state.value is com.music.spotui.video.MusicVideoController.State.Searching
     // Canvas / clip players are built once the sheet has finished rising (then kept):
     // creating them in the first frame stalled it and the slide jumped.
     val settled by com.music.spotui.ui.navigation.LocalPageSettled.current
@@ -606,7 +610,7 @@ fun PlayerScreen(navController: NavController) {
             // them. Only the Canvas layout draws the pill here, fading in inside the slot.
             if (!immersive) {
                 val pillIn by androidx.compose.animation.core.animateFloatAsState(
-                    if (videoReady || videoOn) 1f else 0f, tween(250), label = "pillIn",
+                    if (videoReady || videoOn || videoChecking) 1f else 0f, tween(250), label = "pillIn",
                 )
                 // A short window keeps the pill (32 dp) but not the gap under it.
                 // Over a Canvas: the line being sung, above the pill (a setting), and the pill at the
@@ -619,6 +623,7 @@ fun PlayerScreen(navController: NavController) {
                     ) { com.music.spotui.ui.immersive.player.LiveLyricLine(onOpen = { showLyrics = true }) }
                     if (pillAboveTitle && pillIn > 0f) com.music.spotui.ui.components.VideoSwitchPill(
                         on = videoOn,
+                        checking = videoChecking,
                         modifier = Modifier
                             .padding(bottom = if (shortWindow) 4.dp else 20.dp)
                             .graphicsLayer { alpha = pillIn; val k = 0.85f + 0.15f * pillIn; scaleX = k; scaleY = k },

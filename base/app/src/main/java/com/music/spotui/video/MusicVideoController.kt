@@ -114,13 +114,13 @@ object MusicVideoController {
     // The answers of the last songs only (a time map or "none", a few KB each): coming back to a
     // song shows its answer at once, with no disk and no job. No audio, no features, no decoder.
     private const val RECENT_MAX = 20
-    private const val NONE_TTL_MS = 7 * 86_400_000L
+    private const val NONE_TTL_MS = 2 * 86_400_000L
     /**
      * Bumped when the search finds clips it missed before (Spotify-confirmed label uploads, "$" names) or
      * refuses ones it wrongly took (artist, title, other versions, length: MusicVideoMatch). Answers
      * under older rules, "none" and clips alike, are looked up again.
      */
-    private const val MATCH_RULES = 3
+    private const val MATCH_RULES = 4
     private class Recent(val state: State, val at: Long)
     private val recent = object : LinkedHashMap<String, Recent>(32, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Recent>) = size > RECENT_MAX
@@ -400,7 +400,7 @@ object MusicVideoController {
                 val referenceFeatures = async(Dispatchers.Default, start = kotlinx.coroutines.CoroutineStart.LAZY) {
                     val reference = song.await() ?: error("No reference audio")
                     downloadAudioFile(reference.url, refFile)
-                    runInterruptible { AudioAlign.features(AudioAlign.decode(refFile, 45)) }
+                    runInterruptible { AudioAlign.features(AudioAlign.decode(refFile, REFERENCE_SECONDS)) }
                 }
                 val relaxed = spotifyHasVideo.await()
                 if (relaxed) Log.i(TAG, "$title: Spotify has a clip of it, ordinary uploads checked too")
@@ -425,7 +425,7 @@ object MusicVideoController {
                                     referenceFeatures.start()
                                     downloadAudioFile(c.url, candFile)
                                     val candidate = withContext(Dispatchers.Default) {
-                                        runInterruptible { AudioAlign.features(AudioAlign.decode(candFile, 100)) }
+                                        runInterruptible { AudioAlign.features(AudioAlign.decode(candFile, clipWindowSeconds(c.durationSec, durationMs))) }
                                     }
                                     val reference = referenceFeatures.await()
                                     val map = withContext(Dispatchers.Default) {

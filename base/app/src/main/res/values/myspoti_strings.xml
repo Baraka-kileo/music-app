@@ -846,6 +846,7 @@
     <string name="av_switch_to_video">Switch to video</string>
     <string name="av_switch_to_audio">Switch to audio</string>
     <string name="av_content_desc">Switch between the song and its music video</string>
+    <string name="av_checking">Looking for the music video</string>
     <string name="video_fullscreen_enter">Full screen</string>
     <string name="video_fullscreen_exit">Leave full screen</string>
     <string name="settings_automix_orpheon">New transition planner</string>

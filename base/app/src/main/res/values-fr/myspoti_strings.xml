@@ -844,6 +844,7 @@
     <string name="av_switch_to_video">Passer à la vidéo</string>
     <string name="av_switch_to_audio">Passer à l\'audio</string>
     <string name="av_content_desc">Passer de la chanson à son clip</string>
+    <string name="av_checking">Recherche du clip</string>
     <string name="video_fullscreen_enter">Plein écran</string>
     <string name="video_fullscreen_exit">Quitter le plein écran</string>
     <string name="settings_automix_orpheon">Nouveau planificateur de transitions</string>

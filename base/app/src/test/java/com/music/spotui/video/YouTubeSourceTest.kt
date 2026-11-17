@@ -85,6 +85,28 @@ class YouTubeSourceTest {
         assertEquals(null, YouTubeSource.videoId("https://www.youtube.com/watch?v=short"))
     }
 
+    @Test fun channelNamesArtistTakesALongerChannelName() {
+        assertTrue("Santan Dave is Dave's channel", YouTubeSource.channelNamesArtist("Santan Dave", "Dave"))
+        assertTrue(YouTubeSource.channelNamesArtist("SantanDave", "Dave"))
+        assertTrue(YouTubeSource.channelNamesArtist("Dave Official", "Dave, Tems"))
+        assertTrue(YouTubeSource.channelNamesArtist("HarmonizeVEVO", "Harmonize"))
+    }
+
+    @Test fun channelNamesArtistRefusesOtherChannels() {
+        assertFalse(YouTubeSource.channelNamesArtist("Rap Thunder", "Dave"))
+        assertFalse(YouTubeSource.channelNamesArtist("RapHype", "Dave"))
+        assertFalse("Madeleine is not Adele", YouTubeSource.channelNamesArtist("Madeleine", "Adele"))
+        assertFalse(YouTubeSource.channelNamesArtist("", "Dave"))
+        assertFalse(YouTubeSource.channelNamesArtist("Dave", ""))
+    }
+
+    @Test fun clipWindowFollowsTheClipsExtraLength() {
+        assertEquals(46, clipWindowSeconds(213, 212_000))
+        assertEquals(75, clipWindowSeconds(242, 212_000))
+        assertEquals(100, clipWindowSeconds(400, 212_000))
+        assertEquals(100, clipWindowSeconds(0, 212_000))
+    }
+
     private fun hit(uploader: String) = YouTubeSource.Hit("https://www.youtube.com/watch?v=AbCdEfGhI_1", "Song", uploader, 180)
     private fun norm(value: String): String = call("norm", arrayOf(value)) as String
     private fun titleMatches(candidate: String, title: String): Boolean = call("titleMatches", arrayOf(candidate, title)) as Boolean

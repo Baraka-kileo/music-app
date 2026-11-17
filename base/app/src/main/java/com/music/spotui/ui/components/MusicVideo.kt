@@ -1,5 +1,7 @@
 package com.music.spotui.ui.components
 
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 
 import androidx.activity.compose.BackHandler
@@ -100,9 +102,9 @@ private val OverMedia = Color.Black.copy(alpha = 0.6f)
 
 /** Spotify's "Passer à la vidéo" / "Passer à l'audio" pill. */
 @Composable
-fun VideoSwitchPill(on: Boolean, modifier: Modifier = Modifier) {
+fun VideoSwitchPill(on: Boolean, modifier: Modifier = Modifier, checking: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
-        SwitchPill(on)
+        SwitchPill(on, checking)
         // With the video on: the clip's own sound instead of the song's (the song still plays, unheard).
         if (false) {
             val clip = MusicVideoController.clipSound.value
@@ -137,17 +139,24 @@ fun VideoSwitchPill(on: Boolean, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun SwitchPill(on: Boolean) {
+private fun SwitchPill(on: Boolean, checking: Boolean) {
+    // While the clip is still being checked: the same pill, faded, a small spinner for its icon,
+    // not tappable. It turns solid once the clip is confirmed, and fades away if there is none.
+    val fade by androidx.compose.animation.core.animateFloatAsState(if (checking) 0.55f else 1f, androidx.compose.animation.core.tween(250), label = "avFade")
+    val checkingLabel = stringResource(R.string.av_checking)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .height(32.dp)
+            .graphicsLayer { alpha = fade }
             .clip(RoundedCornerShape(50))
             .background(OverMedia)
-            .clickable { MusicVideoController.setOn(!on) }
+            .then(if (checking) Modifier.semantics { contentDescription = checkingLabel } else Modifier.clickable { MusicVideoController.setOn(!on) })
             .padding(start = 10.dp, end = 12.dp),
     ) {
-        Icon(
+        if (checking) androidx.compose.material3.CircularProgressIndicator(
+            color = Color.White, strokeWidth = 1.6.dp, modifier = Modifier.size(14.dp).padding(1.dp),
+        ) else Icon(
             if (on) Icons.Default.MusicNote else Icons.Default.OndemandVideo,
             contentDescription = stringResource(R.string.av_content_desc),
             tint = Color.White,

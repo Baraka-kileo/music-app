@@ -339,6 +339,9 @@ fun ImmersivePlayer(
         if (com.music.spotui.data.DataSaver.active && mv.on.value) mv.setOn(false)
     }
     val videoOn = mv.on.value && videoMatches && videoAllowed
+    // The clip of this song is still being checked: the pill shows faded, with a spinner.
+    val videoChecking = !videoReady && !videoOn && videoAllowed && !state.buffering && state.trackId.isNotBlank() &&
+        !com.music.spotui.data.DataSaver.active && mv.state.value is com.music.spotui.video.MusicVideoController.State.Searching
     val showVideo = videoOn && panel == Panel.NONE && !mv.fullscreen.value
     LaunchedEffect(mv.state.value, videoReady) { if (videoReady) mv.warm() }
 
@@ -448,7 +451,7 @@ fun ImmersivePlayer(
             val lineOn = liveLyrics != null && panel == Panel.NONE && com.music.spotui.data.preferences.LyricLinePref.on
             // The video switch, as the official app's: one place in every case, under the cover (or the
             // video) at the title's start (reported: it moved between the cover's corner and the title).
-            val pillOn = (videoReady || videoOn) && panel == Panel.NONE
+            val pillOn = (videoReady || videoOn || videoChecking) && panel == Panel.NONE
             val lineRoom by androidx.compose.animation.core.animateDpAsState(
                 (if (lineOn && !canvasOn) LYRIC_LINE_ROOM else 0.dp) + (if (pillOn && !canvasOn) VIDEO_PILL_ROOM else 0.dp),
                 tween(300), label = "lineRoom",
@@ -588,7 +591,7 @@ fun ImmersivePlayer(
                             .offset { IntOffset(left.roundToPx(), (titleTop() - VIDEO_PILL_ROOM).roundToPx()) }
                             .graphicsLayer { alpha = 1f - p() },
                     ) {
-                        com.music.spotui.ui.components.VideoSwitchPill(on = videoOn)
+                        com.music.spotui.ui.components.VideoSwitchPill(on = videoOn, checking = videoChecking)
                     }
 
                     // ---- The line being sung, above the title (a setting) ----

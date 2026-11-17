@@ -131,7 +131,7 @@ object YouTubeSource {
         return hits.firstOrNull { h ->
             val nameOk = titleMatches(h.name, title)
             val durOk = durationMs <= 0 || kotlin.math.abs(h.durationSec * 1000 - durationMs) <= 3000
-            nameOk && durOk && sameArtist(h, main)
+            nameOk && durOk && (sameArtist(h, main) || channelNamesArtist(h.uploader, main))
         }
     }
 
@@ -289,8 +289,24 @@ object YouTubeSource {
         // ordinary video) can be the one; the soundtrack check still decides.
         if (spotifyHasVideo) return true
         val hit = Hit(info.url, name, info.uploaderName.orEmpty(), info.duration)
-        val own = artist.split(",").map { it.trim() }.filter { it.isNotEmpty() }.any { sameArtist(hit, it) }
+        val own = artist.split(",").map { it.trim() }.filter { it.isNotEmpty() }.any { sameArtist(hit, it) || channelNamesArtist(hit.uploader, it) }
         return own || (info.isUploaderVerified && looksLikeClip(name))
+    }
+
+    /**
+     * The channel carries the artist's name with more around it: "Santan Dave" for Dave,
+     * "SantanDave", "Dave Official". Whole words, or the start / end of a joined name; the
+     * artist's name must be 4 letters or more there ("Madeleine" is still not "Adele").
+     */
+    fun channelNamesArtist(uploader: String, artist: String): Boolean {
+        val channel = folded(uploader).replace(Regex("""\s*-\s*topic$|(?<=.)vevo$"""), "")
+        val a = folded(artist.substringBefore(",").trim()).split(Regex("""[^\p{L}\p{N}]+""")).filter { it.isNotEmpty() }
+        val c = channel.split(Regex("""[^\p{L}\p{N}]+""")).filter { it.isNotEmpty() }
+        if (a.isEmpty() || c.isEmpty()) return false
+        if (a.size <= c.size && (0..c.size - a.size).any { i -> a.indices.all { j -> c[i + j] == a[j] } }) return true
+        val joinedA = a.joinToString("")
+        val joinedC = c.joinToString("")
+        return joinedA.length >= 4 && joinedC != joinedA && (joinedC.startsWith(joinedA) || joinedC.endsWith(joinedA))
     }
 
     /** A title that says it is a clip (official / music video / clip officiel…). */
