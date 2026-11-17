@@ -91,6 +91,29 @@
     } catch (e) { /* an older player */ }
   };
 
+  // The song after this one in the page's own "Up next" (the queue it will play), so the app can show
+  // it the moment next is tapped while the page loads it; null when the queue is not on the page.
+  const nextItem = () => {
+    try {
+      const items = Array.from(document.querySelectorAll('ytmusic-player-queue-item'));
+      const i = items.findIndex((el) => el.hasAttribute('selected'));
+      const el = i >= 0 ? items[i + 1] : null;
+      if (!el) return null;
+      const d = el.data || (el.__data && el.__data.data) || {};
+      const id = d.videoId || null;
+      if (!id) return null;
+      const t = el.querySelector('.song-title');
+      const b = el.querySelector('.byline');
+      const img = el.querySelector('img');
+      return {
+        trackId: id,
+        title: t ? t.textContent.trim() : null,
+        artist: b ? b.textContent.trim() : null,
+        cover: img && img.src && img.src.startsWith('http') ? img.src : 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg',
+      };
+    } catch (e) { return null; }
+  };
+
   // getPlayerState: -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued.
   const state = () => {
     const p = player();
@@ -114,6 +137,7 @@
       durationMs: Math.round((Number(p.getDuration()) || 0) * 1000),
       ad: !!(p.classList && p.classList.contains('ad-showing')),
       at: Date.now(),
+      next: nextItem(),
     };
   };
 
@@ -134,7 +158,7 @@
     let s = state();
     if (guard(s)) s = state();
     if (!s) return;
-    const key = [s.trackId, s.paused, s.buffering, s.ad, s.title, s.cover].join('|');
+    const key = [s.trackId, s.paused, s.buffering, s.ad, s.title, s.cover, s.next && s.next.trackId].join('|');
     const now = Date.now();
     if (key !== last || now - lastAt > 5000) { last = key; lastAt = now; post({ type: 'state', state: s }); }
   };

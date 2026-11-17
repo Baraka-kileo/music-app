@@ -142,8 +142,21 @@ class YtmPlayer(
             durationMs = s("durationMs")?.longOrNull?.takeIf { it > 0 } ?: known?.durationMs ?: 0L,
             provider = "context",
         )
+        // The page's next song, shown at once when next is tapped (the page takes seconds to load it).
+        val next = (o["next"] as? JsonObject)?.let { n ->
+            fun ns(key: String) = (n[key] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+            ns("trackId")?.let { nid ->
+                NowPlaying(
+                    kind = ItemKind.TRACK, uri = "${Ytm.PROVIDER}:track:$nid", uid = null,
+                    name = ns("title").orEmpty(),
+                    artists = ns("artist")?.substringBefore(" • ")?.let { listOf(ArtistRef("", it.removeSuffix(" - Topic"))) }.orEmpty(),
+                    album = null, imageUrl = ns("cover"), durationMs = 0L, provider = "context",
+                )
+            }
+        }
         return state(
             item,
+            next = next,
             paused = s("paused")?.booleanOrNull ?: true,
             buffering = s("buffering")?.booleanOrNull ?: false,
             positionMs = s("positionMs")?.longOrNull ?: 0L,
@@ -151,8 +164,8 @@ class YtmPlayer(
         )
     }
 
-    private fun state(item: NowPlaying, paused: Boolean, buffering: Boolean, positionMs: Long, at: Long) = PlayerState(
-        item = item, contextUri = context, isPaused = paused, isBuffering = buffering,
+    private fun state(item: NowPlaying, paused: Boolean, buffering: Boolean, positionMs: Long, at: Long, next: NowPlaying? = null) = PlayerState(
+        item = item, next = next, contextUri = context, isPaused = paused, isBuffering = buffering,
         positionMs = positionMs, timestampMs = at, speed = 1.0, shuffle = false, repeat = Repeat.OFF,
         restrictions = PlayerRestrictions(),
     )
