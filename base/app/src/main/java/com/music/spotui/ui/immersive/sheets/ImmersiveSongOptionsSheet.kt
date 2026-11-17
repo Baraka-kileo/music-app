@@ -136,7 +136,8 @@ fun ImmersiveSongOptionsSheet(
             onDismiss()
         }
         ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.PlaylistAdd, stringResource(R.string.context_menu_add_to_playlist), enabled = hasId) { showSavedIn = true }
-        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.PlaylistAdd, stringResource(R.string.context_menu_add_to_another_playlist), enabled = hasId) { showAddTo = true }
+        // Only from inside a playlist: elsewhere it is "Add to playlist" again (one row fewer in the menu).
+        if (currentPlaylistId != null) ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.PlaylistAdd, stringResource(R.string.context_menu_add_to_another_playlist), enabled = hasId) { showAddTo = true }
         if (onRemoveFromPlaylist != null) {
             ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.DeleteOutline, stringResource(R.string.context_menu_remove_from_playlist), enabled = hasId) {
                 onDismiss()

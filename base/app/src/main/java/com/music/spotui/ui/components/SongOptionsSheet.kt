@@ -187,7 +187,8 @@ fun SongOptionsSheet(
             }
             MenuRow(Icons.AutoMirrored.Filled.PlaylistAdd, stringResource(R.string.context_menu_add_to_playlist), enabled = hasId) { showSavedIn = true }
             // Copy into another playlist: one tap, one target, said out loud by the toast.
-            MenuRow(Icons.AutoMirrored.Filled.PlaylistAdd, stringResource(R.string.context_menu_add_to_another_playlist), enabled = hasId) { showAddTo = true }
+            // Only from inside a playlist: elsewhere it is "Add to playlist" again (one row fewer in the menu).
+            if (currentPlaylistId != null) MenuRow(Icons.AutoMirrored.Filled.PlaylistAdd, stringResource(R.string.context_menu_add_to_another_playlist), enabled = hasId) { showAddTo = true }
             // Only where a playlist is on screen (A11): the row disappears at once, the
             // screen tells the user and offers Undo.
             if (onRemoveFromPlaylist != null) {
