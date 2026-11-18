@@ -362,6 +362,14 @@ class WebPlayerHost(private val context: Context) : BridgeHost {
             }
 
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                // Revera's login uses the player WebView itself, then restores its desktop
+                // identity before the player loads. See configureLoginBrowser for attribution.
+                if (mobileLoginBrowser && android.net.Uri.parse(url).host == PLAYER_HOST) {
+                    configurePlayerBrowser(view)
+                    view.stopLoading()
+                    view.loadUrl(PLAYER_URL)
+                    return
+                }
                 Logbook.log("page start ${Logbook.noQuery(url).take(120)}")
                 mainFrameFailed = false
                 // A "finished" comes just before the player's document starts: its wait must not run out on a
@@ -646,6 +654,42 @@ class WebPlayerHost(private val context: Context) : BridgeHost {
         main.postDelayed(retryPlayerPage, wait)
     }
 
+    // Adapted from Revera (GPL-3.0), caruno-git/Revera, commit a576c7b:
+    // base/host-android/src/main/kotlin/app/myspoti/host/android/WebPlayerHost.kt.
+    // Revera is a derivative of Myspoti (https://github.com/kota-zo/myspoti).
+    private var mobileLoginBrowser = false
+
+    private fun configurePlayerBrowser(target: WebView) {
+        mobileLoginBrowser = false
+        target.settings.userAgentString = fingerprint.userAgent
+        if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.USER_AGENT_METADATA)) {
+            val brands = fingerprint.brands.map {
+                androidx.webkit.UserAgentMetadata.BrandVersion.Builder().setBrand(it.name).setMajorVersion(it.major).setFullVersion(it.fullVersion).build()
+            }
+            androidx.webkit.WebSettingsCompat.setUserAgentMetadata(target.settings, androidx.webkit.UserAgentMetadata.Builder()
+                .setBrandVersionList(brands).setFullVersion(fingerprint.fullVersion).setPlatform("Linux")
+                .setPlatformVersion(fingerprint.kernel).setArchitecture("x86").setBitness(64)
+                .setMobile(false).setModel("").setWow64(false).build())
+        }
+    }
+
+    private fun configureLoginBrowser() {
+        mobileLoginBrowser = true
+        view.settings.userAgentString = WebSettings.getDefaultUserAgent(context).replace("; wv", "").replace(" Version/4.0", "")
+        if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.USER_AGENT_METADATA)) {
+            val version = Regex("Chrome/([0-9.]+)").find(view.settings.userAgentString)?.groupValues?.get(1) ?: "124.0.0.0"
+            val brands = listOf("Chromium", "Google Chrome").map {
+                androidx.webkit.UserAgentMetadata.BrandVersion.Builder().setBrand(it).setMajorVersion(version.substringBefore('.')).setFullVersion(version).build()
+            }
+            androidx.webkit.WebSettingsCompat.setUserAgentMetadata(view.settings, androidx.webkit.UserAgentMetadata.Builder()
+                .setBrandVersionList(brands).setFullVersion(version).setPlatform("Android")
+                .setPlatformVersion(android.os.Build.VERSION.RELEASE).setArchitecture("arm")
+                .setBitness(if (android.os.Process.is64Bit()) 64 else 32).setMobile(true)
+                .setModel(android.os.Build.MODEL).setWow64(false).build())
+        }
+        Logbook.log("sign-in: mobile WebView configuration")
+    }
+
     fun openLogin() = main.post {
         // A player retry or load timeout still pending would replace the sign-in page just asked for.
         main.removeCallbacks(retryPlayerPage)
@@ -802,6 +846,7 @@ class WebPlayerHost(private val context: Context) : BridgeHost {
 
     /** The sign-in page was asked for: kept out of sight, with its clocks running, until it has content. */
     private fun beginLoginLoad() {
+        configureLoginBrowser()
         loginProbes = 0
         loginReloaded = false
         main.removeCallbacks(loginProbe)
