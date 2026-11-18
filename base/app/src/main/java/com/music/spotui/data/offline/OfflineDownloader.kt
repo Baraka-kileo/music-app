@@ -247,7 +247,8 @@ object OfflineDownloader {
     }
 
     /** [by]: the download sources a failure waits for (Extensions.NotAnswering), shown on its row. */
-    private suspend fun setStatus(id: String, s: OfflineStatus?, by: List<String> = emptyList()) = withContext(Dispatchers.Main) {
+    private suspend fun setStatus(id: String, s: OfflineStatus?, by: List<String> = emptyList(), detail: Int? = null) = withContext(Dispatchers.Main) {
+        if (detail == null) OfflineStore.failureDetails.remove(id) else OfflineStore.failureDetails[id] = detail
         if (by.isEmpty()) OfflineStore.notAnswering.remove(id) else OfflineStore.notAnswering[id] = by.joinToString(", ")
         if (s == null) OfflineStore.status.remove(id) else OfflineStore.status[id] = s
     }
@@ -262,6 +263,7 @@ object OfflineDownloader {
         }
         val job = scope.launch {
             var by = emptyList<String>()
+            var detail: Int? = null
             val outcome: OfflineStatus? = try {
                 setStatus(r.trackId, OfflineStatus.Downloading(-1f))
                 val t = download(r)
@@ -288,10 +290,11 @@ object OfflineDownloader {
                 OfflineStatus.Failed
             } catch (t: Throwable) {
                 Log.w(TAG, "${r.title} failed", t)
+                detail = youtubeFailureDetail(t)
                 OfflineStatus.Failed
             }
             synchronized(pending) { pending.remove(r.trackId); savePending() }
-            if (outcome != null) setStatus(r.trackId, outcome, by)
+            if (outcome != null) setStatus(r.trackId, outcome, by, detail)
         }
         running[r.trackId] = job
         job.join()
@@ -442,7 +445,42 @@ object OfflineDownloader {
     /** Download the same built-in audio stream used for playback; never treat a partial file as complete. */
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     private suspend fun fetchYouTube(r: Request, meta: Meta, track: app.myspoti.extensions.TrackInfo, out: File): Fetched? {
-        val stream = com.music.spotui.extensions.YouTubeAudio.resolveChecked(track, requireConfident = true)
+        // Use the same accepted match as playback, including its version checks and saved mapping.
+        // Requiring a higher score here rejected songs that already played successfully.
+        var stream = com.music.spotui.extensions.YouTubeAudio.resolveChecked(track)
+        var attempts = 0
+        while (true) {
+            try {
+                return fetchYouTubeStream(r, meta, stream, out)
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                if (++attempts >= 3 || !isExpiredYouTubeStream(e)) throw e
+                com.music.spotui.extensions.YouTubeAudio.refused(track)
+                stream = com.music.spotui.extensions.YouTubeAudio.resolveChecked(track)
+            }
+        }
+    }
+
+    private fun isExpiredYouTubeStream(error: Throwable): Boolean =
+        generateSequence(error) { it.cause }.take(16).any {
+            it is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException && it.responseCode in setOf(401, 403, 404, 410)
+        }
+
+    private fun youtubeFailureDetail(error: Throwable): Int? {
+        val causes = generateSequence(error) { it.cause }.take(16).toList()
+        if (causes.none { it is YouTubeDownloadFailure }) return null
+        return when {
+            causes.any { isExpiredYouTubeStream(it) } -> app.myspoti.engine.R.string.download_youtube_expired
+            causes.any { it is java.net.UnknownHostException || it is java.net.SocketTimeoutException || it is java.net.ConnectException } -> app.myspoti.engine.R.string.download_youtube_network
+            causes.any { it is Unavailable } -> app.myspoti.engine.R.string.download_youtube_validation
+            else -> app.myspoti.engine.R.string.download_youtube_transfer
+        }
+    }
+
+    private class YouTubeDownloadFailure(cause: Exception) : IOException("YouTube download failed", cause)
+
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    private suspend fun fetchYouTubeStream(r: Request, meta: Meta, stream: app.myspoti.extensions.AudioStream, out: File): Fetched? {
         val total = stream.source?.substringAfterLast(':')?.toLongOrNull() ?: -1L
         val mime = stream.mimeType.orEmpty().lowercase()
         val format = when {
@@ -468,7 +506,7 @@ object OfflineDownloader {
             return Fetched("YouTube Music · ${stream.codec.orEmpty().uppercase()}", false, com.music.spotui.extensions.YOUTUBE_SOURCE, lossy = format)
         } catch (e: CancellationException) { throw e }
         catch (e: InterruptedException) { Thread.currentThread().interrupt(); throw e }
-        catch (e: Exception) { Log.w(TAG, "YouTube download failed for ${meta.title}: ${e.message}"); out.delete(); throw e }
+        catch (e: Exception) { Log.w(TAG, "YouTube download failed for ${meta.title}", e); out.delete(); throw YouTubeDownloadFailure(e) }
         finally { watcher?.cancel(); runCatching { data.close() } }
     }
 

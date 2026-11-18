@@ -217,6 +217,7 @@ fun DownloadsScreen(navController: NavController) {
                             OfflineStatus.Unavailable -> stringResource(R.string.download_unavailable)
                             OfflineStatus.NeedsReview -> stringResource(R.string.download_needs_review)
                             OfflineStatus.Failed -> (OfflineStore.notAnswering[r.trackId]?.let { stringResource(R.string.download_source_not_answering, it) }
+                                ?: OfflineStore.failureDetails[r.trackId]?.let { stringResource(it) }
                                 ?: stringResource(R.string.download_badge_error_content_description)) + " · " + stringResource(R.string.download_retry)
                             else -> stringResource(R.string.download_notification_downloading)
                         }

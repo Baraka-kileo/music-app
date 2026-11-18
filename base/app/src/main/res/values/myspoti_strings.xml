@@ -851,4 +851,8 @@
     <string name="video_fullscreen_exit">Leave full screen</string>
     <string name="settings_automix_orpheon">New transition planner</string>
     <string name="settings_automix_orpheon_detail">Smoother blends: both songs ease into a shared tempo and back. Off: the earlier planner.</string>
+    <string name="download_youtube_expired">YouTube audio link expired or was refused</string>
+    <string name="download_youtube_network">YouTube connection failed</string>
+    <string name="download_youtube_validation">Downloaded audio could not be verified</string>
+    <string name="download_youtube_transfer">YouTube audio transfer failed</string>
 </resources>

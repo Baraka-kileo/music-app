@@ -102,6 +102,8 @@ object OfflineStore {
     val status: SnapshotStateMap<String, OfflineStatus> = mutableStateMapOf()
     /** The download sources a [OfflineStatus.Failed] song waits for (not answering, inactive, still starting), by track id. */
     val notAnswering: SnapshotStateMap<String, String> = mutableStateMapOf()
+    /** Safe, localised reason for the latest YouTube download failure. */
+    val failureDetails: SnapshotStateMap<String, Int> = mutableStateMapOf()
 
     fun init(context: Context) {
         if (::root.isInitialized) return
