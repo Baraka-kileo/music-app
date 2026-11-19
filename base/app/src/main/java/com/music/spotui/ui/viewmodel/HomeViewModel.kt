@@ -19,11 +19,25 @@ class HomeViewModel constructor(private val repository: AppRepository = Graph.re
     /** Selected home chip ("" = All). */
     val facet = androidx.compose.runtime.mutableStateOf("")
     private var homeJob: kotlinx.coroutines.Job? = null
+    private val homeGeneration = java.util.concurrent.atomic.AtomicInteger()
     /** When the feed was last asked for. */
     private var fetchedAt = 0L
 
     init {
+        var currentProvider = com.music.spotui.data.preferences.AccountProviderPref.id
         fetchHome()
+        // Both Home layouts use this view model. A provider switch must replace the visible
+        // feed immediately, even when the previous feed was recently fetched.
+        viewModelScope.launch {
+            androidx.compose.runtime.snapshotFlow { com.music.spotui.data.preferences.AccountProviderPref.id }
+                .collect { provider ->
+                    if (provider == currentProvider) return@collect
+                    currentProvider = provider
+                    facet.value = ""
+                    _home.value = Response.Loading()
+                    fetchHome()
+                }
+        }
         // A Home that failed (player still signing in, network back) loads again by itself:
         // when the player is ready again, then a few times with growing pauses.
         viewModelScope.launch {
@@ -74,12 +88,13 @@ class HomeViewModel constructor(private val repository: AppRepository = Graph.re
     }
 
     private fun fetchHome() {
+        val generation = homeGeneration.incrementAndGet()
         homeJob?.cancel()
         val f = facet.value
         fetchedAt = System.currentTimeMillis()
         homeJob = viewModelScope.launch(Dispatchers.IO) {
             repository.provideHomeFeed(f).collect { feed ->
-                _home.value = feed
+                if (homeGeneration.get() == generation) _home.value = feed
             }
         }
     }

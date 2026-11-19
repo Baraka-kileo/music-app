@@ -25,6 +25,15 @@ object SongQueue {
     /** Queues [song] (after the song playing when [next]) and says so; a song Spotify lacks says that instead. */
     fun add(context: Context, song: SongsModel, next: Boolean = false) {
         val appContext = context.applicationContext
+        // Native YouTube items already have their playback identity. Do not search Spotify for
+        // them when the local player owns the queue: that can select a different recording.
+        val youtube = com.music.spotui.extensions.ExtensionAudio.youtubeTrack(song)
+        if (youtube != null && com.music.spotui.di.LocalPlayer.active.value) {
+            com.music.spotui.di.LocalPlayer.enqueue(youtube, next)
+            val said = if (next) R.string.context_menu_play_next else R.string.snackbar_added_to_queue
+            Toast.makeText(appContext, said, Toast.LENGTH_SHORT).show()
+            return
+        }
         val id = song.spotifyTrackId
         if (id.isNotBlank()) { queue(appContext, id, next); return }
         if (!song.url.startsWith(CatalogRuntime.PLAY_PREFIX)) return

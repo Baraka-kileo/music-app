@@ -63,22 +63,44 @@ private const val WHOLE = 2000
 class YtmUserLibrary(private val api: InnerTube, private val lib: YtmLibrary) : Library {
     private val changed = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     override suspend fun contains(uris: List<Uri>): List<Boolean> {
-        if (uris.none { it.startsWith("ytmusic:track:") }) return List(uris.size) { false }
-        val liked = lib.likedTrackUris()
-        return uris.map { it in liked }
+        val liked = if (uris.any { it.startsWith("ytmusic:track:") }) lib.likedTrackUris() else emptySet()
+        val subscribed = if (uris.any { it.startsWith("ytmusic:artist:") }) subscribedArtists() else emptySet()
+        val playlists = if (uris.any { it.startsWith("ytmusic:playlist:") }) lib.playlists().mapTo(HashSet()) { it.uri } else emptySet()
+        return uris.map { it in liked || it in subscribed || it in playlists }
     }
     override suspend fun add(uris: List<Uri>) = setLiked(uris, true)
     override suspend fun remove(uris: List<Uri>) = setLiked(uris, false)
 
     private suspend fun setLiked(uris: List<Uri>, liked: Boolean) {
-        val ids = uris.map { uri ->
-            if (!uri.startsWith("ytmusic:track:")) throw NotOnYtm("saving this item")
-            uri.removePrefix("ytmusic:track:").also { require(Ytm.isVideoId(it)) { "Invalid YouTube video ID" } }
+        val actions = uris.map { uri ->
+            when {
+                uri.startsWith("ytmusic:track:") -> uri.removePrefix("ytmusic:track:").also { require(Ytm.isVideoId(it)) } to "track"
+                uri.startsWith("ytmusic:artist:") -> uri.removePrefix("ytmusic:artist:").also { require(Regex("UC[A-Za-z0-9_-]{22}").matches(it)) } to "artist"
+                uri.startsWith("ytmusic:playlist:") -> uri.removePrefix("ytmusic:playlist:").also { require(Regex("[A-Za-z0-9_-]{2,200}").matches(it)) } to "playlist"
+                else -> throw NotOnYtm("saving this item")
+            }
         }
-        for (id in ids) {
-            api.setLiked(id, liked)
+        for ((id, kind) in actions) {
+            when (kind) {
+                "artist" -> api.setArtistSubscription(id, liked)
+                "playlist" -> api.setPlaylistSaved(id, liked)
+                else -> api.setLiked(id, liked)
+            }
             changed.tryEmit(Unit)
         }
+    }
+
+    private suspend fun subscribedArtists(): Set<Uri> {
+        val result = HashSet<Uri>()
+        val seen = HashSet<String>()
+        var answer = api.browse("FEmusic_library_corpus_artists")
+        repeat(100) {
+            (YtmParse.rows(answer) + YtmParse.cards(answer)).filterIsInstance<Item.ArtistItem>().forEach { result += it.artist.uri }
+            val token = YtmParse.continuation(answer) ?: return result
+            if (!seen.add(token)) throw java.io.IOException("YouTube Music repeated a subscription page")
+            answer = api.browseMore(token)
+        }
+        throw java.io.IOException("YouTube Music subscriptions exceeded the page limit")
     }
 
     private suspend fun playlists(): List<LibraryItem> = lib.playlists().map {
@@ -205,7 +227,7 @@ class YtmPlaylists(private val api: InnerTube, private val lib: YtmLibrary) : Pl
 
 class YtmHome(private val api: InnerTube) : Home {
     private fun card(i: Item): MediaCard = when (i) {
-        is Item.Song -> MediaCard(i.track.uri, MediaKind.TRACK, i.track.name, i.track.artists.joinToString(", ") { it.name }.ifEmpty { null }, i.track.album?.images.orEmpty())
+        is Item.Song -> MediaCard(i.track.uri, MediaKind.TRACK, i.track.name, i.track.artists.joinToString(", ") { it.name }.ifEmpty { null }, i.track.images.ifEmpty { i.track.album?.images.orEmpty() })
         is Item.AlbumItem -> MediaCard(i.album.uri, MediaKind.ALBUM, i.album.name, i.album.artists.joinToString(", ") { it.name }.ifEmpty { null }, i.album.images)
         is Item.ArtistItem -> MediaCard(i.artist.uri, MediaKind.ARTIST, i.artist.name, null, i.artist.images)
         is Item.PlaylistItem -> MediaCard(i.playlist.uri, MediaKind.PLAYLIST, i.playlist.name, i.playlist.owner, i.playlist.images)
@@ -246,7 +268,7 @@ class YtmRecents(private val lib: YtmLibrary) : Recents {
         else onePage(lib.history(limit).map { t ->
             RecentEntry(RecentItem(
                 t.uri, MediaKind.TRACK, t.name, t.artists.joinToString(", ") { it.name }.ifEmpty { null },
-                t.album?.images.orEmpty(), durationMs = t.durationMs, explicit = t.explicit,
+                t.images.ifEmpty { t.album?.images.orEmpty() }, durationMs = t.durationMs, explicit = t.explicit,
             ))
         }, 0)
 }

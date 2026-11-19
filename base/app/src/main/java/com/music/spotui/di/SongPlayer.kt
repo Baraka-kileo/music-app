@@ -535,6 +535,7 @@ object SongPlayer {
 
     /** Account-provider changes invalidate library answers without stopping the active player. */
     fun accountProviderChanged() {
+        resetListen()
         sessionGen.incrementAndGet()
         youtubeLibraryWrites.clear()
         library.clear(); savedAt.clear(); likeChecking.clear(); likeCheckFailedAt.clear()
@@ -545,6 +546,7 @@ object SongPlayer {
 
     /** Call on the main thread before navigating to logout. */
     fun clearSession() {
+        resetListen()
         main.removeCallbacksAndMessages(null)
         // A play, pause or skip still waiting (a slow page, a page still loading) belongs to the
         // session that ends: it is dropped, not sent once the next account's page is ready.
@@ -862,7 +864,7 @@ object SongPlayer {
         )
         pushNotification(song, liked)
         saveLastTrack(song, uri, liked, s.contextUri.orEmpty(), s.contextName.orEmpty(), queue = spotifyQueueOf(id))
-        trackListen(uri, song, com.music.spotui.data.local.ListenHistory.Source.SPOTIFY, playing)
+        trackListen(uri, song, com.music.spotui.data.local.ListenHistory.Source.SPOTIFY, playing && !s.isBuffering)
         // A song never asked about (the one restored at launch is not a change): its state is asked
         // once, not read as "not liked" until the next song. A failed ask is not repeated by every state.
         if (!trackChanged && library[uri] == null) refreshCurrentLiked(fromState = true)
@@ -1035,22 +1037,72 @@ object SongPlayer {
     private var listenPlayedMs = 0L
     private var listenTickAt = 0L
     private var listenWasPlaying = false
+    @Volatile private var listenEventId = ""
+    val currentListenEventId: String get() = listenEventId
+    private var listenCheckpointMs = 0L
+    private var listenTimerPending = false
+
+    private fun resetListen() {
+        val hadListen = listenEventId.isNotBlank()
+        main.removeCallbacks(listenCheckpoint)
+        listenTimerPending = false; listenKey = ""; listenSong = null; listenPlayedMs = 0
+        listenTickAt = 0; listenWasPlaying = false; listenEventId = ""; listenCheckpointMs = 0
+        if (hadListen) com.music.spotui.data.local.ListenHistory.revision.value++
+    }
+
+    private fun checkpointListen() {
+        val s = listenSong ?: return
+        if (s.title.isBlank() || listenPlayedMs < com.music.spotui.data.local.ListenHistory.MIN_PLAYED_MS || listenPlayedMs == listenCheckpointMs) return
+        runCatching {
+            com.music.spotui.data.local.ListenHistory.record(com.music.spotui.data.local.ListenHistory.Listen(
+                System.currentTimeMillis(), listenKey, s.title, s.singer, s.album, s.coverUri, listenPlayedMs, listenSource,
+                com.music.spotui.data.local.ListenHistory.artistsOf(s.singer, s.artistIds), listenEventId,
+            ))
+        }.onSuccess { listenCheckpointMs = listenPlayedMs }
+            .onFailure { Log.w(TAG, "Could not save listening history", it) }
+    }
+
+    private val listenCheckpoint = object : Runnable {
+        override fun run() {
+            listenTimerPending = false
+            val now = SystemClock.elapsedRealtime()
+            if (listenWasPlaying && listenTickAt > 0) listenPlayedMs += now - listenTickAt
+            listenTickAt = now
+            checkpointListen()
+            scheduleListenCheckpoint()
+        }
+    }
+
+    private fun scheduleListenCheckpoint() {
+        if (!listenWasPlaying || listenSong == null || listenTimerPending) return
+        val remaining = com.music.spotui.data.local.ListenHistory.MIN_PLAYED_MS - listenPlayedMs
+        listenTimerPending = true
+        main.postDelayed(listenCheckpoint, if (remaining > 0) remaining.coerceAtLeast(1_000L) else 30_000L)
+    }
+
+    /** Close the old local queue entry even when the next entry has the same song ID. */
+    fun finishLocalListen() {
+        if (listenKey.isBlank() || listenSource == com.music.spotui.data.local.ListenHistory.Source.SPOTIFY) return
+        val now = SystemClock.elapsedRealtime()
+        if (listenWasPlaying && listenTickAt > 0) listenPlayedMs += now - listenTickAt
+        checkpointListen()
+        resetListen()
+    }
 
     /** Adds the time played since the last call; a new [key] closes the previous listen. */
     private fun trackListen(key: String, song: SongsModel?, source: com.music.spotui.data.local.ListenHistory.Source, isPlaying: Boolean) {
         val now = SystemClock.elapsedRealtime()
         if (listenWasPlaying && listenTickAt > 0) listenPlayedMs += now - listenTickAt
         if (key != listenKey) {
-            listenSong?.let { s ->
-                com.music.spotui.data.local.ListenHistory.record(com.music.spotui.data.local.ListenHistory.Listen(
-                    System.currentTimeMillis(), listenKey, s.title, s.singer, s.album, s.coverUri, listenPlayedMs, listenSource,
-                    com.music.spotui.data.local.ListenHistory.artistsOf(s.singer, s.artistIds),
-                ))
-            }
+            main.removeCallbacks(listenCheckpoint); listenTimerPending = false
+            checkpointListen()
             listenKey = key; listenSong = song; listenSource = source; listenPlayedMs = 0
-        }
+            listenEventId = java.util.UUID.randomUUID().toString(); listenCheckpointMs = 0
+        } else if (song != null) listenSong = song
         listenTickAt = now
         listenWasPlaying = isPlaying
+        if (!isPlaying) { main.removeCallbacks(listenCheckpoint); listenTimerPending = false; checkpointListen() }
+        else scheduleListenCheckpoint()
     }
 
     // ── Commands ──
@@ -2380,6 +2432,7 @@ object SongPlayer {
     fun lyricsTrack(s: SongsModel) = com.music.spotui.data.api.LyricsApi.Track(
         trackId = s.spotifyTrackId, title = s.title, artist = s.singer, album = s.album,
         durationMs = s.durationMs.toLong().takeIf { it > 0 } ?: durationMs, coverUrl = s.coverUri,
+        catalogUri = s.url.removePrefix("catalog:").takeIf { it.startsWith("ytmusic:track:") }.orEmpty(),
     )
 
     /** The lyrics request for what is playing now. */
@@ -2390,6 +2443,7 @@ object SongPlayer {
         return com.music.spotui.data.api.LyricsApi.Track(
             trackId = currentTrackId, title = title, artist = st.singer.value, album = st.album.value,
             durationMs = durationMs, coverUrl = st.coverUri.value,
+            catalogUri = _nowPlaying.value.uri.takeIf { it.startsWith("ytmusic:track:") }.orEmpty(),
         )
     }
 
@@ -3195,6 +3249,12 @@ object SongPlayer {
             val toLocal = ArrayList<com.music.spotui.data.local.LocalTrack>()
             val toSpotify = ArrayList<String>()
             for (s in rows) {
+                // Preserve YouTube video IDs in the local queue instead of dropping native rows
+                // that have no Spotify ID.
+                if (local) {
+                    val youtube = com.music.spotui.extensions.ExtensionAudio.youtubeTrack(s)
+                    if (youtube != null) { toLocal += youtube; continue }
+                }
                 val uri = when {
                     s.isDeviceFile -> { if (local) files[s.url]?.let { toLocal += it }; continue }
                     s.url.startsWith("episode:") -> "spotify:episode:" + s.url.removePrefix("episode:")
@@ -3510,9 +3570,12 @@ object SongPlayer {
             if (songChanged) refreshCurrentLiked()
             com.music.spotui.extensions.Extensions.mirrorTick(isPlaying, uri)
             AccountSync.onLocal(t, isPlaying, pos, dur)
-            val source = if (t.uri.scheme == "file") com.music.spotui.data.local.ListenHistory.Source.DOWNLOAD
-                else com.music.spotui.data.local.ListenHistory.Source.LOCAL
-            trackListen("local:${t.id}", song, source, isPlaying)
+            val source = when {
+                t.uri.scheme == "file" && com.music.spotui.data.offline.OfflineStore.byLocalId(t.id) != null -> com.music.spotui.data.local.ListenHistory.Source.DOWNLOAD
+                t.uri.scheme == com.music.spotui.extensions.ExtensionAudio.SCHEME -> com.music.spotui.data.local.ListenHistory.Source.STREAMING
+                else -> com.music.spotui.data.local.ListenHistory.Source.LOCAL
+            }
+            trackListen(localYouTubeUri(t) ?: localSpotifyUri(t) ?: "local:${t.id}", song, source, LocalPlayer.isPlaying())
             // An extension's stream or a download (it has a Spotify id): kept to come back to at launch.
             if (likeUri != null && localYouTubeUri(t) == null) {
                 val rest = LocalPlayer.upcoming().map { localSong(it.second) }.filter { it.spotifyTrackId.isNotBlank() }

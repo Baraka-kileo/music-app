@@ -192,6 +192,7 @@ class ContextViewModel(
     val contextSaved = mutableStateOf(false)
     /** The page is a playlist the user may change: only there can a track be removed. */
     val editableContext = mutableStateOf(false)
+    val editableChecked = mutableStateOf(false)
     /** Who can change this playlist: more than one when it is collaborative (their faces in the header). */
     val members = mutableStateOf<List<app.myspoti.api.PlaylistMember>>(emptyList())
     /** On a collaborative playlist: who added each row (by row id, then by song). */
@@ -262,6 +263,8 @@ class ContextViewModel(
         lastType = type; lastId = id
         if (key == "$type:$id") return
         key = "$type:$id"
+        editableContext.value = false
+        editableChecked.value = false
         // A page seen recently is on screen from the first frame (no blank, then pop,
         // in the middle of the slide); the network still refreshes it behind.
         recent[key]?.let { _page.value = it }
@@ -349,10 +352,10 @@ class ContextViewModel(
     private fun refreshSaved(p: ContextPageModel) = viewModelScope.launch {
         if (p.type == "liked" || p.type == "liked-artist") {
             // Everything here is liked by definition.
-            savedUris.value = p.tracks.map { "spotify:track:${it.spotifyTrackId}" }.toSet()
+            savedUris.value = p.tracks.mapNotNull { com.music.spotui.di.songLibraryUri(it, com.music.spotui.di.YtmRuntime.chosen) }.toSet()
             return@launch
         }
-        val uris = p.tracks.mapNotNull { s -> s.spotifyTrackId.takeIf { it.isNotBlank() }?.let { "spotify:track:$it" } } + p.uri
+        val uris = p.tracks.mapNotNull { com.music.spotui.di.songLibraryUri(it, com.music.spotui.di.YtmRuntime.chosen) } + p.uri
         // Apart from what follows: the hearts of a 6000-song list are 120 requests one after the
         // other, and the page's own controls (add songs, members, who added what) waited behind
         // all of them.
@@ -372,8 +375,15 @@ class ContextViewModel(
         }
         // A11: Spotify refuses an edit to a list the user cannot change, so the entry is only
         // offered where it would work (own and collaborative playlists, as Spotify itself).
-        if (p.type == "playlist") editableContext.value = withContext(Dispatchers.IO) {
-            runCatching { EditablePlaylists.load().any { it.id == p.uri.substringAfterLast(':') } }.getOrDefault(false)
+        if (p.type == "playlist") {
+            val editable = withContext(Dispatchers.IO) {
+                if (p.uri.startsWith("ytmusic:")) runCatching { MyspotiRuntime.api.playlists.editable().any { it.uri == p.uri } }.getOrNull()
+                else EditablePlaylists.load().any { it.id == p.uri.substringAfterLast(':') }
+            }
+            if ((_page.value as? Response.Success)?.data?.uri == p.uri) {
+                editableContext.value = editable == true
+                editableChecked.value = editable != null
+            }
         }
         if (p.type == "playlist" && !p.isBlend) members.value = withContext(Dispatchers.IO) {
             runCatching { MyspotiRuntime.api.playlists.members(p.uri) }.getOrDefault(emptyList())
@@ -964,7 +974,8 @@ private fun ContextContent(navController: NavController, vm: ContextViewModel, p
                         // Saving is for other people's playlists: the user's own are in the library already.
                         // An album of another provider is read only: Spotify can neither save nor download it.
                         val onSpotify = !com.music.spotui.data.catalog.CatalogRuntime.isCatalogUri(p.uri)
-                        if (onSpotify && p.type != "liked" && !(p.type == "playlist" && ownPlaylist)) {
+                        val youtubePlaylist = com.music.spotui.di.YtmRuntime.chosen && p.uri.startsWith("ytmusic:playlist:") && vm.editableChecked.value && !vm.editableContext.value
+                        if ((onSpotify || youtubePlaylist) && p.type != "liked" && !(p.type == "playlist" && ownPlaylist)) {
                             LikeButton(liked = SongPlayer.library[p.uri] ?: contextSaved, size = 28.dp, touch = com.music.spotui.ui.components.MinTouch) { vm.toggleContextSaved(p) }
                         }
                         // Once per list, not at every redraw of the header (6000 songs, mapped each time).
@@ -981,7 +992,7 @@ private fun ContextContent(navController: NavController, vm: ContextViewModel, p
                         // A list downloaded as a whole stays in step with Spotify (new songs in, gone songs out).
                         val listKept = com.music.spotui.data.offline.OfflineCollections.isDownloaded(p.uri)
                         LaunchedEffect(listKept, p.complete, p.tracks.size) { if (listKept && p.complete) com.music.spotui.data.offline.OfflineCollections.sync(p, allowRemoval = false) }
-                        if (onSpotify) com.music.spotui.ui.components.DownloadListButton(downloadedCount, ids.size, busy, kept = listKept, touch = com.music.spotui.ui.components.MinTouch) {
+                        if (onSpotify || p.uri.startsWith("ytmusic:")) com.music.spotui.ui.components.DownloadListButton(downloadedCount, ids.size, busy, kept = listKept, touch = com.music.spotui.ui.components.MinTouch) {
                             if (listKept) askRemoveDownloads = true
                             else {
                                 com.music.spotui.ui.components.DownloadAsk.start(context) { q ->
@@ -1162,8 +1173,8 @@ private fun ContextContent(navController: NavController, vm: ContextViewModel, p
                 song = song,
                 showCover = p.type != "album",
                 isCurrent = song.id == currentSongId,
-                saved = com.music.spotui.di.trackSaved(song.spotifyTrackId, saved),
-                offline = com.music.spotui.data.offline.OfflineStore.statusOf(song.spotifyTrackId),
+                saved = com.music.spotui.di.songSaved(song, saved, com.music.spotui.di.YtmRuntime.chosen),
+                offline = com.music.spotui.data.offline.OfflineTrackKey.of(song)?.let(com.music.spotui.data.offline.OfflineStore::statusOf),
                 addedBy = vm.adders.value.let { a -> a["row:" + song.rowUid] ?: a["song:" + song.spotifyTrackId] },
                 onClick = { dismissKeyboard(); if (SmartShuffle.on.value == p.uri) vm.playSmart(p, song) else vm.play(p, song, sort) },
                 onMore = { menuSong = song },

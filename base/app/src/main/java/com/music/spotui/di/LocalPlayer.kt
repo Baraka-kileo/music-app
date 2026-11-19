@@ -251,6 +251,8 @@ object LocalPlayer {
         // starts at once instead of waiting for the extension when this one ends.
         // The last one starting asks what goes on after it (see continueIfLast).
         override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
+            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO || reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT || reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK)
+                SongPlayer.finishLocalListen()
             // Anything but the transition the fade itself makes (a skip, a tap in the queue) ends the fade.
             if (!startingFade) endFade()
             planned = null; preparationFailures = 0; planningPair = null; segueWork = null
@@ -913,7 +915,8 @@ object LocalPlayer {
 
     /** [analysis] with its voices from the song's timed lyrics, when they are already here. On the plan's thread. */
     private fun sung(t: LocalTrack, analysis: app.myspoti.automix.TrackAnalysis): app.myspoti.automix.TrackAnalysis {
-        val lyrics = com.music.spotui.data.api.LyricsApi.known(com.music.spotui.data.api.LyricsApi.Track(spotifyId(t), t.title, t.artist, t.album, t.durationMs)) ?: return analysis.withLearnedVoices()
+        val lyrics = com.music.spotui.data.api.LyricsApi.known(com.music.spotui.data.api.LyricsApi.Track(spotifyId(t), t.title, t.artist, t.album, t.durationMs,
+            catalogUri = youtubeIdOf(t)?.let { "ytmusic:track:$it" }.orEmpty())) ?: return analysis.withLearnedVoices()
         val lines = lyrics.lines.map { l ->
             app.myspoti.automix.SungSpans.Line(l.timeMs, l.words?.lastOrNull()?.endMs?.takeIf { it > 0 }, l.text.isNotBlank())
         }

@@ -1,6 +1,7 @@
 package com.music.spotui.data.api
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import android.util.Log
@@ -175,7 +176,7 @@ class Api constructor(
         if (com.music.spotui.di.YtmRuntime.chosen) ytmReady() else api.ready.value || runCatching { app.myspoti.host.android.MyspotiRuntime.spotify.http.hasToken() }.getOrDefault(false) || ready()
 
     private suspend fun diskHome(): HomeFeedModel? =
-        withContext(Dispatchers.IO) { ScreenCache.home.read() }?.also { HomeCache.home = it }
+        withContext(Dispatchers.IO) { ScreenCache.home.read() }
 
     private fun notSignedIn() = context.getString(R.string.not_signed_in)
 
@@ -192,7 +193,7 @@ class Api constructor(
             title = t.name.take(128),
             album = t.album?.name.orEmpty(),
             singer = singer,
-            coverUri = cover(t.album?.images.orEmpty()),
+            coverUri = cover(t.images.ifEmpty { t.album?.images.orEmpty() }),
             url = "episode:$id",
             explicit = t.explicit,
             durationMs = t.durationMs.toInt(),
@@ -221,7 +222,7 @@ class Api constructor(
             title = t.name.take(128),
             album = t.album?.name.orEmpty(),
             singer = singer,
-            coverUri = cover(t.album?.images.orEmpty()),
+            coverUri = cover(t.images.ifEmpty { t.album?.images.orEmpty() }),
             url = com.music.spotui.data.catalog.CatalogRuntime.PLAY_PREFIX + t.uri,
             explicit = t.explicit,
             durationMs = t.durationMs.toInt(),
@@ -426,12 +427,17 @@ class Api constructor(
 
     /** [facet]: "" (all), "music-chip", "podcasts-chip", "audiobooks-chip", or a sub-chip Spotify sent (HomeSubChips). */
     suspend fun getHomeFeed(facet: String = ""): Flow<Response<HomeFeedModel>> = flow {
+        val provider = com.music.spotui.data.preferences.AccountProviderPref.id
         val cached = if (facet.isEmpty()) HomeCache.home ?: diskHome() else HomeCache.facets[facet]
+        if (provider != com.music.spotui.data.preferences.AccountProviderPref.id) return@flow
+        if (facet.isEmpty() && cached != null) HomeCache.home = cached
         cached?.let { emit(Response.Success(it)) } ?: emit(Response.Loading())
         if (!ready()) { if (cached == null) emit(Response.Error(notSignedIn())); return@flow }
         // Any facet Spotify offers: a top chip, or one opened beside it (Music > Following).
         runCatching { api.home.feed(facet, itemsPerShelf = 20) }.fold(
             onSuccess = { feed ->
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                if (provider != com.music.spotui.data.preferences.AccountProviderPref.id) return@fold
                 com.music.spotui.data.entity.HomeSubChips.learn(feed.chips)
                 val sections = feed.shelves.mapNotNull { shelf ->
                     val items = shelf.items.distinctBy { it.uri }.mapNotNull(::homeItem)
@@ -442,7 +448,7 @@ class Api constructor(
                 if (facet.isEmpty()) { HomeCache.home = model; ScreenCache.home.write(model) } else HomeCache.facets[facet] = model
                 emit(Response.Success(model))
             },
-            onFailure = { Log.e("Api", "getHomeFeed failed", it); if (cached == null) emit(Response.Error(it.message ?: "error")) },
+            onFailure = { if (it is CancellationException) throw it; Log.e("Api", "getHomeFeed failed", it); if (cached == null && provider == com.music.spotui.data.preferences.AccountProviderPref.id) emit(Response.Error(it.message ?: "error")) },
         )
     }
 

@@ -233,6 +233,20 @@ internal fun PlayerDismissStrip(tint: Color, onClose: () -> Unit) {
     }
 }
 
+@Composable
+private fun PlayingContext(state: ImmersivePlayerState, tint: Color) {
+    if (state.contextUri.isBlank() || state.contextName.isBlank()) return
+    Text(
+        text = stringResource(R.string.player_context_name, state.contextName),
+        color = tint.copy(alpha = 0.78f),
+        style = Immersive.Caption,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 2.dp),
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+    )
+}
+
 /** How far the cover is swiped along to change track (the mini player's distance). */
 private val TRACK_SWIPE_THRESHOLD = 72.dp
 
@@ -327,20 +341,20 @@ fun ImmersivePlayer(
     }
     val videoAllowed = com.music.spotui.data.preferences.MusicVideoPref.on && state.deviceName == null &&
         !state.adPlaying && !state.isEpisode
-    LaunchedEffect(state.trackId, state.title, state.buffering) {
-        if (!state.buffering && videoAllowed && state.trackId.isNotBlank()) {
-            mv.prepare(state.trackId, state.title, state.artist, com.music.spotui.di.SongPlayer.getDuration())
+    LaunchedEffect(state.videoTrackId, state.title, state.buffering) {
+        if (!state.buffering && videoAllowed && state.videoTrackId.isNotBlank()) {
+            mv.prepare(state.videoTrackId, state.title, state.artist, com.music.spotui.di.SongPlayer.getDuration())
         }
     }
     val readyVideo = mv.state.value as? com.music.spotui.video.MusicVideoController.State.Ready
-    val videoMatches = state.trackId.isNotBlank() && readyVideo?.trackId == state.trackId
+    val videoMatches = state.videoTrackId.isNotBlank() && readyVideo?.trackId == state.videoTrackId
     val videoReady = videoMatches && videoAllowed && !state.buffering && !com.music.spotui.data.DataSaver.active
     LaunchedEffect(com.music.spotui.data.DataSaver.active) {
         if (com.music.spotui.data.DataSaver.active && mv.on.value) mv.setOn(false)
     }
     val videoOn = mv.on.value && videoMatches && videoAllowed
     // The clip of this song is still being checked: the pill shows faded, with a spinner.
-    val videoChecking = !videoReady && !videoOn && videoAllowed && !state.buffering && state.trackId.isNotBlank() &&
+    val videoChecking = !videoReady && !videoOn && videoAllowed && !state.buffering && state.videoTrackId.isNotBlank() &&
         !com.music.spotui.data.DataSaver.active && mv.state.value is com.music.spotui.video.MusicVideoController.State.Searching
     val showVideo = videoOn && panel == Panel.NONE && !mv.fullscreen.value
     LaunchedEffect(mv.state.value, videoReady) { if (videoReady) mv.warm() }
@@ -463,6 +477,7 @@ fun ImmersivePlayer(
             Column(Modifier.fillMaxWidth().height(pageH - peek).statusBarsPadding().then(if (panel == Panel.NONE) Modifier.padding(bottom = 8.dp) else Modifier.navigationBarsPadding())) {
                 // The handle: always hands its drags to the sheet.
                 PlayerDismissStrip(tint) { actions.close() }
+                PlayingContext(state, tint)
 
                 // Large windows (a portrait tablet): the box below is no taller than the cover and
                 // the credits need, and the two are centred with the controls under the handle.
@@ -979,6 +994,7 @@ private fun LandscapePlayer(
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
         // The handle: always hands its drags to the sheet.
         PlayerDismissStrip(tint) { actions.close() }
+        PlayingContext(state, tint)
         Row(
             Modifier.weight(1f).fillMaxWidth().padding(start = PLAYER_GUTTER, end = PLAYER_GUTTER, bottom = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(PLAYER_GUTTER),

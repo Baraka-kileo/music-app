@@ -207,15 +207,16 @@ fun ImmersiveRecapScreen(navController: NavController) {
         value = withContext(Dispatchers.IO) { ListenHistory.recap(System.currentTimeMillis() - periods[period].second * 86_400_000L) }
     }
     val recap = loaded ?: ListenHistory.Recap(0, 0, emptyMap(), emptyList(), emptyList(), emptyList())
+    val youtubeAccount = com.music.spotui.di.YtmRuntime.chosen
     ImmersivePage(title = stringResource(R.string.recap_title), onBack = { navController.popBackStack() }) {
-        item(key = "tabs") {
+        if (!youtubeAccount) item(key = "tabs") {
             ImmersiveSegmentedControl(
                 options = listOf(stringResource(R.string.stats_tab_spotify), stringResource(R.string.stats_tab_phone)),
                 selectedIndex = tab, onSelect = { tab = it },
                 modifier = Modifier.padding(horizontal = Immersive.Gutter, vertical = 6.dp),
             )
         }
-        if (tab == 0) spotifyStats(navController) else phoneStats(navController, recap, periods.map { it.first }, period) { period = it }
+        if (!youtubeAccount && tab == 0) spotifyStats(navController) else phoneStats(navController, recap, periods.map { it.first }, period) { period = it }
     }
 }
 
@@ -299,7 +300,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.phoneStats(
             Text(stringResource(R.string.recap_listens, recap.listens), style = Immersive.Subhead)
             val src = recap.bySource
             Text(
-                stringResource(R.string.recap_sources, src[ListenHistory.Source.SPOTIFY] ?: 0, src[ListenHistory.Source.DOWNLOAD] ?: 0, src[ListenHistory.Source.LOCAL] ?: 0),
+                stringResource(R.string.recap_sources_with_streaming, src[ListenHistory.Source.SPOTIFY] ?: 0, src[ListenHistory.Source.DOWNLOAD] ?: 0, src[ListenHistory.Source.LOCAL] ?: 0, src[ListenHistory.Source.STREAMING] ?: 0),
                 style = Immersive.Caption, modifier = Modifier.padding(top = 8.dp),
             )
         }
@@ -321,7 +322,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.phoneStats(
     ranked("artists", R.string.recap_top_artists, recap.topArtists)
     ranked("albums", R.string.recap_top_albums, recap.topAlbums)
     item(key = "note") {
-        Text(stringResource(R.string.recap_private_note), style = Immersive.Caption.copy(color = Immersive.TextTertiary),
+        Text(stringResource(R.string.recap_phone_source_note), style = Immersive.Caption.copy(color = Immersive.TextTertiary),
             modifier = Modifier.padding(Immersive.Gutter, 24.dp))
     }
 }

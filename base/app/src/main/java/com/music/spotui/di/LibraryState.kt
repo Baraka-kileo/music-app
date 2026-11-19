@@ -39,3 +39,9 @@ fun trackSaved(trackId: String, known: Set<String>): Boolean {
     val uri = "spotify:track:$trackId"
     return SongPlayer.library[uri] ?: (uri in known)
 }
+
+/** Saved state using the selected account's identity, including native YouTube tracks. */
+fun songSaved(song: com.music.spotui.data.entity.SongsModel, known: Set<String>, youtubeAccount: Boolean): Boolean {
+    val uri = songLibraryUri(song, youtubeAccount) ?: return false
+    return SongPlayer.library[uri] ?: (uri in known)
+}

@@ -10,7 +10,7 @@ import java.io.File
  * A listen counts after 30 s, like most services.
  */
 object ListenHistory {
-    enum class Source { SPOTIFY, DOWNLOAD, LOCAL }
+    enum class Source { SPOTIFY, DOWNLOAD, LOCAL, STREAMING }
 
     data class Listen(
         val atMs: Long,
@@ -23,7 +23,23 @@ object ListenHistory {
         val source: Source,
         /** Each credited artist on its own, for the top artists; just the line's first one for older listens. */
         val artists: List<String> = listOf(artist.substringBefore(",").trim()),
+        /** Stable for one playback; subsequent checkpoints replace this entry in the history. */
+        val eventId: String = "",
     )
+
+    /** The provider-qualified play key retained in a history row, if it can be replayed. */
+    fun playSong(listen: Listen): com.music.spotui.data.entity.SongsModel? {
+        val url = when {
+            listen.key.startsWith("ytmusic:track:") -> "catalog:${listen.key}"
+            listen.key.startsWith("spotify:track:") -> listen.key
+            else -> return null
+        }
+        return com.music.spotui.data.entity.SongsModel(
+            id = listen.key.hashCode(), title = listen.title, album = listen.album, singer = listen.artist,
+            coverUri = listen.cover, url = url,
+            spotifyTrackId = if (listen.key.startsWith("spotify:track:")) listen.key.substringAfterLast(':') else "",
+        )
+    }
 
     /**
      * The artists of a song credited as [line] ("A, B") with [ids] artist ids: split only when the
@@ -38,9 +54,12 @@ object ListenHistory {
     const val MIN_PLAYED_MS = 30_000L
     private var file: File? = null
     private val lock = Any()
+    val revision = kotlinx.coroutines.flow.MutableStateFlow(0L)
 
-    fun init(context: Context) {
+    fun init(context: Context) = synchronized(lock) {
         file = File(context.filesDir, "listen_history.jsonl")
+        loaded = null
+        revision.value++
     }
 
     fun record(listen: Listen) {
@@ -50,10 +69,12 @@ object ListenHistory {
             .put("at", listen.atMs).put("key", listen.key).put("title", listen.title).put("artist", listen.artist)
             .put("album", listen.album).put("cover", listen.cover).put("ms", listen.playedMs).put("src", listen.source.name)
             .put("artists", org.json.JSONArray(listen.artists))
+            .put("eventId", listen.eventId)
             .toString()
         synchronized(lock) {
             f.appendText(line + "\n")
-            loaded?.let { loaded = it + listen }
+            loaded?.let { previous -> loaded = collapse(previous + listen) }
+            revision.value++
         }
     }
 
@@ -63,21 +84,34 @@ object ListenHistory {
     fun all(): List<Listen> = synchronized(lock) {
         loaded?.let { return it }
         val f = file?.takeIf { it.exists() } ?: return emptyList()
-        val list = f.readLines().mapNotNull { line ->
+        val list = collapse(f.readLines().mapNotNull { line ->
             runCatching {
                 val o = JSONObject(line)
                 val artist = o.optString("artist")
                 val artists = o.optJSONArray("artists")?.let { a -> List(a.length()) { a.getString(it) } }?.filter { it.isNotBlank() }
                 Listen(o.getLong("at"), o.getString("key"), o.getString("title"), artist, o.optString("album"),
                     o.optString("cover"), o.getLong("ms"), Source.valueOf(o.optString("src", "SPOTIFY")),
-                    artists?.ifEmpty { null } ?: listOf(artist.substringBefore(",").trim()))
+                    artists?.ifEmpty { null } ?: listOf(artist.substringBefore(",").trim()), o.optString("eventId"))
             }.getOrNull()
-        }
+        })
         loaded = list
         list
     }
 
-    fun clear() = synchronized(lock) { loaded = null; file?.delete(); owner()?.delete() }
+    internal fun collapse(entries: List<Listen>): List<Listen> {
+        val result = ArrayList<Listen>()
+        val positions = HashMap<String, Int>()
+        for (entry in entries) {
+            val position = entry.eventId.takeIf(String::isNotBlank)?.let(positions::get)
+            if (position == null) {
+                if (entry.eventId.isNotBlank()) positions[entry.eventId] = result.size
+                result += entry
+            } else result[position] = entry
+        }
+        return result
+    }
+
+    fun clear() = synchronized(lock) { loaded = null; file?.delete(); owner()?.delete(); revision.value++ }
 
     /*
      * The history belongs to the account it was heard on, as the downloads do (OfflineAccounts): on an
@@ -103,6 +137,7 @@ object ListenHistory {
         runCatching { if (f.exists()) moveInto(f, parked(owner)!!) }
         owner()?.delete()
         loaded = null
+        revision.value++
     }
 
     /** The account [key] is signed in: its own history is the one shown; one with no owner yet becomes its own. */
@@ -116,6 +151,7 @@ object ListenHistory {
             owner()?.writeText(key)
         }
         loaded = null
+        revision.value++
     }
 
     /** The account [key] is removed from the phone: its history put aside goes with it. */

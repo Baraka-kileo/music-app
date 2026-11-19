@@ -49,7 +49,7 @@ const document = {
 };
 class CustomEvent { constructor(type, init) { this.type = type; this.detail = init && init.detail; } }
 const context = {
-  window, document, JSON, Math, Number, String, Promise, Date,
+  window, document, navigator: { mediaSession: { metadata: null } }, JSON, Math, Number, String, Promise, Date,
   setInterval: (f) => { timers.push(f); return timers.length; },
   clearInterval: (id) => { timers[id - 1] = null; },
   setTimeout: (f) => { f(); return 0; },

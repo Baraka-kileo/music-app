@@ -261,10 +261,11 @@ fun RecapScreen(navController: NavController) {
     val recap = loaded ?: ListenHistory.Recap(0, 0, emptyMap(), emptyList(), emptyList(), emptyList())
     // Spotify's ranking of the account first (the official "Listening stats"), then this phone's counter.
     var tab by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0) }
+    val youtubeAccount = com.music.spotui.di.YtmRuntime.chosen
     Column(Modifier.fillMaxSize().background(Background).statusBarsPadding()) {
         ScreenHeader(stringResource(R.string.recap_title), navController)
-        StatsTabs(tab) { tab = it }
-        if (tab == 0) SpotifyStatsTab(navController) else LazyColumn(contentPadding = PaddingValues(bottom = com.music.spotui.ui.components.bottomBarsSpace())) {
+        if (!youtubeAccount) StatsTabs(tab) { tab = it }
+        if (!youtubeAccount && tab == 0) SpotifyStatsTab(navController) else LazyColumn(contentPadding = PaddingValues(bottom = com.music.spotui.ui.components.bottomBarsSpace())) {
             item {
                 Row(Modifier.padding(16.dp, 12.dp, 16.dp, 0.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     periods.forEachIndexed { i, (label, _) ->
@@ -280,8 +281,8 @@ fun RecapScreen(navController: NavController) {
                     Text(stringResource(R.string.recap_listens, recap.listens), color = Subtle, fontSize = 14.sp)
                     Spacer(Modifier.height(10.dp))
                     val src = recap.bySource
-                    Text(stringResource(R.string.recap_sources,
-                        src[ListenHistory.Source.SPOTIFY] ?: 0, src[ListenHistory.Source.DOWNLOAD] ?: 0, src[ListenHistory.Source.LOCAL] ?: 0),
+                    Text(stringResource(R.string.recap_sources_with_streaming,
+                        src[ListenHistory.Source.SPOTIFY] ?: 0, src[ListenHistory.Source.DOWNLOAD] ?: 0, src[ListenHistory.Source.LOCAL] ?: 0, src[ListenHistory.Source.STREAMING] ?: 0),
                         color = Subtle, fontSize = 13.sp)
                 }
             }
@@ -310,7 +311,7 @@ fun RecapScreen(navController: NavController) {
             ranked(R.string.recap_top_artists, recap.topArtists)
             ranked(R.string.recap_top_albums, recap.topAlbums)
             item {
-                Text(stringResource(R.string.recap_private_note), color = Color(0xFF7A7A7A), fontSize = 12.sp, modifier = Modifier.padding(16.dp, 24.dp))
+                Text(stringResource(R.string.recap_phone_source_note), color = Color(0xFF7A7A7A), fontSize = 12.sp, modifier = Modifier.padding(16.dp, 24.dp))
             }
         }
     }

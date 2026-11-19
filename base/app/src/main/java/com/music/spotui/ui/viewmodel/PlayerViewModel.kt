@@ -131,6 +131,15 @@ class PlayerViewModel constructor(private val currentSongState: CurrentSongState
 internal fun confirmedTrackIdFromUri(uri: String): String =
     if (uri.startsWith("spotify:track:")) uri.removePrefix("spotify:track:") else ""
 
+/** Identity for the shared music-video lookup; only use the YouTube ID of the confirmed local item. */
+internal fun confirmedVideoTrackId(uri: String, displayedSongId: Int, localId: Long?, localYoutubeId: String?): String {
+    val spotify = confirmedTrackIdForDisplay(uri, displayedSongId)
+    if (spotify.isNotBlank() && !uri.startsWith("ytmusic:")) return spotify
+    val id = uri.removePrefix("ytmusic:track:")
+    if (!uri.startsWith("ytmusic:track:") || !app.myspoti.ytmusic.Ytm.isVideoId(id) || localId == null || localYoutubeId != id) return ""
+    return if ((("local:$localId").hashCode() and 0x7fffffff) == displayedSongId) "ytm_$id" else ""
+}
+
 /**
  * The Spotify id of the song shown, once the engine confirms it: CurrentSongState uses this
  * canonical id. A download the local player plays ("local:<its local id>", shown under that uri's

@@ -27,6 +27,8 @@ data class Track(
     val addedAt: String? = null,
     /** The catalogue knows a music video of it, when the answer says. */
     val hasVideo: Boolean = false,
+    /** Artwork attached directly to the track, independent of album metadata. */
+    val images: List<Image> = emptyList(),
 )
 
 data class Album(

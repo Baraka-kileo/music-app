@@ -45,4 +45,12 @@ class LyricsMatchTest {
         assertTrue(LyricsApi.sameSong("Thunderstruck", "AC/DC", 292_000, "Thunderstruck", "AC/DC", 292_000))
         assertFalse(LyricsApi.sameSong("Déjà Vu", "Beyoncé", 240_000, "Deja Vu", "Beyonce", 250_000))
     }
+
+    @Test fun differentRecordingVersionsAreNotInterchangeable() {
+        assertFalse(LyricsMatch.versionsAgree("Someone You Loved - Sped Up", "Someone You Loved"))
+        assertFalse(LyricsMatch.versionsAgree("Song (Live)", "Song"))
+        assertTrue(LyricsMatch.versionsAgree("Song - Speed Up", "Song (Sped Up)"))
+        assertFalse(LyricsApi.sameSong("Song", "Artist", 180_000, "Song - Sped Up", "Artist", 180_000))
+        assertFalse(LyricsApi.isPlausibleMatch("Song - Remix", "Artist", 180, "Song", "Artist", 180))
+    }
 }

@@ -629,16 +629,16 @@ abstract class AdaptiveScreenshotTest(private val size: String) {
         rule.mainClock.advanceTimeBy(1_000)
         // Some rows above the ones seen, for the list to run up to: header, now playing and its
         // heading, the context's heading, then the songs (Song 09 first).
-        rule.onNodeWithTag("queue").performScrollToIndex(12)
+        rule.onNodeWithTag("immersive-queue-list").performScrollToIndex(12)
         rule.mainClock.advanceTimeBy(500)
         val d = rule.activity.resources.displayMetrics.density
         val handles = rule.onAllNodes(androidx.compose.ui.test.hasContentDescription("Move in queue"), useUnmergedTree = true)
             .fetchSemanticsNodes().map { it.boundsInRoot }.filter { it.top > 110 * d }.sortedBy { it.top }
-        // The third row seen: the finger then goes over two rows and out of the list.
-        val from = handles[2].center
+        // Find the handle belonging to Song 11; the history heading changes visible row positions.
         val title = rule.onAllNodes(androidx.compose.ui.test.hasText("Song 11"), useUnmergedTree = true)
             .fetchSemanticsNodes().first().boundsInRoot
-        org.junit.Assert.assertTrue("Song 11 is the third row seen", kotlin.math.abs(title.center.y - from.y) < 24 * d)
+        val from = handles.minBy { kotlin.math.abs(title.center.y - it.center.y) }.center
+        org.junit.Assert.assertTrue("Song 11 has a visible drag handle", kotlin.math.abs(title.center.y - from.y) < 24 * d)
         rule.onRoot().performTouchInput { down(from) }
         rule.mainClock.advanceTimeByFrame()
         // Up past the top of the list (110 dp from the window's top), into the header, by small moves.

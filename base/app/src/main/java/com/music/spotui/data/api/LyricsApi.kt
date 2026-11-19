@@ -41,8 +41,13 @@ object LyricsApi {
         val album: String,
         val durationMs: Long,
         val coverUrl: String = "",
+        val catalogUri: String = "",
     ) {
-        val key: String get() = trackId.ifBlank { "${title.lowercase()}|${artist.substringBefore(",").trim().lowercase()}" }
+        val key: String get() = trackId.ifBlank { catalogUri.ifBlank { "${title.lowercase()}|${artist.substringBefore(",").trim().lowercase()}|${album.lowercase()}|$durationMs" } }
+        val offlineKey: String get() = trackId.ifBlank {
+            catalogUri.takeIf { it.startsWith("ytmusic:track:") }?.removePrefix("ytmusic:track:")
+                ?.let(com.music.spotui.data.offline.OfflineTrackKey::youtube).orEmpty()
+        }
     }
 
     // Cache by track: re-opening the lyrics (card + full screen ask for the same
@@ -443,7 +448,7 @@ object LyricsApi {
      * Shown as a [Partial]: the song is looked up again a while later, when there may be a connection.
      */
     private fun kept(track: Track): Lyrics? = runCatching {
-        val f = com.music.spotui.data.offline.OfflineStore.lyricsFile(track.trackId)?.takeIf { it.isFile } ?: return null
+        val f = com.music.spotui.data.offline.OfflineStore.lyricsFile(track.offlineKey)?.takeIf { it.isFile } ?: return null
         LyricsDisk.decode(JSONObject(f.readText()))
     }.getOrNull()?.takeUnless { it.isEmpty }?.also {
         cache[track.key] = Partial(it)
@@ -456,7 +461,7 @@ object LyricsApi {
     private fun keep(track: Track, lyrics: Lyrics) {
         if (!keepable(lyrics)) return
         runCatching {
-            val f = com.music.spotui.data.offline.OfflineStore.lyricsFile(track.trackId) ?: return
+            val f = com.music.spotui.data.offline.OfflineStore.lyricsFile(track.offlineKey) ?: return
             f.parentFile?.mkdirs()
             com.music.spotui.data.writeTextSafely(f, LyricsDisk.encode(lyrics).toString(), sync = false)
         }.onFailure { Log.w("LyricsApi", "could not keep lyrics with the download: ${it.javaClass.simpleName}") }
@@ -465,7 +470,7 @@ object LyricsApi {
     /** Lyrics found for a downloaded song replace the ones kept with it (the setting on). */
     private fun keepIfDownloaded(track: Track, lyrics: Lyrics) {
         if (!runCatching { com.music.spotui.data.preferences.LyricsOfflinePref.on &&
-                com.music.spotui.data.offline.OfflineStore.isDownloaded(track.trackId) }.getOrDefault(false)) return
+                com.music.spotui.data.offline.OfflineStore.isDownloaded(track.offlineKey) }.getOrDefault(false)) return
         keep(track, lyrics)
     }
 
@@ -477,7 +482,7 @@ object LyricsApi {
      * way ([fetch], the lyrics extensions included) and kept with the download, for playing offline.
      */
     fun keepForOffline(track: Track) {
-        if (track.trackId.isBlank()) return
+        if (track.offlineKey.isBlank()) return
         scope.launch {
             keeping.lock()
             try {
@@ -745,6 +750,7 @@ object LyricsApi {
      * same ("Hello Again" is not "Hello"): Genius gives no length to tell two songs apart.
      */
     internal fun geniusMatch(candTitle: String, artistNames: String, primaryArtist: String, title: String, artist: String): Boolean {
+        if (!LyricsMatch.versionsAgree(candTitle, title)) return false
         val names = artistNames.replace(geniusAside, "")
         val artists = names.split(',', '&', '/') + names + primaryArtist.replace(geniusAside, "")
         if (matchKey(artist).isEmpty() || artists.none { it.isNotBlank() && LyricsMatch.sameArtist(it.trim(), artist) }) return false
@@ -1087,6 +1093,7 @@ object LyricsApi {
      * (asides left out, either may be longer), and the length is within 4 s when both are known.
      */
     internal fun sameSong(candTitle: String, candArtist: String, candDurationMs: Long, title: String, artist: String, durationMs: Long): Boolean {
+        if (!LyricsMatch.versionsAgree(candTitle, title)) return false
         if (matchKey(artist).isEmpty() || (candArtist.split(',', '&', '、', '/') + candArtist).none { LyricsMatch.sameArtist(it, artist) }) return false
         val t = matchKey(title); val ct = matchKey(cleanTitle(candTitle))
         if (t.isEmpty() || !(ct == t || ct.startsWith(t) || t.startsWith(ct))) return false
@@ -1099,7 +1106,8 @@ object LyricsApi {
     private val featTag = Regex("""\s*[(\[][^)\]]*(feat\.?|ft\.?|with )[^)\]]*[)\]]""", RegexOption.IGNORE_CASE)
     private val bracketTag = Regex("""\s*[(\[][^)\]]*(remaster|remastered|live|version|edit|mono|stereo|deluxe|bonus)[^)\]]*[)\]]""", RegexOption.IGNORE_CASE)
     private fun cleanTitle(title: String) =
-        title.substringBefore(" - ").replace(featTag, "").replace(bracketTag, "").trim()
+        (if (LyricsMatch.versionsAgree(title, "")) title.substringBefore(" - ") else title)
+            .replace(featTag, "").let { if (LyricsMatch.versionsAgree(title, "")) it.replace(bracketTag, "") else it }.trim()
 
     // Letters and digits only, accents and case folded away ("Rosalía" is "rosalia").
     internal fun matchKey(s: String) = LyricsMatch.key(s)
@@ -1115,6 +1123,7 @@ object LyricsApi {
         candTitle: String, candArtist: String, candDurationSec: Int,
         title: String, artist: String, durationSec: Int,
     ): Boolean {
+        if (!LyricsMatch.versionsAgree(candTitle, title)) return false
         if (!LyricsMatch.sameArtist(candArtist, artist)) return false
         if (!overlaps(matchKey(cleanTitle(candTitle)), matchKey(title))) return false
         return durationSec <= 0 || candDurationSec <= 0 || kotlin.math.abs(candDurationSec - durationSec) <= 3

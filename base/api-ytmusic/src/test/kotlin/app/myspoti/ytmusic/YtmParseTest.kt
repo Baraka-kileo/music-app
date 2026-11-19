@@ -39,6 +39,17 @@ class YtmParseTest {
         assertNull(YtmParse.continuation(fixture("liked-more")))
     }
 
+    @Test fun `a track thumbnail survives without an album`() {
+        val row = Json.parseToJsonElement("""{
+            "flexColumns":[{"musicResponsiveListItemFlexColumnRenderer":{"text":{"runs":[{"text":"Song","navigationEndpoint":{"watchEndpoint":{"videoId":"vidAAAAAAA1"}}}]}}}],
+            "thumbnail":{"musicThumbnailRenderer":{"thumbnail":{"thumbnails":[{"url":"https://example.test/cover","width":300,"height":300}]}}},
+            "playlistItemData":{"videoId":"vidAAAAAAA1"}
+        }""").jsonObject
+        val track = (YtmParse.row(row) as Item.Song).track
+        assertNull(track.album)
+        assertEquals("https://example.test/cover", track.images.single().url)
+    }
+
     @Test fun `the account's playlists, without the new playlist card`() {
         val p = YtmParse.cards(fixture("playlists")).filterIsInstance<Item.PlaylistItem>().map { it.playlist }
         assertEquals(listOf("ytmusic:playlist:LM", "ytmusic:playlist:PLroadmix0001"), p.map { it.uri })

@@ -50,6 +50,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -166,6 +168,15 @@ private fun ArtistOverviewContent(
     var saved by remember(overview.id) { mutableStateOf<Set<String>>(emptySet()) }
     // An artist of another provider (its id a whole uri): Spotify cannot follow it; its page reads, its songs play.
     val onSpotify = !com.music.spotui.di.YtmRuntime.chosen && !overview.id.contains(':')
+    val onYouTube = com.music.spotui.di.YtmRuntime.chosen && Regex("ytmusic:artist:UC[A-Za-z0-9_-]{22}").matches(overview.id)
+    var subscribed by remember(overview.id, onYouTube) { mutableStateOf<Boolean?>(null) }
+    var subscribing by remember(overview.id) { mutableStateOf(false) }
+    val subscriptionScope = rememberCoroutineScope()
+    LaunchedEffect(overview.id, onYouTube) {
+        subscribed = if (onYouTube) try { app.myspoti.host.android.MyspotiRuntime.api.library.contains(listOf(overview.id)).single() }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { null } else null
+    }
     LaunchedEffect(overview.id) {
         if (!onSpotify) return@LaunchedEffect
         val uris = tracks.map { "spotify:track:${it.song.spotifyTrackId}" } + "spotify:artist:${overview.id}"
@@ -336,6 +347,27 @@ private fun ArtistOverviewContent(
                         )
                     }
                     if (onSpotify) Spacer(Modifier.width(16.dp))
+                    if (onYouTube && subscribed != null) {
+                        val on = subscribed == true
+                        Box(modifier = Modifier.pressable(0.96f) {
+                            if (!subscribing) {
+                                subscribing = true
+                                subscriptionScope.launch {
+                                    val success = try {
+                                        if (on) app.myspoti.host.android.MyspotiRuntime.api.library.remove(listOf(overview.id))
+                                        else app.myspoti.host.android.MyspotiRuntime.api.library.add(listOf(overview.id))
+                                        true
+                                    } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                                    catch (e: Exception) { false }
+                                    subscribing = false
+                                    if (success) subscribed = !on else android.widget.Toast.makeText(context, R.string.library_change_failed, android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }.clip(RoundedCornerShape(20.dp)).border(1.dp, Color.Gray, RoundedCornerShape(20.dp)).padding(16.dp, 7.dp)) {
+                            Text(stringResource(if (on) R.string.artist_subscribed else R.string.artist_subscribe), color = AppText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        Spacer(Modifier.width(16.dp))
+                    }
                     // B27: this ⋮ had neither `clickable` nor `onClick` — the artist menu is
                     // opened with the same pressable feedback as the row's other buttons.
                     if (onSpotify) Icon(

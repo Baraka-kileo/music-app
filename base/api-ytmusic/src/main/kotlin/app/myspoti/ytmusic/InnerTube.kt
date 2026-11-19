@@ -74,6 +74,23 @@ class InnerTube(
         if ("error" in response) throw IOException("YouTube Music refused the like change")
     }
 
+    suspend fun setArtistSubscription(channelId: String, subscribed: Boolean) {
+        require(Regex("UC[A-Za-z0-9_-]{22}").matches(channelId)) { "Invalid YouTube channel ID" }
+        val response = post(if (subscribed) "subscription/subscribe" else "subscription/unsubscribe", body {
+            putJsonArray("channelIds") { add(kotlinx.serialization.json.JsonPrimitive(channelId)) }
+        })
+        if ("error" in response) throw IOException("YouTube Music refused the subscription change")
+    }
+
+    /** YouTube Music represents adding a playlist to the library as a playlist rating. */
+    suspend fun setPlaylistSaved(playlistId: String, saved: Boolean) {
+        require(playlistId.matches(Regex("[A-Za-z0-9_-]{2,200}"))) { "Invalid YouTube playlist ID" }
+        val response = post(if (saved) "like/like" else "like/removelike", body {
+            putJsonObject("target") { put("playlistId", playlistId) }
+        })
+        if ("error" in response) throw IOException("YouTube Music refused the playlist library change")
+    }
+
     /** Create a private playlist; return only an ID actually confirmed by the server. */
     suspend fun createPlaylist(title: String): String {
         require(title.isNotBlank()) { "Playlist name is empty" }

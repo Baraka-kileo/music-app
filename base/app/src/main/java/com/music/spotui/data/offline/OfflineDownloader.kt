@@ -272,7 +272,9 @@ object OfflineDownloader {
                 withContext(Dispatchers.Main) { requests.remove(r.trackId) }
                 // Its lyrics kept with it, for playing offline (looked up behind, one song at a time).
                 if (com.music.spotui.data.preferences.LyricsOfflinePref.on) com.music.spotui.data.api.LyricsApi.keepForOffline(
-                    com.music.spotui.data.api.LyricsApi.Track(r.trackId, r.title, r.artist, r.album, r.durationMs, r.coverUrl))
+                    com.music.spotui.data.api.LyricsApi.Track(
+                        if (OfflineTrackKey.youtubeId(r.trackId) == null) r.trackId else "", r.title, r.artist, r.album, r.durationMs, r.coverUrl,
+                        OfflineTrackKey.youtubeId(r.trackId)?.let { "ytmusic:track:$it" }.orEmpty()))
                 null
             } catch (e: CancellationException) {
                 throw e

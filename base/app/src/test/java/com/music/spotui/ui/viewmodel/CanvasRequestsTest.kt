@@ -4,6 +4,15 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CanvasRequestsTest {
+    @Test fun videoLookupUsesOnlyTheConfirmedYouTubeRecording() {
+        val id = "dQw4w9WgXcQ"
+        val shown = ("local:42".hashCode() and 0x7fffffff)
+        assertEquals("ytm_$id", confirmedVideoTrackId("ytmusic:track:$id", shown, 42, id))
+        assertEquals("", confirmedVideoTrackId("ytmusic:track:$id", shown + 1, 42, id))
+        assertEquals("", confirmedVideoTrackId("ytmusic:track:$id", shown, 42, "abcdefghijk"))
+        assertEquals("", confirmedVideoTrackId("ytmusic:track:bad", shown, 42, "bad"))
+        assertEquals("A", confirmedVideoTrackId("spotify:track:A", ("track:A".hashCode() and 0x7fffffff), null, null))
+    }
     private fun songId(track: String) = ("track:$track").hashCode() and 0x7fffffff
 
     @Test fun optimisticChangeHidesAAndConfirmedUriStartsBWithoutAnotherSongIdChange() {

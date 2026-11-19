@@ -134,6 +134,34 @@ class InnerTubeTest {
         assertEquals("vidAAAAAAA1", Json.parseToJsonElement(rec.requests[0].second).jsonObject["target"]!!.jsonObject["videoId"]!!.jsonPrimitive.content)
     }
 
+    @Test fun `artist subscriptions use the channel endpoint and reject bad ids`() = runTest {
+        val rec = Recorded { _, _ -> "{}" }
+        val service = api(rec)
+        val library = YtmUserLibrary(service, YtmLibrary(service))
+        val channel = "UC" + "a".repeat(22)
+        library.add(listOf("ytmusic:artist:$channel"))
+        library.remove(listOf("ytmusic:artist:$channel"))
+        assertTrue(rec.requests[0].first.url.encodedPath.endsWith("/subscription/subscribe"))
+        assertTrue(rec.requests[1].first.url.encodedPath.endsWith("/subscription/unsubscribe"))
+        assertTrue(rec.requests[0].second.contains(channel))
+        assertTrue(runCatching { library.add(listOf("ytmusic:artist:bad")) }.isFailure)
+        assertEquals(2, rec.requests.size)
+    }
+
+    @Test fun `playlist library state and writes use playlist identity`() = runTest {
+        val rec = Recorded { _, body -> if ("FEmusic_liked_playlists" in body) fixtureText("playlists") else "{}" }
+        val service = api(rec)
+        val library = YtmUserLibrary(service, YtmLibrary(service))
+        assertEquals(listOf(true, false), library.contains(listOf("ytmusic:playlist:PLroadmix0001", "ytmusic:playlist:PLmissing0001")))
+        library.add(listOf("ytmusic:playlist:PLroadmix0001"))
+        library.remove(listOf("ytmusic:playlist:PLroadmix0001"))
+        val writes = rec.requests.takeLast(2)
+        assertTrue(writes[0].first.url.encodedPath.endsWith("/like/like"))
+        assertTrue(writes[1].first.url.encodedPath.endsWith("/like/removelike"))
+        assertEquals("PLroadmix0001", Json.parseToJsonElement(writes[0].second).jsonObject["target"]!!.jsonObject["playlistId"]!!.jsonPrimitive.content)
+        assertTrue(runCatching { library.add(listOf("ytmusic:playlist:../bad")) }.isFailure)
+    }
+
     @Test fun `an error in a successful response is not reported as a like`() = runTest {
         val rec = Recorded { _, _ -> """{"error":{"message":"refused"}}""" }
         assertTrue(runCatching { api(rec).setLiked("vidAAAAAAA1", true) }.exceptionOrNull() is java.io.IOException)

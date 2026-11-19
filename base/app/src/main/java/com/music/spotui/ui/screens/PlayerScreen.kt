@@ -211,8 +211,9 @@ fun PlayerScreen(navController: NavController) {
     val queueSongs = playerViewModel.queue.value
     val np by SongPlayer.nowPlaying
     val currentTrack = queueSongs.firstOrNull { it.id == songId }
-    val actualTrackId = confirmedTrackIdFromUri(np.uri)
     val displayedTrackId = confirmedTrackIdForDisplay(np.uri, songId)
+    val videoTrackId = com.music.spotui.ui.viewmodel.confirmedVideoTrackId(np.uri, songId,
+        com.music.spotui.di.LocalPlayer.current()?.id, com.music.spotui.di.LocalPlayer.current()?.let(com.music.spotui.di.LocalPlayer::youtubeIdOf))
     // The artists are looked up ahead: a tap on the artist line opens the page (or the choice) at once.
     LaunchedEffect(displayedTrackId) { com.music.spotui.ui.components.ArtistChooser.prefetch(displayedTrackId) }
 
@@ -313,13 +314,13 @@ fun PlayerScreen(navController: NavController) {
         SongPlayer.refreshLikedIfStale()
         onDispose { mv.detachPlayerScreen() }
     }
-    LaunchedEffect(actualTrackId, songTitle, audioBuffering) {
+    LaunchedEffect(videoTrackId, songTitle, audioBuffering) {
         // Settings, "Music videos" off: no lookup, no button, no clip.
-        if (!audioBuffering && com.music.spotui.data.preferences.MusicVideoPref.on) mv.prepare(actualTrackId, songTitle, songSinger, SongPlayer.getDuration())
+        if (!audioBuffering && com.music.spotui.data.preferences.MusicVideoPref.on) mv.prepare(videoTrackId, songTitle, songSinger, SongPlayer.getDuration())
     }
     val remote = SongPlayer.activeDevice.value != null
     val readyVideo = mv.state.value as? com.music.spotui.video.MusicVideoController.State.Ready
-    val videoMatchesTrack = displayedTrackId.isNotBlank() && actualTrackId == displayedTrackId && readyVideo?.trackId == actualTrackId
+    val videoMatchesTrack = videoTrackId.isNotBlank() && readyVideo?.trackId == videoTrackId
     val videoReady = videoMatchesTrack && !remote && !audioBuffering && !com.music.spotui.data.DataSaver.active &&
             com.music.spotui.data.preferences.MusicVideoPref.on
     // Switching to mobile data with the data saver on stops a clip that is playing.
@@ -328,7 +329,7 @@ fun PlayerScreen(navController: NavController) {
     }
     val videoOn = mv.on.value && videoMatchesTrack && !remote && com.music.spotui.data.preferences.MusicVideoPref.on
     // The clip of this song is still being checked: the pill shows faded, with a spinner.
-    val videoChecking = !videoReady && !videoOn && !remote && !audioBuffering && displayedTrackId.isNotBlank() && actualTrackId == displayedTrackId &&
+    val videoChecking = !videoReady && !videoOn && !remote && !audioBuffering && videoTrackId.isNotBlank() &&
         !com.music.spotui.data.DataSaver.active && com.music.spotui.data.preferences.MusicVideoPref.on &&
         mv.state.value is com.music.spotui.video.MusicVideoController.State.Searching
     // Canvas / clip players are built once the sheet has finished rising (then kept):
@@ -971,6 +972,8 @@ private fun isLikedContext(uri: String) = LIKED_CONTEXT.matches(uri)
 private fun contextRoute(np: SongPlayer.NowPlaying): String? {
     val parts = np.contextUri.split(":")
     val id = parts.getOrNull(2).orEmpty()
+    // Catalog routes need the full provider identity; a bare YouTube ID is interpreted as Spotify.
+    val routeId = if (parts.firstOrNull() == "spotify") id else np.contextUri
     // B26: opening that page again must carry the name the header shows.
     val name = contextDisplayName(np, "")
     return when {
@@ -979,9 +982,9 @@ private fun contextRoute(np: SongPlayer.NowPlaying): String? {
         // The older form of a playlist's uri: spotify:user:<name>:playlist:<id>.
         parts.getOrNull(1) == "user" && parts.getOrNull(3) == "playlist" && parts.getOrNull(4).orEmpty().isNotBlank() ->
             com.music.spotui.ui.navigation.playlistRoute(parts[4], name)
-        parts.getOrNull(1) == "playlist" && id.isNotBlank() -> com.music.spotui.ui.navigation.playlistRoute(id, name)
-        parts.getOrNull(1) == "album" && id.isNotBlank() -> albumRoute(name, "", id)
-        parts.getOrNull(1) == "artist" && id.isNotBlank() -> com.music.spotui.ui.navigation.artistRoute(name, id)
+        parts.getOrNull(1) == "playlist" && id.isNotBlank() -> com.music.spotui.ui.navigation.playlistRoute(routeId, name)
+        parts.getOrNull(1) == "album" && id.isNotBlank() -> albumRoute(name, "", routeId)
+        parts.getOrNull(1) == "artist" && id.isNotBlank() -> com.music.spotui.ui.navigation.artistRoute(name, routeId)
         else -> null
     }
 }

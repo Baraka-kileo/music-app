@@ -76,6 +76,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.ContentScale
+import com.bumptech.glide.integration.compose.GlideImage
+import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
@@ -481,6 +486,7 @@ private fun ImmersiveContextContent(navController: NavController, vm: ContextVie
                     isThisContext = isThisContext,
                     playing = playing,
                     saved = SongPlayer.library[p.uri] ?: contextSaved,
+                    youtubePlaylistSave = com.music.spotui.di.YtmRuntime.chosen && p.uri.startsWith("ytmusic:playlist:") && vm.editableChecked.value && !vm.editableContext.value,
                     smart = smart,
                     shuffled = isThisContext && (shuffle || smart),
                     onPlay = ::onPlay,
@@ -551,8 +557,8 @@ private fun ImmersiveContextContent(navController: NavController, vm: ContextVie
                             showAlbum = !numbered,
                             // As in the Classic list: the heart and the download of the song, from the same state
                             // (what Spotify last reported, the list's one batch check, the downloads kept on the phone).
-                            liked = com.music.spotui.di.trackSaved(song.spotifyTrackId, savedTracks),
-                            offline = OfflineStore.statusOf(song.spotifyTrackId),
+                            liked = com.music.spotui.di.songSaved(song, savedTracks, com.music.spotui.di.YtmRuntime.chosen),
+                            offline = com.music.spotui.data.offline.OfflineTrackKey.of(song)?.let(OfflineStore::statusOf),
                             // Collaborative: the small face of who added the song. Being moved: its handle.
                             trailing = vm.adders.value.let { a -> a["row:" + song.rowUid] ?: a["song:" + song.spotifyTrackId] }.let { m ->
                                 val face: @Composable () -> Unit = {
@@ -680,6 +686,7 @@ private val LikedTint = Color(0xFF4A3FA8)
  * Everything above the track list: the sleeve, the title, the owner, the meta line, the Play and
  * Shuffle pair and the round buttons. The wash behind it runs up under the (transparent) top bar.
  */
+@OptIn(ExperimentalGlideComposeApi::class)
 @Composable
 private fun ContextHeader(
     navController: NavController,
@@ -690,6 +697,7 @@ private fun ContextHeader(
     isThisContext: Boolean,
     playing: Boolean,
     saved: Boolean,
+    youtubePlaylistSave: Boolean,
     smart: Boolean,
     shuffled: Boolean,
     onPlay: () -> Unit,
@@ -704,10 +712,19 @@ private fun ContextHeader(
     onMove: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    Box(Modifier.fillMaxWidth().clipToBounds().background(lerp(tint, Color.Black, 0.3f))) {
+    // Compose's blur needs Android 12; older phones keep the artwork-derived color fallback.
+    if (android.os.Build.VERSION.SDK_INT >= 31 && !isLiked && p.coverUri.isNotBlank()) {
+        GlideImage(
+            model = p.coverUri, contentDescription = null, contentScale = ContentScale.Crop,
+            modifier = Modifier.matchParentSize().blur(36.dp),
+            requestBuilderTransform = { it.override(256) },
+        )
+    }
+    Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.55f), Immersive.Page))))
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Brush.verticalGradient(listOf(lerp(tint, Color.Black, 0.3f), Immersive.Page)))
             .padding(top = immersiveTopContentPadding(), bottom = 18.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -835,8 +852,8 @@ private fun ContextHeader(
             Spacer(Modifier.height(14.dp))
             // An album of another provider is read only: Spotify can neither save nor download it.
             val onSpotify = !com.music.spotui.data.catalog.CatalogRuntime.isCatalogUri(p.uri)
-            if (onSpotify) Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (p.type != "liked") ImmersiveCircleButton(
+            if (onSpotify || p.uri.startsWith("ytmusic:")) Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                if ((onSpotify || youtubePlaylistSave) && p.type != "liked") ImmersiveCircleButton(
                     icon = if (saved) com.music.spotui.ui.design.AppIcons.Favorite else com.music.spotui.ui.design.AppIcons.FavoriteBorder,
                     contentDescription = stringResource(if (saved) R.string.immersive_detail_unsave else R.string.immersive_detail_save),
                     onClick = onToggleSaved,
@@ -877,6 +894,7 @@ private fun ContextHeader(
                 )
             }
         }
+    }
     }
 }
 

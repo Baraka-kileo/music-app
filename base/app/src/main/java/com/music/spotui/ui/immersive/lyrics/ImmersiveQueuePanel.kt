@@ -38,6 +38,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.runtime.collectAsState
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Column
@@ -55,6 +57,7 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -189,11 +192,13 @@ fun ImmersiveQueuePanel(modifier: Modifier = Modifier, contentPadding: PaddingVa
 
     // The last songs played that can be played again (Spotify's), newest last; read off the main thread.
     var historyOpen by remember { mutableStateOf(false) }
-    val history by androidx.compose.runtime.produceState(emptyList<com.music.spotui.data.local.ListenHistory.Listen>(), queue.current?.url) {
+    val historyRevision by com.music.spotui.data.local.ListenHistory.revision.collectAsState()
+    val history by androidx.compose.runtime.produceState(emptyList<com.music.spotui.data.local.ListenHistory.Listen>(), queue.current?.url, historyRevision) {
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            com.music.spotui.data.local.ListenHistory.all().asReversed().asSequence()
-                .filter { it.key.startsWith("spotify:track:") && it.key != queue.current?.url }
-                .distinctBy { it.key }.take(HISTORY_ROWS).toList().asReversed()
+            com.music.spotui.data.local.ListenHistory.all().filter {
+                (it.key.startsWith("spotify:track:") || it.key.startsWith("ytmusic:track:")) &&
+                    (it.eventId.isBlank() || it.eventId != SongPlayer.currentListenEventId)
+            }
         }
     }
 
@@ -335,7 +340,7 @@ fun ImmersiveQueuePanel(modifier: Modifier = Modifier, contentPadding: PaddingVa
     Box(modifier) {
     LazyColumn(
         state = listState,
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize().testTag("immersive-queue-list")
             .onSizeChanged { gate.height = it.height.toFloat() }
             .pointerInput(gate) {
                 // Where the finger is, seen before the rows take it (nothing is consumed).
@@ -366,7 +371,7 @@ fun ImmersiveQueuePanel(modifier: Modifier = Modifier, contentPadding: PaddingVa
         }
         // What played before (the listen history), folded under its heading so the queue still
         // opens on the song playing: the oldest first, the last one just above "Now playing".
-        if (history.isNotEmpty()) {
+        run {
             item(key = "heading-history") {
                 QueueHeading(
                     title = stringResource(R.string.queue_history),
@@ -383,11 +388,20 @@ fun ImmersiveQueuePanel(modifier: Modifier = Modifier, contentPadding: PaddingVa
                     )
                 }
             }
-            if (historyOpen) items(history, key = { "history-${it.atMs}" }) { h ->
+            if (historyOpen && history.isEmpty()) item(key = "history-empty") {
+                Text(stringResource(R.string.queue_history_empty), color = Immersive.TextSecondary,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
+            }
+            if (historyOpen) itemsIndexed(history, key = { index, _ -> "history-$index" }) { _, h ->
                 QueueRow(
                     title = h.title, artist = h.artist, cover = h.cover,
                     isCurrent = false, explicit = false,
-                    onClick = { Haptics.click(); SongPlayer.playSong(h.key, alone = true) },
+                    onClick = {
+                        Haptics.click()
+                        com.music.spotui.data.local.ListenHistory.playSong(h)?.let { song ->
+                            SongPlayer.playSong(song.url, songs = listOf(song), alone = true)
+                        }
+                    },
                     modifier = queueMotion(),
                 )
             }
@@ -527,8 +541,6 @@ private fun autoplayStart(order: List<String>, rows: Map<String, QRow>): Int {
 
 private const val AUTOPLAY = "autoplay"
 
-/** How many songs of the listen history the queue shows. */
-private const val HISTORY_ROWS = 12
 
 /** The panel's flat order of keys: the queued rows, the context's heading (when it has rows), its rows. */
 private fun flatOrder(rows: List<QRow>): List<String> {

@@ -27,4 +27,20 @@ object LyricsMatch {
         val ka = key(a)
         return ka.isNotEmpty() && (ka == key(b) || words(a) == words(b))
     }
+
+    /** Different versions can have the same words but incompatible lyric timings. */
+    fun versionsAgree(a: String, b: String): Boolean {
+        fun variants(title: String): Set<String> {
+            val text = fold(title)
+            return listOf(
+                "sped" to Regex("\\b(sped[ -]?up|speed[ -]?up|nightcore)\\b"),
+                "slow" to Regex("\\b(slowed|slowed[ -]?down)\\b"),
+                "live" to Regex("\\blive\\b"),
+                "remix" to Regex("\\bremix\\b"),
+                "acoustic" to Regex("\\bacoustic\\b"),
+                "instrumental" to Regex("\\b(instrumental|karaoke)\\b"),
+            ).filter { it.second.containsMatchIn(text) }.mapTo(HashSet()) { it.first }
+        }
+        return variants(a) == variants(b)
+    }
 }

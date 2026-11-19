@@ -539,6 +539,16 @@ fun QueueSheet(contextName: String, onDismiss: () -> Unit) {
     val shuffle = state.shuffle.value
     var showTimer by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
+    var historyOpen by remember { mutableStateOf(false) }
+    val historyRevision by com.music.spotui.data.local.ListenHistory.revision.collectAsState()
+    val history by androidx.compose.runtime.produceState(emptyList<com.music.spotui.data.local.ListenHistory.Listen>(), q.current?.url, historyRevision) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.music.spotui.data.local.ListenHistory.all().filter {
+                com.music.spotui.data.local.ListenHistory.playSong(it) != null &&
+                    (it.eventId.isBlank() || it.eventId != SongPlayer.currentListenEventId)
+            }
+        }
+    }
     if (showTimer) SleepTimerSheet { showTimer = false }
 
     // The queue rows are all ONE LazyColumn item, so a drag can only scroll the sheet
@@ -567,6 +577,22 @@ fun QueueSheet(contextName: String, onDismiss: () -> Unit) {
                 PillButton(if (editing) "OK" else stringResource(R.string.curation_actions_edit_button_title)) { editing = !editing }
             }
             LazyColumn(state = listState, modifier = Modifier.weight(1f)) {
+                item(key = "history-heading") {
+                    Row(Modifier.fillMaxWidth().clickable { historyOpen = !historyOpen }.padding(horizontal = 20.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(stringResource(R.string.queue_history), color = AppText, fontWeight = FontWeight.Bold)
+                        Text(stringResource(if (historyOpen) R.string.queue_history_hide else R.string.queue_history_show), color = AppText)
+                    }
+                }
+                if (historyOpen && history.isEmpty()) item(key = "history-empty") {
+                    Text(stringResource(R.string.queue_history_empty), color = AppText.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
+                }
+                if (historyOpen) items(history.size, key = { "history-$it" }) { index ->
+                    com.music.spotui.data.local.ListenHistory.playSong(history[index])?.let { past ->
+                        QueueSheetRow(past, current = false, trailing = {}, onClick = { SongPlayer.playSong(past.url, songs = listOf(past), alone = true) })
+                    }
+                }
                 q.current?.let { cur ->
                     item(key = "current") {
                         QueueSheetRow(cur, current = true, trailing = {

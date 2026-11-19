@@ -384,12 +384,14 @@ object MusicVideoController {
         try {
             coroutineScope {
                 val song = async(Dispatchers.IO) {
-                    runInterruptible { YouTubeSource.findSong(title, artist, durationMs) ?: YouTubeSource.findAudio(title, artist, durationMs) }
+                    val nativeId = trackId.removePrefix("ytm_").takeIf { trackId.startsWith("ytm_") && com.music.spotui.extensions.YouTubeAudio.isVideoId(it) }
+                    if (nativeId != null) YouTubeSource.Hit("https://www.youtube.com/watch?v=$nativeId", title, artist, durationMs / 1000)
+                    else runInterruptible { YouTubeSource.findSong(title, artist, durationMs) ?: YouTubeSource.findAudio(title, artist, durationMs) }
                 }
                 // Spotify has a clip of this song (its "switch to video"): a label's upload that
                 // YouTube files as an ordinary video can be it (Bu$hi's "6 O'clock").
                 val spotifyHasVideo = async(Dispatchers.IO) {
-                    kotlinx.coroutines.withTimeoutOrNull(4_000) {
+                    if (trackId.startsWith("ytm_")) false else kotlinx.coroutines.withTimeoutOrNull(4_000) {
                         runCatching { MyspotiRuntime.api.catalog.track("spotify:track:$trackId").hasVideo }.getOrNull()
                     } ?: false
                 }
@@ -420,6 +422,8 @@ object MusicVideoController {
                                 still == null -> ClipVerification<State>(failed = true)
                                 still -> ClipVerification<State>()
                                 song.await() == null -> ClipVerification(State.Unavailable)
+                                trackId.startsWith("ytm_") && android.net.Uri.parse(c.url).getQueryParameter("v") == trackId.removePrefix("ytm_") ->
+                                    ClipVerification(State.Ready(trackId, c.url, AudioAlign.TimeMap(listOf(AudioAlign.Segment(0, durationMs.coerceAtLeast(1L), 0)), 1.0), mapComplete = true))
                                 song.await()?.url == c.url -> ClipVerification<State>()
                                 else -> {
                                     referenceFeatures.start()

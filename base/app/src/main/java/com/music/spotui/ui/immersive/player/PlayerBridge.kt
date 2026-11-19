@@ -52,6 +52,7 @@ data class ImmersivePlayerState(
     val artist: String = "",
     /** The Spotify id of the track behind [title] and [artist] (blank for other songs): their artists are looked up from it. */
     val trackId: String = "",
+    val videoTrackId: String = "",
     val album: String = "",
     val coverUrl: String = "",
     val playing: Boolean = false,
@@ -76,6 +77,7 @@ data class ImmersivePlayerState(
     val adPlaying: Boolean = false,
     /** The list the music plays from (playlist, album, Liked Songs…), or blank. */
     val contextName: String = "",
+    val contextUri: String = "",
     /** The other device the sound goes to, or null for this phone. */
     val deviceName: String? = null,
     /** The track as the options sheet wants it; null while nothing is known. */
@@ -163,6 +165,8 @@ fun rememberImmersivePlayer(navController: NavController): ImmersivePlayerBridge
         title = outgoing?.song?.title ?: title,
         artist = outgoing?.song?.artist ?: singer,
         trackId = com.music.spotui.ui.viewmodel.confirmedTrackIdForDisplay(np.uri, songId),
+        videoTrackId = com.music.spotui.ui.viewmodel.confirmedVideoTrackId(np.uri, songId,
+            com.music.spotui.di.LocalPlayer.current()?.id, com.music.spotui.di.LocalPlayer.current()?.let(com.music.spotui.di.LocalPlayer::youtubeIdOf)),
         album = album,
         coverUrl = app.myspoti.host.android.Covers.large(cover),
         playing = playing,
@@ -178,6 +182,7 @@ fun rememberImmersivePlayer(navController: NavController): ImmersivePlayerBridge
         explicit = np.explicit,
         adPlaying = adPlaying,
         contextName = np.contextName.ifBlank { SongPlayer.knownContextName(np.contextUri) }.ifBlank { album },
+        contextUri = np.contextUri.takeUnless { np.provider == "queue" }.orEmpty(),
         deviceName = device,
         song = if (title.isBlank()) null else nowPlayingSong(vm),
         blend = blend,

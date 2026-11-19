@@ -131,7 +131,7 @@ object YtmParse {
                 ?: deep(r.o("menu"), "playlistEditEndpoint").flatMap { it.a("actions").orEmpty() }
                     .mapNotNull { it.o() }.firstOrNull { it.s("removedVideoId") == videoId }?.s("setVideoId")
             return Item.Song(Track(uri("track", videoId), title, length, artists, albumIn(rest, imgs), explicit(r), playable = !greyed,
-                uid = entryId))
+                uid = entryId, images = imgs))
         }
         val (id, type) = browse ?: return null
         return card(title, id, type, rest, imgs)
@@ -148,7 +148,7 @@ object YtmParse {
             val watch = watchOf(c) ?: return null
             val videoId = watch.s("videoId") ?: return null
             if (videoType(watch) == EPISODE) return null
-            return Item.Song(Track(uri("track", videoId), title, 0, artistsIn(sub), albumIn(sub, imgs), explicit(c)))
+            return Item.Song(Track(uri("track", videoId), title, 0, artistsIn(sub), albumIn(sub, imgs), explicit(c), images = imgs))
         }
         val item = card(title, id, type, sub, imgs)
         if (item !is Item.PlaylistItem) return item
@@ -223,7 +223,7 @@ object YtmParse {
         val imgs = images(c.o("thumbnail"))
         val browse = browseOf(t)
         if (browse != null) card(title, browse.first, browse.second, sub, imgs)
-        else watchOf(t)?.s("videoId")?.let { Item.Song(Track(uri("track", it), title, sub.mapNotNull { r -> r.s("text") }.firstNotNullOfOrNull(::lengthMs) ?: 0, artistsIn(sub), albumIn(sub, imgs))) }
+        else watchOf(t)?.s("videoId")?.let { Item.Song(Track(uri("track", it), title, sub.mapNotNull { r -> r.s("text") }.firstNotNullOfOrNull(::lengthMs) ?: 0, artistsIn(sub), albumIn(sub, imgs), images = imgs)) }
     }
 
     /** A search answer: its top result, then its shelves' rows and cards, each item once. */
@@ -315,7 +315,7 @@ object YtmParse {
         return Track(
             uri("track", videoId), title, lengthMs(text(r.o("lengthText"))) ?: 0L,
             artistsIn(byline).ifEmpty { byline.firstOrNull()?.s("text")?.let { listOf(ArtistRef("", it)) }.orEmpty() },
-            albumIn(byline, imgs), explicit(r),
+            albumIn(byline, imgs), explicit(r), images = imgs,
         )
     }
 }

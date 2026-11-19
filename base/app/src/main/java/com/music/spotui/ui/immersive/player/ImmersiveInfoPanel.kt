@@ -95,9 +95,26 @@ private fun rememberSongInfo(state: ImmersivePlayerState): SongInfo? = rememberS
 
 @Composable
 internal fun rememberSongInfo(trackId: String, title: String, artist: String): SongInfo? {
-    val info by produceState<SongInfo?>(null, trackId, title) {
+    val nowUri = SongPlayer.nowPlaying.value.uri
+    val current = SongPlayer.engineQueue.value.current
+    val info by produceState<SongInfo?>(null, trackId, title, nowUri, current?.artistIds) {
         value = null
-        if (trackId.isBlank()) { value = SongInfo(null, null, null, about(trackId, title, artist)); return@produceState }
+        if (trackId.isBlank()) {
+            val native = nowUri.takeIf { it.startsWith("ytmusic:track:") }
+            val artistUri = current?.takeIf { native != null && it.url == "catalog:$native" }?.artistIds?.firstOrNull { it.startsWith("ytmusic:artist:") }
+                ?: native?.let { uri ->
+                    try { com.music.spotui.di.YtmRuntime.account.metadata.track(uri).artists.firstOrNull { it.uri.startsWith("ytmusic:artist:") }?.uri }
+                    catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                    catch (e: Exception) { null }
+                }
+            val page = artistUri?.let { uri ->
+                try { MyspotiRuntime.api.catalog.artistPage(uri) }
+                catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                catch (e: Exception) { null }
+            }
+            value = SongInfo(page, null, null, about(trackId, title, artist))
+            return@produceState
+        }
         val refs = runCatching { com.music.spotui.ui.components.ArtistChooser.artistsOf(trackId, artist) }.getOrDefault(emptyList())
         val first = refs.firstOrNull { it.uri.startsWith("spotify:artist:") }
         val page = first?.let { runCatching { MyspotiRuntime.api.catalog.artistPage(it.uri) }.getOrNull() }
@@ -318,7 +335,9 @@ private fun ArtistCard(i: SongInfo, actions: ImmersivePlayerActions) {
     val scope = rememberCoroutineScope()
     var following by remember(a.uri) { mutableStateOf<Boolean?>(null) }
     androidx.compose.runtime.LaunchedEffect(a.uri) {
-        following = runCatching { MyspotiRuntime.api.library.contains(listOf(a.uri)).firstOrNull() }.getOrNull()
+        following = if ((a.uri.startsWith("spotify:artist:") && !com.music.spotui.di.YtmRuntime.chosen) ||
+            (Regex("ytmusic:artist:UC[A-Za-z0-9_-]{22}").matches(a.uri) && com.music.spotui.di.YtmRuntime.chosen))
+            runCatching { MyspotiRuntime.api.library.contains(listOf(a.uri)).firstOrNull() }.getOrNull() else null
     }
     val photo = (page.headerImages.ifEmpty { a.images }).maxByOrNull { it.width ?: 0 }?.url
     val shape = RoundedCornerShape(20.dp)
@@ -340,7 +359,8 @@ private fun ArtistCard(i: SongInfo, actions: ImmersivePlayerActions) {
                 }
                 following?.let { on ->
                     Text(
-                        stringResource(if (on) R.string.curation_button_following_state_text else R.string.curation_button_follow_state_text),
+                        if (a.uri.startsWith("ytmusic:")) stringResource(if (on) R.string.artist_subscribed else R.string.artist_subscribe)
+                        else stringResource(if (on) R.string.curation_button_following_state_text else R.string.curation_button_follow_state_text),
                         color = tint, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.clip(RoundedCornerShape(50)).border(1.dp, tint.copy(alpha = if (on) 0.25f else 0.6f), RoundedCornerShape(50))
                             .clickable {

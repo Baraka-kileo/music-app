@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="recap_sources_with_streaming">Spotify %1$d min • Downloads %2$d min • Local files %3$d min • Other streams %4$d min</string>
+    <string name="recap_phone_source_note">Based on listening recorded by this app on this phone. It does not include listening in other apps or represent an official YouTube Music Recap.</string>
     <string name="notice_change">Change</string>
     <string name="player_info_hint">Lyrics · Artist · Credits</string>
     <string name="settings_mini_video_title">Big video in the mini player</string>
@@ -50,4 +52,8 @@
     <string name="queue_history">History</string>
     <string name="queue_history_show">Show</string>
     <string name="queue_history_hide">Hide</string>
+    <string name="queue_history_empty">No listening history yet. Songs appear after 30 seconds of listening.</string>
+    <string name="player_context_name">Playing from %1$s</string>
+    <string name="artist_subscribe">Subscribe</string>
+    <string name="artist_subscribed">Subscribed</string>
 </resources>
