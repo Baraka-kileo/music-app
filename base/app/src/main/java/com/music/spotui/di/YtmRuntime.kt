@@ -63,7 +63,7 @@ object YtmRuntime {
             val ok = runCatching { account.refreshSignIn() }.getOrDefault(false)
             signedIn = ok
             val sync = com.music.spotui.data.preferences.ConnectMirrorPref.on
-            Logbook.log("ytmusic: ${if (ok) "signed in" else "not signed in"}, listen sync ${if (sync) "on" else "off"}")
+            Logbook.log("ytmusic: ${if (ok) "signed in" else "not signed in"}, play reports ${if (com.music.spotui.data.preferences.ConnectMirrorPref.countsYouTubeMusic) "on" else "off"}")
             if (ok && sync && !com.music.spotui.data.DataSaver.active) runCatching { account.open() }
             else if (!sync && made) host.unload()
             AccountSync.listen.refresh()

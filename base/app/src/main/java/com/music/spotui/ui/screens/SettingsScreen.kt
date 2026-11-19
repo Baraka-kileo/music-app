@@ -546,7 +546,7 @@ fun SettingsScreen(navController: NavController) {
                 OptionRow(
                     label = stringResource(R.string.settings_connect_mirror_title),
                     detail = stringResource(R.string.settings_connect_mirror_detail),
-                    checked = com.music.spotui.data.preferences.ConnectMirrorPref.on,
+                    checked = com.music.spotui.data.preferences.ConnectMirrorPref.let { m -> if (com.music.spotui.data.preferences.AccountProviderPref.id == app.myspoti.api.account.AccountProviders.YTMUSIC) m.countsYouTubeMusic else m.on },
                     onChecked = { com.music.spotui.data.preferences.ConnectMirrorPref.set(ctx, it) },
                 )
             Divider()

@@ -273,10 +273,10 @@ object AccountSync {
         override val localActive: Boolean get() = LocalPlayer.active.value || watch != null
         override val routing: Boolean get() = SongPlayer.routing
         /** The setting, for the chosen provider while its account is signed in (none: never). */
-        override val enabled: Boolean get() = ConnectMirrorPref.on && when (provider) {
-            AccountProviders.YTMUSIC -> YtmRuntime.signedIn
+        override val enabled: Boolean get() = when (provider) {
+            AccountProviders.YTMUSIC -> ConnectMirrorPref.countsYouTubeMusic && YtmRuntime.signedIn
             AccountProviders.NONE -> false
-            else -> true
+            else -> ConnectMirrorPref.on
         }
         override val dataSaver: Boolean get() = com.music.spotui.data.DataSaver.active
         override val engineIntended: Boolean get() = SongPlayer.engineIntended()

@@ -1236,7 +1236,7 @@ private fun AccountsPage(back: () -> Unit) {
             row {
                 ImmersiveSwitchRow(
                     stringResource(R.string.settings_connect_mirror_title),
-                    checked = com.music.spotui.data.preferences.ConnectMirrorPref.on,
+                    checked = com.music.spotui.data.preferences.ConnectMirrorPref.let { m -> if (com.music.spotui.data.preferences.AccountProviderPref.id == app.myspoti.api.account.AccountProviders.YTMUSIC) m.countsYouTubeMusic else m.on },
                     onChecked = { com.music.spotui.data.preferences.ConnectMirrorPref.set(ctx, it) },
                     detail = stringResource(R.string.settings_connect_mirror_detail),
                 )

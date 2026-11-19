@@ -142,9 +142,21 @@ object ConnectMirrorPref {
 
     fun set(c: Context, value: Boolean) {
         on = value
-        prefs(c).edit().putBoolean(KEY, value).apply()
+        chosen = true
+        prefs(c).edit().putBoolean(KEY, value).putBoolean(CHOSEN_KEY, true).apply()
         com.music.spotui.di.AccountSync.listen.refresh()
     }
+
+    private const val CHOSEN_KEY = "connect_mirror_chosen"
+    /** The user turned the setting on or off themselves (else it holds its default). */
+    var chosen by androidx.compose.runtime.mutableStateOf(prefs(com.music.spotui.di.Graph.app).getBoolean(CHOSEN_KEY, false))
+        private set
+
+    /**
+     * YouTube Music's plays are counted by small reports (no page plays, nothing heard twice), so
+     * they are on unless the user turned the setting off: the default off is for Spotify's muted page.
+     */
+    val countsYouTubeMusic: Boolean get() = on || !chosen
 }
 
 /**
