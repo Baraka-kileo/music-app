@@ -31,6 +31,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.DownloadForOffline
+import androidx.compose.material.icons.outlined.Extension
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.LibraryMusic
+import androidx.compose.material.icons.outlined.Lyrics
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -690,9 +698,14 @@ private fun SettingsRoot(groups: List<Pair<Int, Int>>, onOpen: (Int) -> Unit) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth().clickable { com.music.spotui.di.Haptics.tick(); onOpen(id) }
-                    .padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 16.dp),
+                    .padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
             ) {
-                Text(stringResource(title), color = AppText, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                Icon(groupIcon(id), contentDescription = null, tint = AppMuted, modifier = Modifier.size(24.dp))
+                Column(Modifier.weight(1f).padding(start = 18.dp)) {
+                    Text(stringResource(title), color = AppText, fontSize = 16.sp)
+                    Text(groupSummary(id), color = AppMuted, fontSize = 13.sp, maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = AppMuted)
             }
         }
@@ -723,6 +736,35 @@ private fun SettingsRoot(groups: List<Pair<Int, Int>>, onOpen: (Int) -> Unit) {
         containerColor = tone(0xFF282828),
     )
 }
+/** Each group's mark on the first page of Settings. */
+private fun groupIcon(id: Int): androidx.compose.ui.graphics.vector.ImageVector = when (id) {
+    TAB_ACCOUNT -> Icons.Outlined.AccountCircle
+    TAB_SOURCES -> Icons.Outlined.Extension
+    TAB_LIBRARY -> Icons.Outlined.LibraryMusic
+    TAB_LYRICS -> Icons.Outlined.Lyrics
+    TAB_DOWNLOADS -> Icons.Outlined.DownloadForOffline
+    TAB_LOOK -> Icons.Outlined.Palette
+    5 -> Icons.Outlined.Info
+    else -> Icons.Outlined.PlayCircle
+}
+
+/**
+ * The line under a group's name: what is set now where it says something at a glance (the music
+ * account, the look, the version), else what the group holds, so nobody opens each one to find a row.
+ */
+@Composable
+private fun groupSummary(id: Int): String = when (id) {
+    TAB_ACCOUNT -> stringResource(R.string.settings_root_account, com.music.spotui.ui.components.accountProviderLabel(com.music.spotui.data.preferences.AccountProviderPref.id))
+    TAB_SOURCES -> stringResource(R.string.settings_root_sources)
+    TAB_LIBRARY -> stringResource(R.string.settings_root_library)
+    TAB_LYRICS -> stringResource(R.string.settings_root_lyrics)
+    TAB_DOWNLOADS -> stringResource(R.string.settings_root_downloads)
+    TAB_LOOK -> stringResource(R.string.settings_root_look, stringResource(
+        if (com.music.spotui.data.preferences.LookPref.look == com.music.spotui.data.preferences.Look.CLASSIC) R.string.look_classic else R.string.look_immersive))
+    5 -> stringResource(R.string.settings_root_about, app.myspoti.engine.BuildConfig.VERSION_NAME)
+    else -> stringResource(R.string.settings_root_playback)
+}
+
 private const val TAB_SOURCES = 1
 private const val TAB_LYRICS = 2
 private const val TAB_DOWNLOADS = 3

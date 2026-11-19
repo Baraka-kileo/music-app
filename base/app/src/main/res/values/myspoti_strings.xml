@@ -827,6 +827,15 @@
     <string name="login_help_restart">Start over</string>
     <string name="login_help_slow">Taking too long? Send a diagnostic report</string>
     <string name="settings_sources_tab">Sources</string>
+    <!-- Settings' first page: the line under each group's name. -->
+    <string name="settings_root_account">%1$s · other devices, moving to a new phone</string>
+    <string name="settings_root_sources">Extensions, where songs play and download from</string>
+    <string name="settings_root_playback">Quality, autoplay, transitions, equalizer</string>
+    <string name="settings_root_library">Hidden songs, Live Radio</string>
+    <string name="settings_root_lyrics">Translation, word by word, screen on</string>
+    <string name="settings_root_downloads">Download source, lyrics, storage</string>
+    <string name="settings_root_look">%1$s look · theme, language, video</string>
+    <string name="settings_root_about">Version %1$s · updates, report a problem</string>
     <string name="settings_sources_detail">Which extension plays and downloads first</string>
     <string name="settings_sources_none">No extension plays or downloads music yet: Spotify plays everything. Add one in Extensions.</string>
     <string name="ext_settings_header">Extension settings</string>
