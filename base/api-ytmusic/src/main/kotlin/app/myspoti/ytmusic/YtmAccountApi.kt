@@ -154,7 +154,8 @@ class YtmUserLibrary(private val api: InnerTube, private val lib: YtmLibrary) : 
 class YtmPlaylists(private val api: InnerTube, private val lib: YtmLibrary) : Playlists {
     override suspend fun playlist(uri: Uri): Playlist {
         val own = ytmUri(uri)
-        val answer = api.browse("VL" + YtmLibrary.idOf(own, "playlist"))
+        // The same page as its first songs, asked for at the same moment: read once for both.
+        val answer = lib.browseShared("VL" + YtmLibrary.idOf(own, "playlist"))
         val h = YtmParse.header(answer)
         val name = h?.title ?: throw java.io.IOException("YouTube Music: the playlist was not read")
         val count = h.subtitle.firstNotNullOfOrNull { COUNT.find(it)?.groupValues?.get(1)?.filter(Char::isDigit)?.toIntOrNull() }

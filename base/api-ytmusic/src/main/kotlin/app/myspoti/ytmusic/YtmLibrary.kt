@@ -20,6 +20,7 @@ import app.myspoti.api.Track
 import app.myspoti.api.Uri
 import app.myspoti.api.account.AccountLibrary
 import app.myspoti.ytmusic.YtmParse.Item
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonObject
 
 /** The account's library on YouTube Music, read on the user's session ([api]): Liked music, its playlists, its history. */
@@ -43,10 +44,62 @@ class YtmLibrary(private val api: InnerTube, private val maxPages: Int = 20) : A
         }
     }
 
+    /**
+     * Where the reading of a list stopped: the songs read so far and the token of the next page.
+     * A page after the first goes on from here instead of reading the list again from its top
+     * (a 1000-song playlist cost 55 requests, one more at each page, instead of 10).
+     */
+    private class Cursor(val tracks: ArrayList<Track>, var token: String?, val seen: HashSet<String>, var pages: Int, val at: Long) {
+        val lock = kotlinx.coroutines.sync.Mutex()
+    }
+    private val cursors = java.util.Collections.synchronizedMap(object : LinkedHashMap<String, Cursor>(8, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Cursor>) = size > CURSORS_KEPT
+    })
+
+    /** A list's first page asked twice at once (its details and its songs): one request answers both. */
+    private val shared = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, kotlinx.coroutines.CompletableDeferred<JsonObject>>>()
+
+    internal suspend fun browseShared(browseId: String): JsonObject {
+        val now = System.currentTimeMillis()
+        val mine = now to kotlinx.coroutines.CompletableDeferred<JsonObject>()
+        val got = shared.compute(browseId) { _, old -> if (old != null && now - old.first < SHARE_MS) old else mine }!!
+        if (got !== mine) {
+            return try { got.second.await() } catch (e: Throwable) {
+                // The first asker failed or was cancelled: this one asks for itself.
+                kotlinx.coroutines.currentCoroutineContext().let { if (it[kotlinx.coroutines.Job]?.isActive == false) throw e }
+                api.browse(browseId)
+            }
+        }
+        return try { api.browse(browseId).also { mine.second.complete(it) } } catch (e: Throwable) {
+            shared.remove(browseId, mine); mine.second.completeExceptionally(e); throw e
+        }
+    }
+
     private suspend fun page(browseId: String, offset: Int, limit: Int): Page<Track> {
-        val (all, more) = songs(browseId, offset + limit)
+        val needed = offset + limit
+        val now = System.currentTimeMillis()
+        // The first page is always read anew (a reopened list shows its changes); the next ones
+        // follow the reading under way when it is recent.
+        val kept = if (offset == 0) null else cursors[browseId]?.takeIf { now - it.at < CURSOR_MS && it.tracks.size >= offset }
+        val cursor = kept ?: run {
+            val first = browseShared(browseId)
+            Cursor(ArrayList(YtmParse.rows(first).filterIsInstance<Item.Song>().map { it.track }), YtmParse.continuation(first), HashSet(), 1, now)
+                .also { cursors[browseId] = it }
+        }
+        val (all, more) = cursor.lock.withLock {
+            while (cursor.tracks.size < needed) {
+                val token = cursor.token ?: break
+                if (cursor.pages >= maxPages) throw java.io.IOException("YouTube Music returned more pages than the safety limit")
+                if (!cursor.seen.add(token)) throw java.io.IOException("YouTube Music repeated a continuation token")
+                val answer = api.browseMore(token)
+                cursor.pages++
+                cursor.tracks += YtmParse.rows(answer).filterIsInstance<Item.Song>().map { it.track }
+                cursor.token = YtmParse.continuation(answer)
+            }
+            cursor.tracks.toList() to (cursor.token != null)
+        }
         val items = all.drop(offset).take(limit)
-        val hasNext = all.size > offset + limit || more
+        val hasNext = all.size > needed || more
         return Page(items, offset, if (more) all.size + 1 else all.size, if (hasNext) offset + items.size else null)
     }
 
@@ -160,3 +213,9 @@ class YtmMetadata(private val api: InnerTube) : Search, Catalog {
     override suspend fun appearsOn(uri: Uri): List<Album> = emptyList()
     override suspend fun similarAlbums(trackUri: Uri, limit: Int): List<Album> = emptyList()
 }
+
+/** Readings of lists kept to go on from, and how long one stays usable. */
+private const val CURSORS_KEPT = 6
+private const val CURSOR_MS = 5 * 60_000L
+/** How long a first page just asked for answers another ask for it. */
+private const val SHARE_MS = 10_000L

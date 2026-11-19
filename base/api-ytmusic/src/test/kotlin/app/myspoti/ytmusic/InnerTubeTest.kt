@@ -266,4 +266,19 @@ class InnerTubeTest {
         assertEquals("Artist A", m.artistPage("ytmusic:artist:UCartistA000000000000000").artist.name)
         assertNull(m.isrc("ytmusic:track:vidAAAAAAA1"))
     }
+
+    @Test fun `a playlist's next page goes on from the last one instead of reading it again from the top`() = runTest {
+        val rec = Recorded { r, _ -> if (r.url.queryParameter("ctoken") == "TOKEN-PAGE-2") fixtureText("liked-more") else fixtureText("liked") }
+        val service = api(rec)
+        val playlists = YtmPlaylists(service, YtmLibrary(service))
+        val first = playlists.tracks("ytmusic:playlist:PLtest", 0, 2)
+        assertEquals(1, rec.requests.size)
+        val next = playlists.tracks("ytmusic:playlist:PLtest", first.nextOffset!!, 2)
+        assertEquals(listOf("Song Three"), next.items.map { it.name })
+        // One continuation, not the first page again plus the continuation.
+        assertEquals(2, rec.requests.size)
+        // The details read just after share the first page already asked for.
+        playlists.playlist("ytmusic:playlist:PLtest")
+        assertEquals(2, rec.requests.size)
+    }
 }
