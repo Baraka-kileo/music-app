@@ -767,7 +767,7 @@ private fun ContextContent(navController: NavController, vm: ContextViewModel, p
     val findable = p.type == "liked" || p.type == "playlist"
     val all by remember(p) {
         derivedStateOf {
-            if (p.type == "liked" || p.type == "liked-artist") p.tracks.filter { SongPlayer.library["spotify:track:${it.spotifyTrackId}"] != false } else p.tracks
+            if (p.type == "liked" || p.type == "liked-artist") p.tracks.filter { s -> com.music.spotui.di.songLibraryUri(s, com.music.spotui.di.YtmRuntime.chosen)?.let { SongPlayer.library[it] } != false } else p.tracks
         }
     }
     // An own playlist in its own order: its songs can be moved by hand, a handle on each while

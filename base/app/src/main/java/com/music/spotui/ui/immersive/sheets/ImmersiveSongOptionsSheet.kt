@@ -320,14 +320,14 @@ fun ImmersiveSongOptionsSheet(
                 navController.navigate(com.music.spotui.ui.navigation.Routes.Equalizer.route)
             }
         }
-        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Share, stringResource(R.string.context_menu_share), enabled = hasId || isRadio) {
+        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Share, stringResource(R.string.context_menu_share), enabled = hasId || isRadio || com.music.spotui.ui.viewmodel.PlayerViewModel.youtubeVideoOf(song) != null) {
             // A station has no Spotify uri: shared as plain text, never through a Spotify Code.
             if (isRadio) com.music.spotui.radio.RadioPlayer.share(context)
-            else SpotifyCode.show(ShareTarget("spotify:track:${song.spotifyTrackId}", song.title, song.singer, song.coverUri))
+            else SpotifyCode.show(ShareTarget(SpotifyCode.songUri(song), song.title, song.singer, song.coverUri))
             onDismiss()
         }
-        if (hasId && !isRadio) ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.ContentCopy, stringResource(R.string.copy_link)) {
-            SpotifyCode.copyLink(context, "spotify:track:${song.spotifyTrackId}"); onDismiss()
+        if ((hasId || com.music.spotui.ui.viewmodel.PlayerViewModel.youtubeVideoOf(song) != null) && !isRadio) ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.ContentCopy, stringResource(R.string.copy_link)) {
+            SpotifyCode.copyLink(context, SpotifyCode.songUri(song)); onDismiss()
         }
         if (nowPlaying) {
             ImmersiveSheetRow(

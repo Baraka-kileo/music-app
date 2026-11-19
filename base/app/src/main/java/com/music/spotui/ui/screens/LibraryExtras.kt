@@ -591,7 +591,9 @@ internal fun removable(entry: LibraryEntry, me: String? = com.music.spotui.data.
     val uri = entry.uri
     if (entry.isFolder) return false
     if (uri.startsWith("spotify:playlist:")) return me != null && entry.ownerUri.isNotBlank() && entry.ownerUri != "spotify:user:$me"
-    return uri.startsWith("spotify:album:") || uri.startsWith("spotify:artist:") || uri.startsWith("spotify:show:")
+    return uri.startsWith("spotify:album:") || uri.startsWith("spotify:artist:") || uri.startsWith("spotify:show:") ||
+        // YouTube Music's saved albums and subscribed artists (its saved playlists: see LibraryItemSheet).
+        uri.startsWith("ytmusic:album:") || uri.startsWith("ytmusic:artist:")
 }
 
 /**
@@ -627,10 +629,12 @@ fun LibraryItemSheet(entry: LibraryEntry, onDismiss: () -> Unit, onChanged: () -
                         com.music.spotui.di.CollectionQueue.queue(entry.uri, next = false); onDismiss()
                     }
                 }
-                SheetRow(Icons.Outlined.PushPin, stringResource(if (entry.pinned) R.string.library_unpin else R.string.library_pin)) {
+                // Pins and folders are Spotify's: YouTube Music's library has neither (they only failed).
+                val onYtm = entry.uri.startsWith("ytmusic:")
+                if (!onYtm) SheetRow(Icons.Outlined.PushPin, stringResource(if (entry.pinned) R.string.library_unpin else R.string.library_pin)) {
                     act(LibraryEdits.Pin(entry.uri, !entry.pinned)) { if (entry.pinned) api.library.unpin(entry.uri) else api.library.pin(entry.uri) }
                 }
-                if (entry.isPlaylist || entry.isFolder) SheetRow(Icons.Outlined.DriveFileMove, stringResource(R.string.library_move_to_folder)) { moving = true }
+                if (!onYtm && (entry.isPlaylist || entry.isFolder)) SheetRow(Icons.Outlined.DriveFileMove, stringResource(R.string.library_move_to_folder)) { moving = true }
                 // A saved playlist or album: all its songs into another playlist of yours.
                 if (entry.uri.startsWith("spotify:playlist:") || entry.uri.startsWith("spotify:album:"))
                     SheetRow(Icons.AutoMirrored.Filled.PlaylistAdd, stringResource(R.string.context_menu_add_to_playlist)) { merging = true }
@@ -638,7 +642,13 @@ fun LibraryItemSheet(entry: LibraryEntry, onDismiss: () -> Unit, onChanged: () -
                 // Someone else's playlist, an album, an artist or a show: out of the library from here,
                 // without opening it and relying on its heart (reported: a playlist listed with an
                 // empty heart could not be taken out).
-                if (removable(entry)) SheetRow(Icons.Outlined.RemoveCircleOutline, stringResource(R.string.whats_new_remove_library)) {
+                // A YouTube Music playlist saved from someone else (one the user cannot edit) leaves the library too.
+                val ytmSaved by androidx.compose.runtime.produceState(false, entry.uri) {
+                    if (entry.uri.startsWith("ytmusic:playlist:") && entry.uri.substringAfterLast(':').removePrefix("VL") != "LM") value = runCatching {
+                        entry.uri.substringAfterLast(':').removePrefix("VL") !in com.music.spotui.data.api.EditablePlaylists.ids()
+                    }.getOrDefault(false)
+                }
+                if (removable(entry) || ytmSaved) SheetRow(Icons.Outlined.RemoveCircleOutline, stringResource(R.string.whats_new_remove_library)) {
                     com.music.spotui.di.SongPlayer.setSaved(entry.uri, false); onDismiss()
                 }
             } else {

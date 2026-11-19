@@ -101,6 +101,7 @@ fun PlaylistOptionsSheet(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val onYtm = page.uri.startsWith("ytmusic:playlist:")
     fun isMine() = com.music.spotui.data.api.ProfileCache.id?.let { page.ownerUri == "spotify:user:$it" } == true
     // The profile id is fetched once per session and is no Compose state: read again until it
     // is there (opened before it was, the sheet never showed the owner's options at all).
@@ -109,6 +110,9 @@ fun PlaylistOptionsSheet(
         com.music.spotui.data.api.ProfileCache.ensure(context)
         kotlinx.coroutines.withTimeoutOrNull(5_000) { while (com.music.spotui.data.api.ProfileCache.id == null) kotlinx.coroutines.delay(100) }
         mine = isMine()
+        // A YouTube Music playlist is the user's when YouTube Music lets them edit it (it has no
+        // Spotify owner): its edit, privacy and delete rows were never offered before.
+        if (onYtm) mine = runCatching { page.uri.substringAfterLast(':').removePrefix("VL") in com.music.spotui.data.api.EditablePlaylists.ids() }.getOrDefault(false)
     }
     var access by remember { mutableStateOf<PlaylistAccess?>(null) }
     var published by remember { mutableStateOf<Boolean?>(null) }
@@ -185,7 +189,8 @@ fun PlaylistOptionsSheet(
                 OptionRow(Icons.Outlined.Edit, stringResource(R.string.playlist_edit_details)) { editing = true }
                 // Collaborative is not enough: only those who open its invitation link can add songs
                 // (a plain link only shows it). Inviting makes it collaborative, as in the official app.
-                OptionRow(Icons.Outlined.PersonAdd, stringResource(R.string.playlist_invite_collaborators)) {
+                // Collaborators and the profile are Spotify's: YouTube Music has neither here.
+                if (!onYtm) OptionRow(Icons.Outlined.PersonAdd, stringResource(R.string.playlist_invite_collaborators)) {
                     if (access != PlaylistAccess.COLLABORATIVE) setAccess(PlaylistAccess.COLLABORATIVE)
                     scope.launch {
                         val link = runCatching { MyspotiRuntime.api.playlists.collaboratorInvite(page.uri) }.getOrNull()
@@ -211,7 +216,7 @@ fun PlaylistOptionsSheet(
                     else -> OptionRow(Icons.Outlined.Lock, stringResource(R.string.playlist_make_private)) { change(PlaylistAccess.PRIVATE, R.string.playlist_now_private) }
                 }
                 // Only a playlist others may see can be listed on the profile.
-                if (a != null && a != PlaylistAccess.PRIVATE && published != null) {
+                if (!onYtm && a != null && a != PlaylistAccess.PRIVATE && published != null) {
                     val on = published == true
                     OptionRow(if (on) Icons.Outlined.PersonRemove else Icons.Outlined.Person,
                         stringResource(if (on) R.string.playlist_remove_profile else R.string.playlist_add_profile)) {

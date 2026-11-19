@@ -52,10 +52,11 @@ import kotlinx.coroutines.launch
 fun ArtistOptionsSheet(artistId: String, artistName: String, artistImage: String = "", onDismiss: () -> Unit) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val uri = "spotify:artist:$artistId"
+    // Spotify's artists by their bare id, another catalog's (YouTube Music's) by their whole uri.
+    val uri = if (artistId.contains(':')) artistId else "spotify:artist:$artistId"
     // null = not known yet (or the call failed): the ban row stays disabled rather than lying.
     val banned by produceState<Boolean?>(null, uri) {
-        if (artistId.isBlank()) return@produceState
+        if (artistId.isBlank() || !uri.startsWith("spotify:")) return@produceState
         value = runCatching {
             app.myspoti.host.android.MyspotiRuntime.api.extras.isArtistBanned(listOf(uri)).single()
         }.getOrNull()
@@ -70,11 +71,11 @@ fun ArtistOptionsSheet(artistId: String, artistName: String, artistImage: String
             HorizontalDivider(color = tone(0xFF3E3E3E), thickness = 0.5.dp)
             Spacer(Modifier.height(8.dp))
             ArtistMenuRow(Icons.Default.Share, stringResource(R.string.share_link), enabled = artistId.isNotBlank()) {
-                SpotifyCode.show(ShareTarget("spotify:artist:$artistId", artistName, coverUri = artistImage))
+                SpotifyCode.show(ShareTarget(uri, artistName, coverUri = artistImage))
                 onDismiss()
             }
             ArtistMenuRow(Icons.Default.ContentCopy, stringResource(R.string.copy_link), enabled = artistId.isNotBlank()) {
-                SpotifyCode.copyLink(context, "spotify:artist:$artistId"); onDismiss()
+                SpotifyCode.copyLink(context, uri); onDismiss()
             }
             ArtistMenuRow(
                 Icons.Default.Block,

@@ -73,8 +73,29 @@ import java.io.File
 
 /** What a share sheet is about: a Spotify uri (track, album, playlist, artist, show, episode). */
 data class ShareTarget(val uri: String, val title: String, val subtitle: String = "", val coverUri: String = "") {
-    /** The open.spotify.com link of [uri]. */
-    val link: String get() = uri.split(':').let { p -> if (p.size >= 3 && p[0] == "spotify") "https://open.spotify.com/${p[1]}/${p[2]}" else uri }
+    /** The web link of [uri]: open.spotify.com for Spotify's, music.youtube.com for YouTube Music's. */
+    val link: String get() = linkOf(uri)
+
+    /** Spotify's own item: only those have a Spotify Code. */
+    val onSpotify: Boolean get() = uri.startsWith("spotify:")
+
+    companion object {
+        fun linkOf(uri: String): String {
+            val p = uri.split(':')
+            if (p.size < 3) return uri
+            val id = p.drop(2).joinToString(":")
+            return when (p[0]) {
+                "spotify" -> "https://open.spotify.com/${p[1]}/$id"
+                "ytmusic" -> when (p[1]) {
+                    "track" -> "https://music.youtube.com/watch?v=$id"
+                    "playlist" -> "https://music.youtube.com/playlist?list=${id.removePrefix("VL")}"
+                    "artist" -> if (id.startsWith("UC")) "https://music.youtube.com/channel/$id" else "https://music.youtube.com/browse/$id"
+                    else -> "https://music.youtube.com/browse/$id"
+                }
+                else -> uri
+            }
+        }
+    }
 }
 
 /**
@@ -87,8 +108,12 @@ object SpotifyCode {
 
     fun show(target: ShareTarget) { request.value = target }
 
-    /** Copies the open.spotify.com link of [uri] (a menu's "Copy link", as in the official app). */
+    /** Copies the web link of [uri] (a menu's "Copy link", as in the official app). */
     fun copyLink(context: Context, uri: String) = copy(context, ShareTarget(uri, "").link)
+
+    /** The uri a song is shared by: a YouTube Music song's own, else its Spotify track. */
+    fun songUri(song: com.music.spotui.data.entity.SongsModel): String =
+        com.music.spotui.ui.viewmodel.PlayerViewModel.youtubeVideoOf(song)?.let { "ytmusic:track:$it" } ?: "spotify:track:${song.spotifyTrackId}"
 
     /**
      * Spotify's own image of the code of [uri]: its logo and bars, [bars] ("white" or "black") on
@@ -169,14 +194,14 @@ fun SpotifyCodeSheet(target: ShareTarget, onDismiss: () -> Unit) {
                     textAlign = TextAlign.Center, modifier = Modifier.padding(top = 14.dp))
                 if (target.subtitle.isNotBlank()) Text(target.subtitle, color = text.copy(alpha = 0.75f), fontSize = 14.sp, maxLines = 1,
                     overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
-                GlideImage(
+                if (target.onSpotify) GlideImage(
                     model = SpotifyCode.imageUrl(target.uri, background, bars),
                     contentDescription = stringResource(R.string.spotify_code_description),
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.padding(top = 14.dp).fillMaxWidth().aspectRatio(4f),
                 )
             }
-            Text(stringResource(R.string.spotify_code_hint), color = AppMuted, fontSize = 13.sp, textAlign = TextAlign.Center,
+            if (target.onSpotify) Text(stringResource(R.string.spotify_code_hint), color = AppMuted, fontSize = 13.sp, textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 12.dp))
             // The link itself, under the code.
             Text(target.link, color = AppText.copy(alpha = 0.85f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -186,7 +211,8 @@ fun SpotifyCodeSheet(target: ShareTarget, onDismiss: () -> Unit) {
                 ShareAction(Icons.Outlined.ContentCopy, stringResource(R.string.copy_link)) { copy(context, target.link); onDismiss() }
                 ShareAction(Icons.Outlined.Share, stringResource(R.string.share_link)) { SpotifyCode.shareLink(context, target); onDismiss() }
                 val chooser = stringResource(R.string.action_share_label)
-                ShareAction(Icons.Outlined.Image, stringResource(R.string.spotify_code_share_image)) {
+                // The code picture is Spotify's: a YouTube Music item shares its link only.
+                if (target.onSpotify) ShareAction(Icons.Outlined.Image, stringResource(R.string.spotify_code_share_image)) {
                     scope.launch { SpotifyCode.shareImage(context, target, background, chooser); onDismiss() }
                 }
             }
