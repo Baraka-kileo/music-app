@@ -55,6 +55,9 @@ object CollectionQueue {
             uri.startsWith("spotify:album:") -> api.getAlbumPage(id)
             uri == "spotify:collection:tracks" -> api.getLikedPage()
             uri.startsWith("spotify:playlist:") -> api.getPlaylistPage(id)
+            // Another provider's (YouTube Music): its whole uri is its id.
+            uri.startsWith("ytmusic:album:") -> api.getAlbumPage(uri)
+            uri.startsWith("ytmusic:playlist:") -> api.getPlaylistPage(uri)
             else -> return null
         }
         val last = withTimeoutOrNull(READ_MS) { flow.first { it is Response.Error || (it is Response.Success && it.data.complete) } }

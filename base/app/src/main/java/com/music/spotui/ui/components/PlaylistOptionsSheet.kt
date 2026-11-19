@@ -112,7 +112,10 @@ fun PlaylistOptionsSheet(
         mine = isMine()
         // A YouTube Music playlist is the user's when YouTube Music lets them edit it (it has no
         // Spotify owner): its edit, privacy and delete rows were never offered before.
-        if (onYtm) mine = runCatching { page.uri.substringAfterLast(':').removePrefix("VL") in com.music.spotui.data.api.EditablePlaylists.ids() }.getOrDefault(false)
+        // Its own page says so (the library lists own and saved playlists alike); the library's
+        // editable list when the page could not be read.
+        if (onYtm) mine = runCatching { MyspotiRuntime.api.playlists.playlist(page.uri).editable }.getOrNull()
+            ?: runCatching { page.uri.substringAfterLast(':').removePrefix("VL") in com.music.spotui.data.api.EditablePlaylists.ids() }.getOrDefault(false)
     }
     var access by remember { mutableStateOf<PlaylistAccess?>(null) }
     var published by remember { mutableStateOf<Boolean?>(null) }

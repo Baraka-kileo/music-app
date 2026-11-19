@@ -357,7 +357,8 @@ fun LibraryScreen(navController: NavController) {
                 val chipRetry: (() -> Unit)? = if (podcasts && showsLoad is Response.Error) { { libraryViewModel.loadFollowedShows() } } else null
                 if (podcasts && showsLoad is Response.Loading) LibrarySkeleton(PaddingValues(0.dp))
                 else if (gridView) LibraryGridScreen(PaddingValues(0.dp), filteredEntries, filteredArtists, navController,
-                    reorderLevel = if (movable) LibraryOrder.ROOT else null, pinned = rootPinned, note = chipNote, onRetry = chipRetry)
+                    reorderLevel = if (movable) LibraryOrder.ROOT else null, pinned = rootPinned, note = chipNote, onRetry = chipRetry,
+                    onChanged = { libraryViewModel.load() })
                 else SumUpLibraryScreen(PaddingValues(0.dp), filteredEntries, filteredArtists, navController,
                     reorderLevel = if (movable) LibraryOrder.ROOT else null, pinned = rootPinned,
                     onChanged = { libraryViewModel.load() }, note = chipNote, onRetry = chipRetry)
@@ -680,11 +681,16 @@ fun LibraryGridScreen(
     /** As in [SumUpLibraryScreen]. */
     note: String? = null,
     onRetry: (() -> Unit)? = null,
+    /** After the item menu changed the library (as in the list view). */
+    onChanged: () -> Unit = {},
 ) {
     if (entries.isEmpty() && followedArtists.isEmpty() && note == null) {
         Box(modifier = Modifier.padding(20.dp, 40.dp)) { Snackbar(showMessage = stringResource(R.string.library_empty)) }
         return
     }
+    // The list view's menu, from each tile's ⋮ (its long press moves the tile).
+    var itemMenu by remember { mutableStateOf<LibraryEntry?>(null) }
+    itemMenu?.let { LibraryItemSheet(it, onDismiss = { itemMenu = null }, onChanged = onChanged) }
     val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
     // Same re-tap shortcut as the list view: the grid animates back to its first tile.
     androidx.compose.runtime.LaunchedEffect(Unit) {
@@ -806,8 +812,14 @@ fun LibraryGridScreen(
                     .clip(RoundedCornerShape(if (entry.isPlaylist) 6.dp else 4.dp)),
                 )
                 Spacer(modifier = Modifier.height(6.dp))
-                Text(text = entry.name, color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(text = entry.subtitle, color = AppMuted, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(text = entry.name, color = AppText, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(text = entry.subtitle, color = AppMuted, fontSize = 11.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    Icon(Icons.Default.MoreVert, stringResource(R.string.content_description_context_menu),
+                        tint = AppMuted, modifier = Modifier.size(32.dp).clip(CircleShape).clickable { itemMenu = entry }.padding(7.dp))
+                }
             }
         }
         if (followedArtists.isNotEmpty()) {

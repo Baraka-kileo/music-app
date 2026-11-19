@@ -163,7 +163,8 @@ class YtmPlaylists(private val api: InnerTube, private val lib: YtmLibrary) : Pl
         return Playlist(
             uri = own, name = name, description = h.description,
             owner = h.artists.firstOrNull()?.name, images = h.images,
-            trackCount = count ?: YtmParse.rows(answer).count { it is Item.Song },
+            trackCount = count ?: YtmParse.playlistRows(answer).first.count { it is Item.Song },
+            editable = YtmParse.ownPlaylist(answer) == true,
         )
     }
 

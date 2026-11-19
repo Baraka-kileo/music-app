@@ -261,6 +261,7 @@ fun ImmersiveLibraryScreen(navController: NavController) {
                 pinned = pinned,
                 emptyText = chipEmpty,
                 errorText = chipError,
+                onMenu = { itemMenu = it },
             )
         } else {
             LibraryList(
@@ -727,6 +728,8 @@ private fun LibraryGrid(
     pinned: Int,
     emptyText: String? = null,
     errorText: String? = null,
+    /** The item's menu (rename, edit, remove, pin…): its ⋮, or a long press when not reordering. */
+    onMenu: (LibraryEntry) -> Unit = {},
 ) {
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
@@ -833,7 +836,10 @@ private fun LibraryGrid(
                         if (dragged) { scaleX = 1.06f; scaleY = 1.06f }
                     }
                     .pressHint { prefetchLibraryEntry(entry) }
-                    .immersiveClickable(onClick = { openLibraryEntry(entry, navController) })
+                    .immersiveClickable(
+                        onClick = { openLibraryEntry(entry, navController) },
+                        onLongClick = if (movable) null else ({ onMenu(entry) }),
+                    )
                     .then(
                         if (!movable) Modifier else Modifier.pointerInput(key) {
                             try {
@@ -858,14 +864,21 @@ private fun LibraryGrid(
                     Modifier.fillMaxWidth().aspectRatio(1f).clip(shape).background(Immersive.Raised).immersiveThumbnailBorder(shape),
                 )
                 Spacer(Modifier.height(6.dp))
-                Text(
-                    text = entry.name,
-                    style = Immersive.Subhead.copy(color = Immersive.Text, fontWeight = FontWeight.Medium),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (entry.subtitle.isNotBlank()) {
-                    Text(text = entry.subtitle, style = Immersive.Caption, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = entry.name,
+                            style = Immersive.Subhead.copy(color = Immersive.Text, fontWeight = FontWeight.Medium),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (entry.subtitle.isNotBlank()) {
+                            Text(text = entry.subtitle, style = Immersive.Caption, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    com.music.spotui.ui.immersive.components.ImmersiveMoreButton(
+                        onClick = { onMenu(entry) }, tint = Immersive.TextSecondary, iconSize = 18.dp,
+                    )
                 }
             }
         }

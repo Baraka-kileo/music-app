@@ -608,6 +608,15 @@ fun LibraryItemSheet(entry: LibraryEntry, onDismiss: () -> Unit, onChanged: () -
     var moving by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
     var merging by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf(false) }
+    var deletingPlaylist by remember { mutableStateOf(false) }
+    // A YouTube Music playlist: the account's own (rename, delete) or saved from someone else
+    // (remove). Its page says which; null until read, and for anything else.
+    val ytmPlaylist = entry.uri.startsWith("ytmusic:playlist:") && entry.uri.substringAfterLast(':').removePrefix("VL") != "LM"
+    val ytmOwn by androidx.compose.runtime.produceState<Boolean?>(null, entry.uri) {
+        if (ytmPlaylist) value = runCatching { app.myspoti.host.android.MyspotiRuntime.api.playlists.playlist(entry.uri).editable }.getOrNull()
+            ?: runCatching { entry.uri.substringAfterLast(':').removePrefix("VL") in com.music.spotui.data.api.EditablePlaylists.ids() }.getOrNull()
+    }
     // The change shows in the list at once and is written in the app's own scope (the sheet is
     // closed by then); a refusal puts the list back and says so.
     fun act(edit: LibraryEdits.Edit, block: suspend () -> Unit) {
@@ -621,7 +630,8 @@ fun LibraryItemSheet(entry: LibraryEntry, onDismiss: () -> Unit, onChanged: () -
                 modifier = Modifier.padding(20.dp, 0.dp, 20.dp, 8.dp))
             if (!moving) {
                 // A saved playlist or album: all its songs into the queue (read to the end first).
-                if (entry.uri.startsWith("spotify:playlist:") || entry.uri.startsWith("spotify:album:")) {
+                if (entry.uri.startsWith("spotify:playlist:") || entry.uri.startsWith("spotify:album:") ||
+                    entry.uri.startsWith("ytmusic:playlist:") || entry.uri.startsWith("ytmusic:album:")) {
                     SheetRow(Icons.AutoMirrored.Outlined.PlaylistPlay, stringResource(R.string.context_menu_play_next)) {
                         com.music.spotui.di.CollectionQueue.queue(entry.uri, next = true); onDismiss()
                     }
@@ -639,15 +649,15 @@ fun LibraryItemSheet(entry: LibraryEntry, onDismiss: () -> Unit, onChanged: () -
                 if (entry.uri.startsWith("spotify:playlist:") || entry.uri.startsWith("spotify:album:"))
                     SheetRow(Icons.AutoMirrored.Filled.PlaylistAdd, stringResource(R.string.context_menu_add_to_playlist)) { merging = true }
                 if (entry.isFolder) SheetRow(Icons.Outlined.Delete, stringResource(R.string.folder_delete)) { deleting = true }
+                if (ytmOwn == true) {
+                    SheetRow(Icons.Outlined.Edit, stringResource(R.string.local_rename)) { renaming = true }
+                    SheetRow(Icons.Outlined.Delete, stringResource(R.string.actions_picker_delete)) { deletingPlaylist = true }
+                }
                 // Someone else's playlist, an album, an artist or a show: out of the library from here,
                 // without opening it and relying on its heart (reported: a playlist listed with an
                 // empty heart could not be taken out).
                 // A YouTube Music playlist saved from someone else (one the user cannot edit) leaves the library too.
-                val ytmSaved by androidx.compose.runtime.produceState(false, entry.uri) {
-                    if (entry.uri.startsWith("ytmusic:playlist:") && entry.uri.substringAfterLast(':').removePrefix("VL") != "LM") value = runCatching {
-                        entry.uri.substringAfterLast(':').removePrefix("VL") !in com.music.spotui.data.api.EditablePlaylists.ids()
-                    }.getOrDefault(false)
-                }
+                val ytmSaved = ytmPlaylist && ytmOwn == false
                 if (removable(entry) || ytmSaved) SheetRow(Icons.Outlined.RemoveCircleOutline, stringResource(R.string.whats_new_remove_library)) {
                     com.music.spotui.di.SongPlayer.setSaved(entry.uri, false); onDismiss()
                 }
@@ -663,6 +673,23 @@ fun LibraryItemSheet(entry: LibraryEntry, onDismiss: () -> Unit, onChanged: () -
             }
         }
     }
+    if (renaming) NameDialog(stringResource(R.string.local_rename), entry.name, stringResource(R.string.local_rename),
+        onDismiss = { renaming = false }) { name ->
+        renaming = false
+        if (name.isNotBlank() && name != entry.name) act(LibraryEdits.Rename(entry.uri, name)) { api.playlists.rename(entry.uri, name) }
+        else onDismiss()
+    }
+    if (deletingPlaylist) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { deletingPlaylist = false },
+        containerColor = SheetColor,
+        text = { Text(stringResource(R.string.playlist_delete_confirm, entry.name), color = AppText) },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = { deletingPlaylist = false; act(LibraryEdits.Remove(entry.uri)) { api.playlists.delete(entry.uri) } }) {
+                Text(stringResource(R.string.actions_picker_delete), color = AppDestructive)
+            }
+        },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = { deletingPlaylist = false }) { Text(stringResource(R.string.cancel), color = AppText) } },
+    )
     if (merging) com.music.spotui.ui.components.AddCollectionToPlaylistSheet(entry.uri, entry.name) { merging = false; onDismiss() }
     if (deleting) androidx.compose.material3.AlertDialog(
         onDismissRequest = { deleting = false },

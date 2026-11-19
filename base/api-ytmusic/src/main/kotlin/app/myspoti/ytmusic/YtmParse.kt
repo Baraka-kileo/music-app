@@ -203,6 +203,32 @@ object YtmParse {
         "appendContinuationItemsAction",
     )
 
+    /**
+     * A playlist page's own songs and its next page's token, read only from the playlist's list.
+     * An account's playlist also has a "Suggestions" list under it, reached by the page's own
+     * token: followed, its songs were shown as the playlist's (a new, empty one looked full).
+     */
+    fun playlistRows(answer: JsonElement): Pair<List<Item>, String?> {
+        val containers = ROW_CONTAINERS.flatMap { deep(answer, it) }
+        val seen = java.util.IdentityHashMap<JsonObject, Boolean>()
+        val found = ArrayList<JsonObject>()
+        for (c in containers) for (r in deep(c, "musicResponsiveListItemRenderer")) if (seen.put(r, true) == null) found += r
+        return found.mapNotNull(::row) to containers.firstNotNullOfOrNull(::continuation)
+    }
+
+    /**
+     * Whether a playlist page is the account's own (it may rename, edit and delete it), or null
+     * when the page has no header to tell. The library lists own and saved playlists alike;
+     * the page says it: an editable header, or Edit / Delete in the header's menu.
+     */
+    fun ownPlaylist(answer: JsonElement): Boolean? {
+        if (deep(answer, "musicEditablePlaylistDetailHeaderRenderer").isNotEmpty()) return true
+        val h = deep(answer, "musicResponsiveHeaderRenderer").firstOrNull() ?: return null
+        // The header's own menu only: each song row has a menu with "Remove from playlist".
+        val icons = deep(h, "menuNavigationItemRenderer").mapNotNull { it.o("icon")?.s("iconType") }
+        return icons.any { it == "DELETE" || it == "EDIT" }
+    }
+
     /** The rows of an answer's lists (not those of its carousels of suggestions), in order, once each. */
     fun rows(answer: JsonElement): List<Item> {
         val containers = ROW_CONTAINERS.flatMap { deep(answer, it) }

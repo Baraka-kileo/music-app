@@ -83,7 +83,8 @@ class YtmLibrary(private val api: InnerTube, private val maxPages: Int = 20) : A
         val kept = if (offset == 0) null else cursors[browseId]?.takeIf { now - it.at < CURSOR_MS && it.tracks.size >= offset }
         val cursor = kept ?: run {
             val first = browseShared(browseId)
-            Cursor(ArrayList(YtmParse.rows(first).filterIsInstance<Item.Song>().map { it.track }), YtmParse.continuation(first), HashSet(), 1, now)
+            val (rows, token) = YtmParse.playlistRows(first)
+            Cursor(ArrayList(rows.filterIsInstance<Item.Song>().map { it.track }), token, HashSet(), 1, now)
                 .also { cursors[browseId] = it }
         }
         val (all, more) = cursor.lock.withLock {
@@ -93,8 +94,9 @@ class YtmLibrary(private val api: InnerTube, private val maxPages: Int = 20) : A
                 if (!cursor.seen.add(token)) throw java.io.IOException("YouTube Music repeated a continuation token")
                 val answer = api.browseMore(token)
                 cursor.pages++
-                cursor.tracks += YtmParse.rows(answer).filterIsInstance<Item.Song>().map { it.track }
-                cursor.token = YtmParse.continuation(answer)
+                val (found, next) = YtmParse.playlistRows(answer)
+                cursor.tracks += found.filterIsInstance<Item.Song>().map { it.track }
+                cursor.token = next
             }
             cursor.tracks.toList() to (cursor.token != null)
         }
