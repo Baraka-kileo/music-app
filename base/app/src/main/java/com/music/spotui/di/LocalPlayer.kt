@@ -334,7 +334,7 @@ object LocalPlayer {
         if (i == C.INDEX_UNSET) return
         val uri = p.getMediaItemAt(i).localConfiguration?.uri ?: return
         if (uri.scheme != com.music.spotui.extensions.ExtensionAudio.SCHEME) return
-        val youtube = com.music.spotui.extensions.Extensions.sourceLine(app.myspoti.extensions.Action.AUDIO_SOURCE)
+        val youtube = com.music.spotui.extensions.ExtensionAudio.youtubeVideoId(uri) != null || com.music.spotui.extensions.Extensions.sourceLine(app.myspoti.extensions.Action.AUDIO_SOURCE)
             .firstOrNull() == com.music.spotui.extensions.YOUTUBE_SOURCE
         val second = if (youtube) p.currentTimeline.getNextWindowIndex(i, Player.REPEAT_MODE_OFF, p.shuffleModeEnabled)
             .takeIf { it != C.INDEX_UNSET && it != p.currentMediaItemIndex && it != i }
@@ -524,7 +524,8 @@ object LocalPlayer {
         val isStation = list.singleOrNull()?.isRadio == true
         radioRetries = 0; handler.removeCallbacks(radioSteady)
         // Spotify's queued songs (the account's: maybe queued on another device or install) play first.
-        val (all, fromSpotify) = if (isStation) list to emptyList<LocalTrack>() else AccountSync.withRemoteQueue(list, index.coerceIn(0, list.lastIndex))
+        val nativeYouTube = list.getOrNull(index)?.let(::youtubeIdOf) != null
+        val (all, fromSpotify) = if (isStation || nativeYouTube) list to emptyList<LocalTrack>() else AccountSync.withRemoteQueue(list, index.coerceIn(0, list.lastIndex))
         tracks.clear(); tracks.addAll(all); unshuffled = null
         // An index kept from fading belonged to the list before: this one fades from its first song.
         noFadeFor = -1
@@ -1912,8 +1913,8 @@ object LocalPlayer {
     fun listGrew(uri: String, songs: List<LocalTrack>) {
         val p = exo ?: return
         if (!active.value || !continues || uri.isBlank() || listUri != uri) return
-        val have = tracks.mapTo(HashSet(), ::spotifyId)
-        val more = songs.filter { t -> spotifyId(t).let { it.isNotBlank() && have.add(it) } }
+        val existing = tracks.filterNot { it in radioSongs || isQueued(it) }
+        val more = QueueOccurrences.additions(existing, songs, ::queueIdentity)
         if (more.isEmpty()) return
         val at = tracks.indexOfFirst { it in radioSongs }.takeIf { it >= 0 } ?: tracks.size
         val added = if (shuffled) more.shuffled() else more
@@ -1929,6 +1930,11 @@ object LocalPlayer {
     /** The Spotify id of a song an extension streams or of a downloaded one, "" for a file of the device. */
     private fun spotifyId(t: LocalTrack?): String = t?.let(::spotifyIdOf).orEmpty()
 
+    private fun queueIdentity(t: LocalTrack?): String = t?.let {
+        youtubeIdOf(it)?.let { id -> "ytmusic:track:$id" }
+            ?: spotifyId(it).takeIf(String::isNotBlank)?.let { id -> "spotify:track:$id" }
+    }.orEmpty()
+
     /**
      * The last song of a queue the extensions play started: its song radio (what Spotify's autoplay
      * goes on with) is asked now, in the background, and added after it, each song asked to the
@@ -1936,14 +1942,38 @@ object LocalPlayer {
      */
     private fun continueIfLast(p: ExoPlayer) {
         if (p.mediaItemCount == 0 || p.currentMediaItemIndex != p.mediaItemCount - 1) return
-        val id = spotifyId(current())
+        val nativeId = current()?.let(::youtubeIdOf)
+        val id = nativeId?.let { "ytmusic:track:$it" } ?: spotifyId(current())
         if (id == radioOf || !com.music.spotui.extensions.AudioRoute.continues(continues, id,
                 repeatAll = repeat == LocalRepeat.ALL, autoplay = com.music.spotui.data.preferences.AutoplayPref.on)) return
         forgetRadio(); radioOf = id
         radio = prefetch.launch {
-            val songs = runCatching { Graph.api.getRecommendations(listOf(id)) }.getOrDefault(emptyList())
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { radioCame(p, id, songs) }
+            if (nativeId != null) {
+                val songs = try { YtmRuntime.account.library.radio(nativeId).map(Graph.api::songOf) }
+                    catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                    catch (e: Exception) { log("YouTube radio failed: ${e.javaClass.simpleName}"); emptyList() }
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { youtubeRadioCame(p, id, songs) }
+            } else {
+                val songs = runCatching { Graph.api.getRecommendations(listOf(id)) }.getOrDefault(emptyList())
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { radioCame(p, id, songs) }
+            }
         }
+    }
+
+    private fun youtubeRadioCame(p: ExoPlayer, id: String, songs: List<com.music.spotui.data.entity.SongsModel>) {
+        if (!active.value || exo !== p || radioOf != id) return
+        if (repeat == LocalRepeat.ALL) { forgetRadio(); return }
+        val have = tracks.mapTo(HashSet(), ::queueIdentity)
+        val added = songs.asSequence().filter { it.playable }
+            .mapNotNull(com.music.spotui.extensions.ExtensionAudio::youtubeTrack)
+            .filter { have.add(queueIdentity(it)) }.take(50).toList()
+            .let { if (shuffled) it.shuffled() else it }
+        if (added.isEmpty()) { radioEmpty = true; moveOnWhenReady = false; return }
+        val from = tracks.size
+        radioName = Graph.app.getString(app.myspoti.engine.R.string.song_radio_name, current()?.title.orEmpty())
+        radioSongs += added; tracks.addAll(added); p.addMediaItems(added.map(::item))
+        if (moveOnWhenReady) { moveOnWhenReady = false; skipTo(from) } else prefetchNext(p)
+        publish()
     }
 
     private fun radioCame(p: ExoPlayer, id: String, songs: List<com.music.spotui.data.entity.SongsModel>) {
@@ -1974,8 +2004,9 @@ object LocalPlayer {
      */
     private fun atEnd(p: ExoPlayer): Boolean {
         continueIfLast(p)
-        if (radioOf == null || radioOf != spotifyId(current())) return false
-        if (radioEmpty) spotifyContinues() else moveOnWhenReady = true
+        val nativeId = current()?.let(::youtubeIdOf)
+        if (radioOf == null || radioOf != (nativeId?.let { "ytmusic:track:$it" } ?: spotifyId(current()))) return false
+        if (radioEmpty) { if (nativeId != null) return false else spotifyContinues() } else moveOnWhenReady = true
         return true
     }
 
@@ -2118,8 +2149,14 @@ object LocalPlayer {
 
     /** The Spotify id of [t]: a downloaded song's, or the song an extension streams; "" for the phone's own files. */
     fun spotifyIdOf(t: LocalTrack): String =
-        com.music.spotui.data.offline.OfflineStore.byLocalId(t.id)?.trackId
-            ?: t.uri.takeIf { it.scheme == com.music.spotui.extensions.ExtensionAudio.SCHEME }?.lastPathSegment.orEmpty()
+        if (com.music.spotui.extensions.ExtensionAudio.youtubeVideoId(t.uri) != null) "" else
+        com.music.spotui.data.offline.OfflineStore.byLocalId(t.id)?.trackId?.takeIf { com.music.spotui.data.offline.OfflineTrackKey.youtubeId(it) == null }
+            ?: t.uri.takeIf { it.scheme == com.music.spotui.extensions.ExtensionAudio.SCHEME && it.authority == "track" }?.lastPathSegment.orEmpty()
+
+    fun youtubeIdOf(t: LocalTrack): String? = com.music.spotui.extensions.ExtensionAudio.youtubeVideoId(t.uri)
+        ?: t.takeIf { it.uri.scheme == "file" }?.let {
+            com.music.spotui.data.offline.OfflineStore.byLocalId(it.id)?.trackId?.let(com.music.spotui.data.offline.OfflineTrackKey::youtubeId)
+        }
 
     /**
      * A live stream drops often (a weak connection, the server's own hiccup): reconnected instead

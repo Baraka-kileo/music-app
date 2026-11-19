@@ -155,7 +155,8 @@ object AccountSync {
 
     /** [t] as the sync sees it: its Spotify id (an extension's stream keeps the track's, a download its own), title, length. */
     fun trackOf(t: LocalTrack): SyncTrack = SyncTrack(
-        ids = LocalPlayer.spotifyIdOf(t).takeIf { it.isNotBlank() }?.let { mapOf(SpotifySyncRules.PROVIDER to it) }.orEmpty(),
+        ids = LocalPlayer.youtubeIdOf(t)?.let { mapOf(app.myspoti.ytmusic.Ytm.PROVIDER to it) }
+            ?: LocalPlayer.spotifyIdOf(t).takeIf { it.isNotBlank() }?.let { mapOf(SpotifySyncRules.PROVIDER to it) }.orEmpty(),
         title = t.title, artists = listOf(t.artist).filter { it.isNotBlank() }, durationMs = t.durationMs,
     ).also { if (it.ids[provider].isNullOrBlank() && t.uri.scheme == ExtensionAudio.SCHEME) noteLive(it) }
 

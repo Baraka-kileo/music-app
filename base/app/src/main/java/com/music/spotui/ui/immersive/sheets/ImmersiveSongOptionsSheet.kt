@@ -85,7 +85,7 @@ fun ImmersiveSongOptionsSheet(
 ) {
     val playerViewModel: com.music.spotui.ui.viewmodel.PlayerViewModel =
         androidx.lifecycle.viewmodel.compose.viewModel()
-    val liked = com.music.spotui.di.rememberTrackSaved(song.spotifyTrackId)
+    val liked = com.music.spotui.di.rememberSongSaved(song)
     var showSavedIn by remember { mutableStateOf(false) }
     var showAddTo by remember { mutableStateOf(false) }
     var showSleep by remember { mutableStateOf(false) }
@@ -114,11 +114,12 @@ fun ImmersiveSongOptionsSheet(
     if (showSleep) { SleepTimerSheet(onDismiss = { showSleep = false; onDismiss() }); return }
 
     val hasId = song.spotifyTrackId.isNotBlank()
+    val canSaveSong = com.music.spotui.di.songLibraryUri(song, com.music.spotui.di.YtmRuntime.chosen) != null
     // A Live Radio station playing right now: no queue, album or artist page of its own, but
     // (unlike a track with no Spotify id) a name and homepage worth sharing.
     val isRadio = nowPlaying && com.music.spotui.radio.RadioPlayer.current() != null
     val episodeKey = com.music.spotui.data.offline.episodeKeyOf(song)
-    val downloadKey = episodeKey ?: song.spotifyTrackId
+    val downloadKey = episodeKey ?: com.music.spotui.data.offline.OfflineTrackKey.of(song).orEmpty()
     fun toast(text: String) = com.music.spotui.ui.components.AppNotice.text(text.trimEnd('.'))
 
     ImmersiveSheet(onDismiss = onDismiss, imageUrl = song.coverUri) {
@@ -129,13 +130,13 @@ fun ImmersiveSongOptionsSheet(
             // The look's like is the star, as in the player (not the official app's plus and tick).
             icon = if (liked) com.music.spotui.ui.design.AppIcons.Star else com.music.spotui.ui.design.AppIcons.StarBorder,
             label = stringResource(if (liked) R.string.collection_liked_songs_title else R.string.aligned_curation_context_menu_item_add_to_liked_songs),
-            enabled = hasId,
+            enabled = canSaveSong,
         ) {
-            SongPlayer.setTrackSaved(song.spotifyTrackId, !liked)
-            toast(context.getString(if (liked) R.string.snackbar_removed_from_liked_songs else R.string.snackbar_added_to_liked_songs))
+            SongPlayer.setSongSaved(song, !liked)
+            if (!com.music.spotui.di.YtmRuntime.chosen) toast(context.getString(if (liked) R.string.snackbar_removed_from_liked_songs else R.string.snackbar_added_to_liked_songs))
             onDismiss()
         }
-        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.PlaylistAdd, stringResource(R.string.context_menu_add_to_playlist), enabled = hasId) { showSavedIn = true }
+        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.PlaylistAdd, stringResource(R.string.context_menu_add_to_playlist), enabled = canSaveSong) { showSavedIn = true }
         // Only from inside a playlist: elsewhere it is "Add to playlist" again (one row fewer in the menu).
         if (currentPlaylistId != null) ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.PlaylistAdd, stringResource(R.string.context_menu_add_to_another_playlist), enabled = hasId) { showAddTo = true }
         if (onRemoveFromPlaylist != null) {

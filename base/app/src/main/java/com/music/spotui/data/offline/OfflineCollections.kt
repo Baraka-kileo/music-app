@@ -108,10 +108,11 @@ object OfflineCollections {
     fun downloadSong(song: SongsModel, quality: com.music.spotui.data.preferences.DownloadQuality? = null) {
         // Episodes have no track id and their own downloader (PodcastDownloader): sending one
         // here would only be dropped, or worse, hit the track download path.
-        if (song.spotifyTrackId.isBlank() || episodeKeyOf(song) != null) return
+        val id = OfflineTrackKey.of(song) ?: return
+        if (episodeKeyOf(song) != null) return
         // Kept only when the download can start: otherwise it would show as downloaded with no file.
         if (!OfflineDownloader.ready()) return
-        synchronized(lock) { singles += song.spotifyTrackId }
+        synchronized(lock) { singles += id }
         save()
         OfflineDownloader.enqueue(listOf(song), quality)
     }
@@ -136,7 +137,7 @@ object OfflineCollections {
         }
         // An episode in a list is not a track: it stays out of the collection, and the
         // list download never enqueues it (its own menu row is the way to download an episode).
-        val ids = page.tracks.map { it.spotifyTrackId }.filter { it.isNotBlank() && !isEpisodeKey(it) }.toSet()
+        val ids = page.tracks.mapNotNull(OfflineTrackKey::of).filterNot(::isEpisodeKey).toSet()
         // Marked downloaded only when the download can start (downloads on, a download extension).
         if (!OfflineDownloader.ready()) return
         collections[page.uri] = OfflineCollection(page.uri, page.type, page.name, ids, System.currentTimeMillis(), quality?.name.orEmpty())
@@ -168,11 +169,11 @@ object OfflineCollections {
     fun sync(page: ContextPageModel, allowRemoval: Boolean = true) {
         val c = collections[page.uri] ?: return
         val pending = synchronized(editLock) { edits[page.uri]?.toMap().orEmpty() }
-        if (!CollectionSyncRules.canReconcile(page.complete, page.completeForSync, page.tracks.map { it.spotifyTrackId }.toSet(), pending)) return
+        if (!CollectionSyncRules.canReconcile(page.complete, page.completeForSync, page.tracks.mapNotNull(OfflineTrackKey::of).toSet(), pending)) return
         // Episodes are never part of a downloaded list: they have their own queue and their
         // downloaded copies are kept by their own key, not by the list that shows them.
-        val songs = page.tracks.filter { it.spotifyTrackId.isNotBlank() && !isEpisodeKey(it.spotifyTrackId) }
-        val ids = songs.map { it.spotifyTrackId }.toSet()
+        val songs = page.tracks.filter { OfflineTrackKey.of(it)?.let { key -> !isEpisodeKey(key) } == true }
+        val ids = songs.mapNotNull(OfflineTrackKey::of).toSet()
         // Screen pages may be cached or optimistic. Only a fresh authoritative background read
         // may remove tracks or advance the full-sync timestamp.
         val gone = if (allowRemoval) c.trackIds - ids else emptySet()
@@ -180,7 +181,7 @@ object OfflineCollections {
             syncedAt = if (allowRemoval) System.currentTimeMillis() else c.syncedAt)
         save()
         if (allowRemoval) keepPage(page)
-        val missing = songs.filter { !OfflineStore.isDownloaded(it.spotifyTrackId) && OfflineStore.status[it.spotifyTrackId] == null }
+        val missing = songs.filter { song -> OfflineTrackKey.of(song)?.let { !OfflineStore.isDownloaded(it) && OfflineStore.status[it] == null } == true }
         if (missing.isNotEmpty()) OfflineDownloader.enqueue(missing, com.music.spotui.data.preferences.DownloadQuality.saved(c.quality), auto = true)
         gone.filterNot { isKept(it) || isEpisodeKey(it) }.forEach { OfflineDownloader.remove(it) }
         if (missing.isNotEmpty() || gone.isNotEmpty()) Log.i(TAG, "${page.name}: +${missing.size} -${gone.size}")
@@ -218,7 +219,7 @@ object OfflineCollections {
                     val page = withTimeoutOrNull(60_000) { loadComplete(c) } ?: continue
                     withContext(Dispatchers.Main) {
                         val pending = synchronized(editLock) { edits[c.uri]?.toMap().orEmpty() }
-                        if (CollectionSyncRules.reflectsEdits(page.tracks.map { it.spotifyTrackId }.toSet(), pending)) {
+                        if (CollectionSyncRules.reflectsEdits(page.tracks.mapNotNull(OfflineTrackKey::of).toSet(), pending)) {
                             sync(page)
                             synchronized(editLock) { if (edits[c.uri] == pending) edits.remove(c.uri) }
                         }
@@ -253,7 +254,7 @@ object OfflineCollections {
                         catch (e: Exception) { Log.w(TAG, "$uri: refresh failed: ${e.javaClass.simpleName}"); null }
                         if (page == null) continue
                         val pending = synchronized(editLock) { edits[uri]?.toMap().orEmpty() }
-                        if (!CollectionSyncRules.reflectsEdits(page.tracks.map { it.spotifyTrackId }.toSet(), pending)) continue
+                        if (!CollectionSyncRules.reflectsEdits(page.tracks.mapNotNull(OfflineTrackKey::of).toSet(), pending)) continue
                         withContext(Dispatchers.Main) { sync(page) }
                         synchronized(editLock) { if (edits[uri] == pending) edits.remove(uri) }
                         return@launch
@@ -270,7 +271,7 @@ object OfflineCollections {
 
     private suspend fun loadComplete(c: OfflineCollection): ContextPageModel? {
         val api = Graph.api
-        val id = c.uri.substringAfterLast(":")
+        val id = if (c.uri.startsWith("ytmusic:")) c.uri else c.uri.substringAfterLast(":")
         val flow = when (c.type) {
             "album" -> api.getAlbumPage(id, stored = false)
             "liked" -> api.getLikedPage(full = true, freshOnly = true)

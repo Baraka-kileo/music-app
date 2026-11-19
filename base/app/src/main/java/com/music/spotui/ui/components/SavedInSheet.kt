@@ -83,7 +83,8 @@ fun SavedInSheet(
     onLikedChanged: (Boolean) -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val liked = com.music.spotui.di.rememberTrackSaved(song.spotifyTrackId)
+    val liked = com.music.spotui.di.rememberSongSaved(song)
+    val songId = com.music.spotui.di.songLibraryUri(song, com.music.spotui.di.YtmRuntime.chosen)?.substringAfterLast(':').orEmpty()
     var playlists by remember { mutableStateOf<List<com.music.spotui.data.api.EditablePlaylist>?>(null) }
     // playlistId → does it contain this track (filled lazily per row).
     val membership = remember { mutableStateMapOf<String, Boolean>() }
@@ -105,7 +106,7 @@ fun SavedInSheet(
         val name = newName.trim().ifBlank { context.getString(R.string.my_playlist) }
         creating = false
         newName = ""
-        SpotifySync.createPlaylistWithTrack(context, name, song.spotifyTrackId, folderUri = folder?.first)
+        SpotifySync.createPlaylistWithTrack(context, name, songId, folderUri = folder?.first)
         onDismiss()
     }
 
@@ -207,7 +208,7 @@ fun SavedInSheet(
                     }
                 },
             ) {
-                com.music.spotui.di.SongPlayer.setTrackSaved(song.spotifyTrackId, !liked)
+                com.music.spotui.di.SongPlayer.setSongSaved(song, !liked)
                 onLikedChanged(!liked)
             }
 
@@ -226,11 +227,10 @@ fun SavedInSheet(
                             return@items
                         }
                         // Resolve membership lazily (cached per session in SpotifySync).
-                        LaunchedEffect(pl.id, song.spotifyTrackId) {
-                            if (membership[pl.id] == null && song.spotifyTrackId.isNotBlank()) {
-                                membership[pl.id] = withContext(Dispatchers.IO) {
-                                    SpotifySync.playlistTrackIds(context, pl.id).contains(song.spotifyTrackId)
-                                }
+                        LaunchedEffect(pl.id, songId) {
+                            if (membership[pl.id] == null && songId.isNotBlank()) {
+                                withContext(Dispatchers.IO) { SpotifySync.playlistTrackIds(context, pl.id) }
+                                    ?.let { membership[pl.id] = songId in it }
                             }
                         }
                         val saved = membership[pl.id] == true
@@ -251,7 +251,10 @@ fun SavedInSheet(
                                 )
                             },
                         ) {
-                            if (song.spotifyTrackId.isBlank()) return@SavedInRow
+                            if (songId.isBlank() || membership[pl.id] == null) {
+                                android.widget.Toast.makeText(context, context.getString(R.string.playlist_change_refused), android.widget.Toast.LENGTH_SHORT).show()
+                                return@SavedInRow
+                            }
                             membership[pl.id] = !saved
                             // Refused by Spotify: back to the real state, and say so.
                             // Done or refused: say it, so nobody has to open the playlist to check.
@@ -266,8 +269,8 @@ fun SavedInSheet(
                                     android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             }
-                            if (saved) SpotifySync.removeTrackFromPlaylist(context, pl.id, song.spotifyTrackId, done)
-                            else SpotifySync.addTrackToPlaylist(context, pl.id, song.spotifyTrackId, done)
+                            if (saved) SpotifySync.removeTrackFromPlaylist(context, pl.id, songId, done)
+                            else SpotifySync.addTrackToPlaylist(context, pl.id, songId, done)
                         }
                     }
                 }

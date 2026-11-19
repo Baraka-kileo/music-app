@@ -28,6 +28,10 @@ object AccountProviderPref {
         prefs(c).edit().putString(KEY, v).apply()
         // What the screens kept (home, library, liked songs) is the other account's.
         runCatching { com.music.spotui.data.api.Api.HomeCache.clear() }
+        com.music.spotui.data.api.Api.LikedCache.tracks = null
+        com.music.spotui.data.api.EditablePlaylists.clear()
+        com.music.spotui.data.api.SpotifySync.clearPlaylistMembership()
+        com.music.spotui.di.SongPlayer.accountProviderChanged()
         com.music.spotui.di.AccountSync.providerChanged()
         com.music.spotui.di.YtmRuntime.startIfChosen()
     }

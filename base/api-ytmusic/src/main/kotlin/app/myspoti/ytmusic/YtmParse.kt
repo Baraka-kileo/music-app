@@ -127,8 +127,11 @@ object YtmParse {
             // A row of an album page or a playlist made by the account may name its artist without a link.
             if (artists.isEmpty()) rest.firstOrNull()?.s("text")?.takeIf { it.isNotBlank() && lengthMs(it) == null }?.let { artists = listOf(ArtistRef("", it)) }
             val greyed = r.s("musicItemRendererDisplayPolicy") == "MUSIC_ITEM_RENDERER_DISPLAY_POLICY_GREY_OUT"
+            val entryId = r.o("playlistItemData")?.s("playlistSetVideoId")
+                ?: deep(r.o("menu"), "playlistEditEndpoint").flatMap { it.a("actions").orEmpty() }
+                    .mapNotNull { it.o() }.firstOrNull { it.s("removedVideoId") == videoId }?.s("setVideoId")
             return Item.Song(Track(uri("track", videoId), title, length, artists, albumIn(rest, imgs), explicit(r), playable = !greyed,
-                uid = r.o("playlistItemData")?.s("playlistSetVideoId")))
+                uid = entryId))
         }
         val (id, type) = browse ?: return null
         return card(title, id, type, rest, imgs)
@@ -147,7 +150,12 @@ object YtmParse {
             if (videoType(watch) == EPISODE) return null
             return Item.Song(Track(uri("track", videoId), title, 0, artistsIn(sub), albumIn(sub, imgs), explicit(c)))
         }
-        return card(title, id, type, sub, imgs)
+        val item = card(title, id, type, sub, imgs)
+        if (item !is Item.PlaylistItem) return item
+        // Only trust an editor endpoint on this card that names this exact playlist.
+        val playlistId = item.playlist.uri.substringAfterLast(':')
+        val editable = deep(c.o("menu"), "playlistEditorEndpoint").any { it.s("playlistId") == playlistId }
+        return Item.PlaylistItem(item.playlist.copy(editable = editable))
     }
 
     private fun card(title: String, id: String, type: String?, sub: List<JsonObject>, imgs: List<Image>): Item? {
@@ -292,10 +300,20 @@ object YtmParse {
     /** A song's own row in its watch-next list (`playlistPanelVideoRenderer`), or null. */
     fun watchNextTrack(videoId: String, answer: JsonElement): Track? {
         val r = deep(answer, "playlistPanelVideoRenderer").firstOrNull { it.s("videoId") == videoId } ?: return null
+        return watchNextRow(r)
+    }
+
+    /** Tracks from the radio response in the order YouTube supplied them. */
+    fun watchNextTracks(answer: JsonElement): List<Track> = deep(answer, "playlistPanelVideoRenderer")
+        .mapNotNull(::watchNextRow).distinctBy { it.uri }
+
+    private fun watchNextRow(r: JsonObject): Track? {
+        val videoId = r.s("videoId")?.takeIf(Ytm::isVideoId) ?: return null
+        val title = text(r.o("title"))?.takeIf { it.isNotBlank() } ?: return null
         val byline = runs(r.o("longBylineText"))
         val imgs = images(r.o("thumbnail"))
         return Track(
-            uri("track", videoId), text(r.o("title")).orEmpty(), lengthMs(text(r.o("lengthText"))) ?: 0L,
+            uri("track", videoId), title, lengthMs(text(r.o("lengthText"))) ?: 0L,
             artistsIn(byline).ifEmpty { byline.firstOrNull()?.s("text")?.let { listOf(ArtistRef("", it)) }.orEmpty() },
             albumIn(byline, imgs), explicit(r),
         )

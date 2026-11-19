@@ -536,13 +536,19 @@ class ContextViewModel(
         val app = Graph.app
         val store = com.music.spotui.data.offline.OfflineStore
         val limited = com.music.spotui.data.DataSaver.active || !store.isOnline(app)
+        if (!limited && com.music.spotui.di.YtmRuntime.chosen && song.url.startsWith("catalog:ytmusic:track:")) {
+            SongPlayer.registerContextName(p.uri, p.name)
+            SongPlayer.playSong(song.url, contextUri = p.uri, songs = sort.apply(p.tracks), pickedSong = song)
+            return
+        }
+        val selectedOfflineId = com.music.spotui.data.offline.OfflineTrackKey.of(song).orEmpty()
         val ids = com.music.spotui.data.offline.LocalPlayPlan.localIds(
-            sort.apply(p.tracks).map { it.spotifyTrackId }, song.spotifyTrackId, p.complete,
+            sort.apply(p.tracks).map { com.music.spotui.data.offline.OfflineTrackKey.of(it).orEmpty() }, selectedOfflineId, p.complete,
             offline = !store.isOnline(app), dataSaver = com.music.spotui.data.DataSaver.active, isDownloaded = store::isDownloaded,
         )
         if (ids != null) {
             val local = ids.mapNotNull { store.tracks[it] }
-            val at = local.indexOfFirst { it.trackId == song.spotifyTrackId }.coerceAtLeast(0)
+            val at = local.indexOfFirst { it.trackId == selectedOfflineId }.coerceAtLeast(0)
             if (limited && local.size < p.tracks.size)
                 android.widget.Toast.makeText(app, app.getString(R.string.offline_only_downloaded, local.size, p.tracks.size), android.widget.Toast.LENGTH_SHORT).show()
             com.music.spotui.di.LocalPlayer.play(local.map(store::toLocalTrack), at, shuffle = state.shuffle.value, context = p.name, contextUri = p.uri)
@@ -962,7 +968,7 @@ private fun ContextContent(navController: NavController, vm: ContextViewModel, p
                             LikeButton(liked = SongPlayer.library[p.uri] ?: contextSaved, size = 28.dp, touch = com.music.spotui.ui.components.MinTouch) { vm.toggleContextSaved(p) }
                         }
                         // Once per list, not at every redraw of the header (6000 songs, mapped each time).
-                        val ids = remember(p.tracks) { p.tracks.map { it.spotifyTrackId }.filter { it.isNotBlank() }.distinct() }
+                        val ids = remember(p.tracks) { p.tracks.mapNotNull(com.music.spotui.data.offline.OfflineTrackKey::of).distinct() }
                         // Songs with no matching recording count as settled: the list can still be removed.
                         val downloadedCount = ids.count {
                             com.music.spotui.data.offline.OfflineStore.isDownloaded(it) ||

@@ -136,18 +136,20 @@ class Api constructor(
          * A song unliked inside the head's span is gone from it, so it goes from the list too.
          */
         /** True when [head] ends inside [known] (or is the whole list), so [merge] loses nothing. */
+        private fun identity(song: SongsModel): String = song.spotifyTrackId.takeIf { it.isNotBlank() }?.let { "spotify:$it" } ?: song.url
+
         fun reaches(head: List<SongsModel>, known: List<SongsModel>): Boolean {
             if (head.size < 50) return true
-            val last = head.last().spotifyTrackId
-            return known.any { it.spotifyTrackId == last }
+            val last = identity(head.last()).takeIf { it.isNotBlank() } ?: return false
+            return known.any { identity(it) == last }
         }
 
         fun merge(head: List<SongsModel>, known: List<SongsModel>): List<SongsModel> {
-            val ids = head.mapTo(HashSet()) { it.spotifyTrackId }
-            val lastHead = head.lastOrNull()?.spotifyTrackId
+            val ids = head.mapTo(HashSet(), ::identity)
+            val lastHead = head.lastOrNull()?.let(::identity)
             // What came after the head's last song in the old list is older: kept as it was.
-            val tailStart = known.indexOfFirst { it.spotifyTrackId == lastHead }.let { if (it < 0) known.size else it + 1 }
-            val tail = if (head.size < 50) emptyList() else known.drop(tailStart).filterNot { it.spotifyTrackId in ids }
+            val tailStart = known.indexOfFirst { identity(it) == lastHead }.let { if (it < 0) known.size else it + 1 }
+            val tail = if (head.size < 50) emptyList() else known.drop(tailStart).filterNot { identity(it) in ids }
             return head + tail
         }
     }
@@ -699,6 +701,9 @@ class Api constructor(
         if (artistName.isBlank() && knownArtistId.isBlank()) { emit(Response.Success(ArtistOverviewModel(name = artistName))); return@flow }
         if (!ready()) { emit(Response.Error(notSignedIn())); return@flow }
         val uri = when {
+            // The selected YouTube account owns this artist page; do not replace it with a
+            // similarly named Spotify profile and its different biography or statistics.
+            com.music.spotui.di.YtmRuntime.chosen && knownArtistId.startsWith("ytmusic:artist:") -> knownArtistId
             // An artist of another provider: its Spotify page when Spotify has the same name, else its own.
             knownArtistId.contains(':') ->
                 runCatching { com.music.spotui.data.catalog.CatalogRuntime.spotifyArtistFor(knownArtistId) }.getOrNull()?.let { "spotify:artist:$it" } ?: knownArtistId
@@ -923,6 +928,14 @@ class Api constructor(
     private suspend fun allLiked(onPage: suspend (List<SongsModel>) -> Unit): List<SongsModel> {
         fun songs(p: app.myspoti.api.Page<app.myspoti.api.SavedTrack>) = p.items.map { songOf(it.track).copy(addedAt = it.addedAt.orEmpty()) }
         val first = api.library.likedTracks(0, LIKED_PAGE)
+        if (com.music.spotui.di.YtmRuntime.chosen) {
+            val soFar = ArrayList<SongsModel>()
+            PagedFetch.following(first, fetch = { api.library.likedTracks(it, LIKED_PAGE) }, onPage = {
+                soFar += songs(it)
+                onPage(soFar.toList())
+            })
+            return soFar
+        }
         return PagedFetch.inOrder(songs(first), first.total, LIKED_PAGE, fetch = { o -> songs(api.library.likedTracks(o, LIKED_PAGE)) }, onBatch = onPage)
     }
 
@@ -948,7 +961,8 @@ class Api constructor(
         // read from that provider and not kept on storage.
         val other = asked.contains(':')
         if (other && !ready()) { emit(Response.Error(notSignedIn())); return@flow }
-        val albumId = if (other) runCatching { com.music.spotui.data.catalog.CatalogRuntime.spotifyAlbumFor(asked) }.getOrNull() ?: asked else asked
+        val albumId = if (com.music.spotui.di.YtmRuntime.chosen && asked.startsWith("ytmusic:album:")) asked
+            else if (other) runCatching { com.music.spotui.data.catalog.CatalogRuntime.spotifyAlbumFor(asked) }.getOrNull() ?: asked else asked
         val onSpotify = !albumId.contains(':')
         val uri = if (onSpotify) "spotify:album:$albumId" else albumId
         val saved = if (stored && onSpotify) withContext(Dispatchers.IO) { ScreenCache.albumPage(albumId).read() } else null
@@ -1075,6 +1089,20 @@ class Api constructor(
         }
         val first = firstPage.await().getOrElse { failed = true; null }
         if (first != null) {
+            if (uri.startsWith("ytmusic:playlist:")) {
+                try {
+                    PagedFetch.following(first, fetch = { api.playlists.tracks(uri, it, PLAYLIST_PAGE) }, onPage = { page ->
+                        songs += withDeviceFiles(page.items.map(::songOf))
+                        emit(publish(done = page.nextOffset == null))
+                    })
+                } catch (e: CancellationException) { throw e }
+                catch (e: Exception) {
+                    failed = true
+                    if (strictComplete || songs.isEmpty()) emit(Response.Error(context.getString(R.string.couldnt_load, pl.name)))
+                    else emit(publish(done = true))
+                }
+                return@flow
+            }
             songs += withDeviceFiles(first.items.map(::songOf))
             val offsets = generateSequence(first.nextOffset) { (it + PLAYLIST_PAGE).takeIf { n -> n < first.total } }.toList()
             emit(publish(done = offsets.isEmpty()))

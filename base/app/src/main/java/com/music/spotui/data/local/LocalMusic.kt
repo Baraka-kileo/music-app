@@ -35,6 +35,10 @@ data class LocalTrack(
     val speech: Boolean = false,
     /** The stream's MIME type when its address does not tell it (an HLS radio station), null otherwise. */
     val mimeType: String? = null,
+    /** Catalog identifiers retained when an online song is played by the local engine. */
+    val catalogAlbumId: String = "",
+    val catalogArtistIds: List<String> = emptyList(),
+    val explicit: Boolean = false,
 )
 
 /** The device's music files, read through MediaStore (no file access beyond audio). */

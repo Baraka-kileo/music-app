@@ -165,7 +165,7 @@ private fun ArtistOverviewContent(
     var following by remember(overview.id) { mutableStateOf(false) }
     var saved by remember(overview.id) { mutableStateOf<Set<String>>(emptySet()) }
     // An artist of another provider (its id a whole uri): Spotify cannot follow it; its page reads, its songs play.
-    val onSpotify = !overview.id.contains(':')
+    val onSpotify = !com.music.spotui.di.YtmRuntime.chosen && !overview.id.contains(':')
     LaunchedEffect(overview.id) {
         if (!onSpotify) return@LaunchedEffect
         val uris = tracks.map { "spotify:track:${it.song.spotifyTrackId}" } + "spotify:artist:${overview.id}"
@@ -187,7 +187,7 @@ private fun ArtistOverviewContent(
         }
     }
     val np by SongPlayer.nowPlaying
-    val isThisArtist = np.contextUri == "spotify:artist:${overview.id}"
+    val isThisArtist = np.contextUri == if (overview.id.contains(':')) overview.id else "spotify:artist:${overview.id}"
     val playingNow = artistViewModel.currentSongPlayingState.value
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
 
@@ -196,7 +196,7 @@ private fun ArtistOverviewContent(
         val songs = tracks.map { it.song }
         artistViewModel.updateQueue(songs)
         val s = songs[index]
-        SongPlayer.playSong(s.url, context, songs = songs)
+        SongPlayer.playSong(s.url, context, songs = songs, pickedSong = s)
         artistViewModel.updateSongState(s.coverUri, s.title, s.singer, true, s.id, index)
     }
 
@@ -431,9 +431,11 @@ private fun ArtistOverviewContent(
                 com.music.spotui.ui.components.SwipeToQueue(item.song) {
                 PopularTrackRow(
                     item, index, artistViewModel,
-                    saved = SongPlayer.library["spotify:track:${item.song.spotifyTrackId}"] ?: ("spotify:track:${item.song.spotifyTrackId}" in saved),
+                    saved = if (com.music.spotui.di.YtmRuntime.chosen)
+                        com.music.spotui.di.rememberSongSaved(item.song)
+                    else SongPlayer.library["spotify:track:${item.song.spotifyTrackId}"] ?: ("spotify:track:${item.song.spotifyTrackId}" in saved),
                     onToggleSaved = { on ->
-                        SongPlayer.setTrackSaved(item.song.spotifyTrackId, on)
+                        SongPlayer.setSongSaved(item.song, on)
                     },
                     onMore = { menuSong = item.song },
                     onPlay = { playTrackAt(index) },

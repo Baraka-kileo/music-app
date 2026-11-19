@@ -48,6 +48,30 @@ object ExtensionAudio {
         .appendQueryParameter("album", s.album).appendQueryParameter("duration", s.durationMs.toString())
         .appendQueryParameter("cover", s.coverUri).build()
 
+    /** Direct native video route; namespaced key prevents collision with Spotify cache entries. */
+    fun youtubeUri(videoId: String): Uri {
+        require(YouTubeAudio.isVideoId(videoId)) { "Invalid YouTube video ID" }
+        return Uri.Builder().scheme(SCHEME).authority("youtube").appendPath("ytm:$videoId").build()
+    }
+
+    internal fun youtubeVideoId(uri: Uri): String? = uri.takeIf { it.scheme == SCHEME && it.authority == "youtube" }
+        ?.lastPathSegment?.takeIf { it.startsWith("ytm:") }?.removePrefix("ytm:")?.takeIf(YouTubeAudio::isVideoId)
+
+    internal fun youtubeTrack(s: SongsModel): LocalTrack? {
+        val prefix = com.music.spotui.data.catalog.CatalogRuntime.PLAY_PREFIX + "ytmusic:track:"
+        val videoId = s.url.takeIf { it.startsWith(prefix) }?.removePrefix(prefix)
+            ?.takeIf(YouTubeAudio::isVideoId) ?: return null
+        val key = com.music.spotui.data.offline.OfflineTrackKey.youtube(videoId) ?: return null
+        OfflineStore.tracks[key]?.takeIf { OfflineStore.isDownloaded(key) }?.let {
+            return OfflineStore.toLocalTrack(it).copy(catalogAlbumId = s.albumId, catalogArtistIds = s.artistIds, explicit = s.explicit)
+        }
+        return LocalTrack(
+            id = OfflineStore.localIdOf("ytm:$videoId"), uri = youtubeUri(videoId), title = s.title,
+            artist = s.singer, album = s.album, durationMs = s.durationMs.toLong(), artUri = Uri.parse(s.coverUri),
+            catalogAlbumId = s.albumId, catalogArtistIds = s.artistIds, explicit = s.explicit,
+        )
+    }
+
     private fun track(u: Uri): TrackInfo = Extensions.trackInfo(
         u.lastPathSegment.orEmpty(), u.getQueryParameter("title").orEmpty(), u.getQueryParameter("artist").orEmpty(),
         u.getQueryParameter("album").orEmpty(), u.getQueryParameter("duration")?.toLongOrNull() ?: 0, u.getQueryParameter("cover"),
@@ -223,8 +247,12 @@ object ExtensionAudio {
     fun resolve(u: Uri, again: Boolean = false, ahead: Boolean = false): AudioStream? {
         Saved.load()
         val key = u.lastPathSegment.orEmpty()
+        val directVideo = youtubeVideoId(u)
+        if (u.authority == "youtube" && directVideo == null) return null
         if (again) {
-            if (known.remove(key)?.stream?.providerId == YOUTUBE_SOURCE) YouTubeAudio.refused(track(u))
+            if (known.remove(key)?.stream?.providerId == YOUTUBE_SOURCE) {
+                if (directVideo != null) YouTubeAudio.refusedVideo(directVideo) else YouTubeAudio.refused(track(u))
+            }
             // Its address was refused: the attempt says so, the new ask is an attempt of its own.
             Extensions.noteAttempt(key) { it.copy(fallback = "asked the extensions again: its address was refused (expired or gone)") }
         }
@@ -238,7 +266,8 @@ object ExtensionAudio {
         val mine = java.util.concurrent.CompletableFuture<AudioStream?>()
         asking[key] = mine
         return try {
-            Extensions.audioBlocking(track(u), ahead)?.also { keep(key, it) }.also { mine.complete(it) }
+            (if (directVideo != null) kotlinx.coroutines.runBlocking(Dispatchers.IO) { YouTubeAudio.resolveVideo(directVideo) }
+             else Extensions.audioBlocking(track(u), ahead))?.also { keep(key, it) }.also { mine.complete(it) }
         } catch (t: Throwable) {
             mine.complete(null); throw t
         } finally {
@@ -323,7 +352,9 @@ object ExtensionAudio {
     suspend fun listGrew(uri: String, songs: List<SongsModel>) {
         if (!LocalPlayer.active.value || LocalPlayer.contextUri != uri) return
         val tracks = withContext(Dispatchers.Default) {
-            songs.filter { it.spotifyTrackId.isNotBlank() && it.playable }.distinctBy { it.spotifyTrackId }.map(::localTrack)
+            songs.filter { it.playable }.mapNotNull { s ->
+                youtubeTrack(s) ?: s.takeIf { it.spotifyTrackId.isNotBlank() }?.let(::localTrack)
+            }
         }
         withContext(Dispatchers.Main) { LocalPlayer.listGrew(uri, tracks) }
     }

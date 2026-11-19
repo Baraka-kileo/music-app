@@ -14,6 +14,10 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -24,8 +28,7 @@ import java.io.IOException
 /**
  * The web app's own API (`music.youtube.com/youtubei/v1/…`) on the user's session: the cookies of
  * their sign-in ([cookies], read from the host's browser when asked) and the auth header made from
- * them. Only reads (browse, search, the watch-next list): nothing that gets a stream, nothing that
- * changes the account. [clientVersion] is the web app's own, read from the page when it is up.
+ * them. [clientVersion] is the web app's own, read from the page when it is up.
  */
 class InnerTube(
     private val http: OkHttpClient,
@@ -56,6 +59,58 @@ class InnerTube(
 
     /** The watch-next list of a song: its own row first (title, artists, album, length). */
     suspend fun next(videoId: String): JsonObject = post("next", body { put("videoId", videoId); put("isAudioOnly", true) })
+
+    /** A song-seeded music radio queue, separate from the normal track metadata request. */
+    suspend fun radio(videoId: String): JsonObject {
+        require(Ytm.isVideoId(videoId)) { "Invalid YouTube video ID" }
+        return post("next", body { put("videoId", videoId); put("playlistId", "RDAMVM$videoId"); put("isAudioOnly", true) })
+    }
+
+    /** Rates a video on the signed-in account. A successful HTTP status can still contain an error. */
+    suspend fun setLiked(videoId: String, liked: Boolean) {
+        require(Ytm.isVideoId(videoId)) { "Invalid YouTube video ID" }
+        val endpoint = if (liked) "like/like" else "like/removelike"
+        val response = post(endpoint, body { putJsonObject("target") { put("videoId", videoId) } })
+        if ("error" in response) throw IOException("YouTube Music refused the like change")
+    }
+
+    /** Create a private playlist; return only an ID actually confirmed by the server. */
+    suspend fun createPlaylist(title: String): String {
+        require(title.isNotBlank()) { "Playlist name is empty" }
+        val response = post("playlist/create", body {
+            put("title", title)
+            put("description", "")
+            put("privacyStatus", "PRIVATE")
+        })
+        if ("error" in response) throw IOException("YouTube Music refused playlist creation")
+        return (response["playlistId"] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+            ?.takeIf { it.isNotBlank() } ?: throw IOException("YouTube Music did not confirm the playlist ID")
+    }
+
+    suspend fun addPlaylistTracks(playlistId: String, videoIds: List<String>) {
+        require(playlistId.isNotBlank() && videoIds.all(Ytm::isVideoId)) { "Invalid playlist or video ID" }
+        if (videoIds.isEmpty()) return
+        val response = post("browse/edit_playlist", body {
+            put("playlistId", playlistId.removePrefix("VL"))
+            putJsonArray("actions") { videoIds.forEach { id -> addJsonObject { put("action", "ACTION_ADD_VIDEO"); put("addedVideoId", id) } } }
+        })
+        if ("error" in response || response["status"]?.jsonPrimitive?.contentOrNull?.let { it != "STATUS_SUCCEEDED" } == true)
+            throw IOException("YouTube Music refused the playlist edit")
+    }
+
+    /** Remove exact playlist entries; a video may appear more than once with different entry IDs. */
+    suspend fun removePlaylistTracks(playlistId: String, entries: List<Pair<String, String>>) {
+        require(playlistId.isNotBlank() && entries.all { (video, entry) -> Ytm.isVideoId(video) && entry.isNotBlank() })
+        if (entries.isEmpty()) return
+        val response = post("browse/edit_playlist", body {
+            put("playlistId", playlistId.removePrefix("VL"))
+            putJsonArray("actions") { entries.forEach { (video, entry) -> addJsonObject {
+                put("action", "ACTION_REMOVE_VIDEO"); put("removedVideoId", video); put("setVideoId", entry)
+            } } }
+        })
+        if ("error" in response || response["status"]?.jsonPrimitive?.contentOrNull != "STATUS_SUCCEEDED")
+            throw IOException("YouTube Music did not confirm the playlist removal")
+    }
 
     private inline fun body(fill: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit): JsonObject {
         val base = context()

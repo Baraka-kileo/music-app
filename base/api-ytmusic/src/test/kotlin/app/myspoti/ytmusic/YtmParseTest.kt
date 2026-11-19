@@ -79,6 +79,19 @@ class YtmParseTest {
         assertEquals(listOf("ytmusic:artist:UCartistB000000000000000"), p.related.map { it.uri })
     }
 
+    @Test fun `playlist is editable only when its editor endpoint names it`() {
+        fun card(editorId: String): YtmParse.Item.PlaylistItem {
+            val json = kotlinx.serialization.json.Json.parseToJsonElement("""{
+                "title":{"runs":[{"text":"Mine"}]},
+                "navigationEndpoint":{"browseEndpoint":{"browseId":"VLPLmine","browseEndpointContextSupportedConfigs":{"browseEndpointContextMusicConfig":{"pageType":"MUSIC_PAGE_TYPE_PLAYLIST"}}}},
+                "menu":{"menuRenderer":{"items":[{"menuNavigationItemRenderer":{"navigationEndpoint":{"playlistEditorEndpoint":{"playlistId":"$editorId"}}}}]}}
+            }""").jsonObject
+            return YtmParse.twoRow(json) as YtmParse.Item.PlaylistItem
+        }
+        assertTrue(card("PLmine").playlist.editable)
+        assertFalse(card("PLother").playlist.editable)
+    }
+
     @Test fun `a song read from its watch-next list`() {
         val t = YtmParse.watchNextTrack("vidAAAAAAA1", fixture("next"))!!
         assertEquals("Song One", t.name)

@@ -21,14 +21,20 @@ object SpotifySync {
     private const val TAG = "SpotifySync"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val api get() = MyspotiRuntime.api
+    private fun playlistUri(id: String) = "${if (com.music.spotui.di.YtmRuntime.chosen) "ytmusic" else "spotify"}:playlist:$id"
+    private fun trackUri(id: String) = "${if (com.music.spotui.di.YtmRuntime.chosen) "ytmusic" else "spotify"}:track:$id"
 
     fun addTrackToPlaylist(context: Context, playlistId: String, trackId: String, onDone: (Boolean) -> Unit = {}) {
         if (playlistId.isBlank() || trackId.isBlank()) { onDone(false); return }
         scope.launch {
-            val ok = runCatching { api.playlists.addTracks("spotify:playlist:$playlistId", listOf("spotify:track:$trackId")) }
+            val uri = playlistUri(playlistId)
+            val ok = runCatching { api.playlists.addTracks(uri, listOf(trackUri(trackId))) }
                 .onFailure { Log.w(TAG, "add $trackId to $playlistId failed: ${it.message}") }.isSuccess
             if (ok) { membershipCache[playlistId]?.add(trackId); Api.invalidatePlaylist(playlistId) }
-            if (ok) com.music.spotui.data.offline.OfflineCollections.refreshOne(context.applicationContext, "spotify:playlist:$playlistId", mapOf(trackId to true))
+            if (ok) {
+                val key = if (uri.startsWith("ytmusic:")) com.music.spotui.data.offline.OfflineTrackKey.youtube(trackId) else trackId
+                if (key != null) com.music.spotui.data.offline.OfflineCollections.refreshOne(context.applicationContext, uri, mapOf(key to true))
+            }
             onDone(ok)
         }
     }
@@ -105,14 +111,17 @@ object SpotifySync {
         if (playlistId.isBlank() || trackId.isBlank()) { onDone(false); return }
         scope.launch {
             val ok = runCatching {
-                val uri = "spotify:playlist:$playlistId"
-                val uids = allTracks(uri).filter { it.uri == "spotify:track:$trackId" }.mapNotNull { it.uid }
-                check(uids.isNotEmpty()) { "track not in playlist" }
+                val uri = playlistUri(playlistId)
+                val matching = allTracks(uri).filter { it.uri == trackUri(trackId) }
+                val uids = matching.mapNotNull { it.uid }
+                check(uids.isNotEmpty() && uids.size == matching.size) { "track entries could not all be identified" }
                 api.playlists.removeTracks(uri, uids)
             }.onFailure { Log.w(TAG, "remove $trackId from $playlistId failed: ${it.message}") }.isSuccess
             if (ok) {
                 membershipCache[playlistId]?.remove(trackId); Api.invalidatePlaylist(playlistId)
-                com.music.spotui.data.offline.OfflineCollections.refreshOne(context.applicationContext, "spotify:playlist:$playlistId", mapOf(trackId to false))
+                val uri = playlistUri(playlistId)
+                val key = if (uri.startsWith("ytmusic:")) com.music.spotui.data.offline.OfflineTrackKey.youtube(trackId) else trackId
+                if (key != null) com.music.spotui.data.offline.OfflineCollections.refreshOne(context.applicationContext, uri, mapOf(key to false))
             }
             onDone(ok)
         }
@@ -180,7 +189,7 @@ object SpotifySync {
             folderUri?.let { Api.HomeCache.folders.remove(it) }
             if (trackId.isNotBlank()) {
                 // The playlist exists now: a refused track must not take its row away again.
-                trackAdded = runCatching { api.playlists.addTracks(uri, listOf("spotify:track:$trackId")) }
+                trackAdded = runCatching { api.playlists.addTracks(uri, listOf(trackUri(trackId))) }
                     .onFailure { Log.w(TAG, "add $trackId to new playlist '$title' failed: ${it.message}") }.isSuccess
                 if (trackAdded) membershipCache[uri.substringAfterLast(':')] = ConcurrentHashMap.newKeySet<String>().apply { add(trackId) }
             }
@@ -200,11 +209,12 @@ object SpotifySync {
 
     // Which playlists contain a track, cached per playlist for the session.
     private val membershipCache = ConcurrentHashMap<String, MutableSet<String>>()
+    fun clearPlaylistMembership() = membershipCache.clear()
 
     /** Track ids contained in [playlistId] (first call fetches, then cached). */
-    suspend fun playlistTrackIds(context: Context, playlistId: String): Set<String> {
+    suspend fun playlistTrackIds(context: Context, playlistId: String): Set<String>? {
         membershipCache[playlistId]?.let { return it }
-        val ids = runCatching { allTracks("spotify:playlist:$playlistId").map { it.uri.substringAfterLast(':') } }.getOrNull() ?: return emptySet()
+        val ids = runCatching { allTracks(playlistUri(playlistId)).map { it.uri.substringAfterLast(':') } }.getOrNull() ?: return null
         val set = ConcurrentHashMap.newKeySet<String>().apply { addAll(ids) }
         membershipCache[playlistId] = set
         return set

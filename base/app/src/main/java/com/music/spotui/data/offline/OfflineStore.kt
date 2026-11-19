@@ -286,6 +286,7 @@ object OfflineStore {
         durationMs = t.durationMs,
         artUri = coverFile(t)?.let { Uri.fromFile(it) } ?: Uri.parse(app.myspoti.host.android.Covers.large(t.coverUrl)),
         speech = t.isEpisode,
+        catalogAlbumId = t.albumId.takeIf { OfflineTrackKey.youtubeId(t.trackId) != null }.orEmpty(),
     )
 
     fun toSong(t: OfflineTrack) = SongsModel(
@@ -294,8 +295,12 @@ object OfflineStore {
         coverUri = coverFile(t)?.let { Uri.fromFile(it).toString() } ?: t.coverUrl,
         // An episode is keyed "episode:<id>" and must keep that url (playback, download state);
         // it has no Spotify track id, and giving it one would send it down the track paths.
-        url = if (t.isEpisode) t.trackId else "spotify:track:${t.trackId}",
-        spotifyTrackId = if (t.isEpisode) "" else t.trackId,
+        url = when {
+            t.isEpisode -> t.trackId
+            OfflineTrackKey.youtubeId(t.trackId) != null -> "catalog:ytmusic:track:${OfflineTrackKey.youtubeId(t.trackId)}"
+            else -> "spotify:track:${t.trackId}"
+        },
+        spotifyTrackId = if (t.isEpisode || OfflineTrackKey.youtubeId(t.trackId) != null) "" else t.trackId,
         durationMs = t.durationMs.toInt(), albumId = t.albumId,
     )
 

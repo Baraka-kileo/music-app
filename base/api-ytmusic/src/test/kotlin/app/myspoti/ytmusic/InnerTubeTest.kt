@@ -88,6 +88,110 @@ class InnerTubeTest {
         assertEquals(listOf("Song Three"), second.items.map { it.name })
     }
 
+    @Test fun `account adapters preserve pages and playlist sorting`() = runTest {
+        val rec = Recorded { r, _ -> if (r.url.queryParameter("ctoken") == "TOKEN-PAGE-2") fixtureText("liked-more") else fixtureText("liked") }
+        val service = api(rec)
+        val lib = YtmLibrary(service)
+        val liked = YtmUserLibrary(service, lib)
+        val playlists = YtmPlaylists(service, lib)
+        val first = liked.likedTracks(0, 2)
+        assertEquals(2, first.nextOffset)
+        assertEquals(listOf("Song Three"), liked.likedTracks(2, 2).items.map { it.track.name })
+        assertEquals(listOf("Song Three"), playlists.tracks("ytmusic:playlist:PLtest", 2, 2).items.map { it.name })
+        assertEquals(listOf("Song Two", "Song Three", "Song One"), playlists.sortedTracks("ytmusic:playlist:PLtest", app.myspoti.api.PlaylistSort.TITLE, true).map { it.name })
+    }
+
+    @Test fun `repeated continuation or page limit is reported rather than truncating`() = runTest {
+        val rec = Recorded { _, _ -> fixtureText("liked") }
+        val service = api(rec)
+        assertTrue(runCatching { YtmLibrary(service, maxPages = 4).likedTracks(0, 100) }.exceptionOrNull() is java.io.IOException)
+        assertTrue(runCatching { YtmLibrary(service, maxPages = 1).likedTracks(2, 2) }.exceptionOrNull() is java.io.IOException)
+    }
+
+    @Test fun `liked membership includes later pages and preserves requested order`() = runTest {
+        val rec = Recorded { r, _ -> if (r.url.queryParameter("ctoken") == "TOKEN-PAGE-2") fixtureText("liked-more") else fixtureText("liked") }
+        val service = api(rec)
+        val library = YtmUserLibrary(service, YtmLibrary(service))
+        assertEquals(listOf(true, false, true), library.contains(listOf("ytmusic:track:vidAAAAAAA3", "ytmusic:track:vidUNKNOWN0", "ytmusic:track:vidAAAAAAA1")))
+        assertEquals(2, rec.requests.size)
+    }
+
+    @Test fun `incomplete liked feed does not mark tracks unliked`() = runTest {
+        val rec = Recorded { _, _ -> fixtureText("liked") }
+        val service = api(rec)
+        val library = YtmUserLibrary(service, YtmLibrary(service, maxPages = 1))
+        assertTrue(runCatching { library.contains(listOf("ytmusic:track:vidUNKNOWN0")) }.exceptionOrNull() is java.io.IOException)
+    }
+
+    @Test fun `like and unlike send the native video identity`() = runTest {
+        val rec = Recorded { _, _ -> "{}" }
+        val service = api(rec)
+        val library = YtmUserLibrary(service, YtmLibrary(service))
+        library.add(listOf("ytmusic:track:vidAAAAAAA1"))
+        library.remove(listOf("ytmusic:track:vidAAAAAAA1"))
+        assertTrue(rec.requests[0].first.url.encodedPath.endsWith("/like/like"))
+        assertTrue(rec.requests[1].first.url.encodedPath.endsWith("/like/removelike"))
+        assertEquals("vidAAAAAAA1", Json.parseToJsonElement(rec.requests[0].second).jsonObject["target"]!!.jsonObject["videoId"]!!.jsonPrimitive.content)
+    }
+
+    @Test fun `an error in a successful response is not reported as a like`() = runTest {
+        val rec = Recorded { _, _ -> """{"error":{"message":"refused"}}""" }
+        assertTrue(runCatching { api(rec).setLiked("vidAAAAAAA1", true) }.exceptionOrNull() is java.io.IOException)
+    }
+
+    @Test fun `unsupported bulk items do not cause a partial write`() = runTest {
+        val rec = Recorded { _, _ -> "{}" }
+        val service = api(rec)
+        val library = YtmUserLibrary(service, YtmLibrary(service))
+        assertTrue(runCatching { library.add(listOf("ytmusic:track:vidAAAAAAA1", "spotify:track:abc")) }.exceptionOrNull() is NotOnYtm)
+        assertTrue(rec.requests.isEmpty())
+    }
+
+    @Test fun `create and add playlist tracks use native identities`() = runTest {
+        val rec = Recorded { r, _ -> if (r.url.encodedPath.endsWith("/playlist/create")) """{"playlistId":"PLtest"}""" else """{"status":"STATUS_SUCCEEDED"}""" }
+        val service = api(rec)
+        val playlists = YtmPlaylists(service, YtmLibrary(service))
+        val uri = playlists.create("Road", null)
+        assertEquals("ytmusic:playlist:PLtest", uri)
+        playlists.addTracks(uri, listOf("ytmusic:track:vidAAAAAAA1"))
+        val body = Json.parseToJsonElement(rec.requests.last().second).jsonObject
+        assertEquals("PLtest", body["playlistId"]!!.jsonPrimitive.content)
+        assertTrue(rec.requests.last().second.contains("ACTION_ADD_VIDEO"))
+    }
+
+    @Test fun `refused playlist edit reports failure`() = runTest {
+        val rec = Recorded { _, _ -> """{"status":"STATUS_FAILED"}""" }
+        assertTrue(runCatching { api(rec).addPlaylistTracks("PLtest", listOf("vidAAAAAAA1")) }.exceptionOrNull() is java.io.IOException)
+    }
+
+    @Test fun `playlist removal names exact entry and rejects unknown entries before editing`() = runTest {
+        val rec = Recorded { r, _ -> when {
+            r.url.encodedPath.endsWith("/edit_playlist") -> """{"status":"STATUS_SUCCEEDED"}"""
+            r.url.queryParameter("ctoken") == "TOKEN-PAGE-2" -> fixtureText("liked-more")
+            else -> fixtureText("liked")
+        } }
+        val service = api(rec)
+        val playlists = YtmPlaylists(service, YtmLibrary(service))
+        playlists.removeTracks("ytmusic:playlist:PLtest", listOf("set1"))
+        val action = Json.parseToJsonElement(rec.requests.last().second).jsonObject["actions"]!!.toString()
+        assertTrue(action.contains("ACTION_REMOVE_VIDEO"))
+        assertTrue(action.contains("vidAAAAAAA1"))
+        assertTrue(action.contains("set1"))
+        val edits = rec.requests.count { it.first.url.encodedPath.endsWith("/edit_playlist") }
+        assertTrue(runCatching { playlists.removeTracks("ytmusic:playlist:PLtest", listOf("missing")) }.exceptionOrNull() is java.io.IOException)
+        assertEquals(edits, rec.requests.count { it.first.url.encodedPath.endsWith("/edit_playlist") })
+    }
+
+    @Test fun `native video radio requests a YouTube mix and excludes its seed`() = runTest {
+        val rec = Recorded { _, _ -> fixtureText("next") }
+        val service = api(rec)
+        val tracks = YtmLibrary(service).radio("vidAAAAAAA1")
+        assertEquals(listOf("ytmusic:track:vidOTHER001"), tracks.map { it.uri })
+        val body = Json.parseToJsonElement(rec.requests.single().second).jsonObject
+        assertEquals("RDAMVMvidAAAAAAA1", body["playlistId"]!!.jsonPrimitive.content)
+        assertEquals("vidAAAAAAA1", body["videoId"]!!.jsonPrimitive.content)
+    }
+
     @Test fun `playlists, a playlist's songs, the history`() = runTest {
         val rec = Recorded { _, body ->
             when {
@@ -102,6 +206,17 @@ class InnerTubeTest {
         assertTrue("VLPLroadmix0001" in rec.requests.last().second)
         assertEquals(1, lib.history().size)
         assertTrue(runCatching { lib.playlistTracks("spotify:playlist:x") }.exceptionOrNull() is IllegalArgumentException)
+    }
+
+    @Test fun `playlist library reads continuation pages`() = runTest {
+        val first = fixtureText("playlists").trim().dropLast(1) + ",\"continuations\":[{\"nextContinuationData\":{\"continuation\":\"MORE\"}}]}"
+        val second = fixtureText("playlists").replace("PLroadmix0001", "PLanother0001").replace("Road Mix", "Another Mix")
+        val rec = Recorded { r, _ -> if (r.url.queryParameter("ctoken") == "MORE") second else first }
+        val service = api(rec)
+        val lists = YtmLibrary(service).playlists()
+        assertEquals(3, lists.size)
+        assertTrue(lists.any { it.uri == "ytmusic:playlist:PLanother0001" })
+        assertEquals(2, rec.requests.size)
     }
 
     @Test fun `metadata on the session, search, song, album, artist`() = runTest {

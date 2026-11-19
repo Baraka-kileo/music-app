@@ -533,6 +533,16 @@ object SongPlayer {
     private fun acceptsSessionUpdates() = Graph.app.getSharedPreferences("myspoti_prefs", Context.MODE_PRIVATE)
         .getBoolean("LoggedIn", false)
 
+    /** Account-provider changes invalidate library answers without stopping the active player. */
+    fun accountProviderChanged() {
+        sessionGen.incrementAndGet()
+        youtubeLibraryWrites.clear()
+        library.clear(); savedAt.clear(); likeChecking.clear(); likeCheckFailedAt.clear()
+        synchronized(wantedSaved) { wantedSaved.clear() }
+        intentUri = ""; intentUntil = 0L
+        boundState?.likeState?.value = false
+    }
+
     /** Call on the main thread before navigating to logout. */
     fun clearSession() {
         main.removeCallbacksAndMessages(null)
@@ -552,6 +562,7 @@ object SongPlayer {
         playing = false; bufferingState.value = false; adState.value = false; durationMs = 0L; positionMs = 0L
         currentTrackId = ""; currentContextUri = ""
         contextRegistry.clear(); contextRows.clear(); contextNames.clear(); library.clear()
+        youtubeLibraryWrites.clear()
         synchronized(wantedSaved) { wantedSaved.clear() }
         _queue.value = EngineQueue(); apiQueue = null; restoredQueuePending = false; _nowPlaying.value = NowPlaying()
         lastTrackPrefs().edit().clear().apply(); savedLast = ""; resumeWhenReady = false
@@ -905,9 +916,11 @@ object SongPlayer {
      * An answer that never comes leaves the heart as it is: no "not liked" is written for it.
      */
     private fun refreshCurrentLiked(fromState: Boolean = false) {
-        val uri = currentLikeUri().takeIf { it.startsWith(SPOTIFY_TRACK_PREFIX) || it.startsWith("spotify:episode:") } ?: return
+        val uri = currentLikeUri().takeIf { it.startsWith(SPOTIFY_TRACK_PREFIX) || it.startsWith("spotify:episode:") ||
+            (YtmRuntime.chosen && it.startsWith("ytmusic:track:")) } ?: return
         if (fromState && SystemClock.elapsedRealtime() - (likeCheckFailedAt[uri] ?: -LIKE_RETRY_AFTER_MS) < LIKE_RETRY_AFTER_MS) return
         if (!likeChecking.add(uri)) return
+        val session = sessionGen.get()
         scope.launch {
             try {
                 // Through the shared, cached request path: a state Spotify confirmed less than
@@ -927,7 +940,7 @@ object SongPlayer {
                 if (line != lastLikeLog) { lastLikeLog = line; app.myspoti.host.android.Logbook.log(line) }
                 if (check.failed) { likeCheckFailedAt[uri] = SystemClock.elapsedRealtime(); return@launch }
                 likeCheckFailedAt.remove(uri)
-                if (uri in check.asked) onLibraryItem(uri, uri in check.saved)
+                if (sessionGen.get() == session && uri in check.asked && !youtubeLibraryWrites.isPending(uri)) onLibraryItem(uri, uri in check.saved)
             } finally {
                 likeChecking.remove(uri)
             }
@@ -1251,18 +1264,32 @@ object SongPlayer {
      */
     fun playSong(
         song: String, context: Context? = null, contextUri: String? = null, order: List<String>? = null, positionMs: Long? = null,
-        songs: List<SongsModel>? = null, askExtensions: Boolean = true, alone: Boolean = false,
+        songs: List<SongsModel>? = null, askExtensions: Boolean = true, alone: Boolean = false, pickedSong: SongsModel? = null,
     ) {
         userActed()
         // Data saver on mobile data: Spotify can't stream, only downloads and Local Files play.
         if (com.music.spotui.data.DataSaver.active) {
+            val nativeVideo = song.removePrefix("catalog:ytmusic:track:")
+                .takeIf { song.startsWith("catalog:ytmusic:track:") }
+                ?.let(com.music.spotui.data.offline.OfflineTrackKey::youtube)
+            val store = com.music.spotui.data.offline.OfflineStore
+            if (nativeVideo != null && store.isDownloaded(nativeVideo)) {
+                val available = (songs.orEmpty().mapNotNull(com.music.spotui.data.offline.OfflineTrackKey::of) + nativeVideo)
+                    .distinct().mapNotNull { id -> store.tracks[id]?.takeIf { store.isDownloaded(id) } }
+                val index = available.indexOfFirst { it.trackId == nativeVideo }
+                if (index >= 0) {
+                    LocalPlayer.play(available.map(store::toLocalTrack), index, context = knownContextName(contextUri.orEmpty()),
+                        contextUri = contextUri.orEmpty(), startMs = positionMs ?: 0L)
+                    return
+                }
+            }
             main.post {
                 android.widget.Toast.makeText(Graph.app, app.myspoti.engine.R.string.data_saver_blocked, android.widget.Toast.LENGTH_SHORT).show()
             }
             return
         }
         // A song of another provider (the catalog's): played as its Spotify recording once found, alone.
-        if (song.startsWith(com.music.spotui.data.catalog.CatalogRuntime.PLAY_PREFIX)) { playCatalogSong(song, context, askExtensions, contextUri ?: contextRegistry[song], songs?.firstOrNull { it.url == song }, positionMs); return }
+        if (song.startsWith(com.music.spotui.data.catalog.CatalogRuntime.PLAY_PREFIX)) { playCatalogSong(song, context, askExtensions, if (alone) null else contextUri ?: contextRegistry[song], pickedSong?.takeIf { it.url == song } ?: songs?.firstOrNull { it.url == song }, positionMs, if (alone) null else songs); return }
         val routedId = if (song.startsWith("episode:")) null else spotifyTrackIdForPlayback(song)
         if (askExtensions && com.music.spotui.extensions.AudioRoute.asks(routedId, com.music.spotui.extensions.Extensions.hasAudioSource())) {
             val ctx = if (alone) "" else (contextUri ?: contextRegistry[song]).orEmpty()
@@ -2368,6 +2395,12 @@ object SongPlayer {
 
     /** Save / remove the current track in Liked Songs. */
     fun setLiked(on: Boolean) {
+        val nativeYtm = currentLikeUri().takeIf { YtmRuntime.chosen && it.startsWith("ytmusic:track:") }
+        if (nativeYtm != null) {
+            Haptics.toggle(on)
+            setYouTubeTrackSaved(nativeYtm, on)
+            return
+        }
         // A file of the device is not in the Spotify library; a stream or a download is.
         if (LocalPlayer.active.value && !routing && localSpotifyUri(LocalPlayer.current()) == null) {
             app.myspoti.host.android.Logbook.log("library: like not sent, the local song has no Spotify id (${LocalPlayer.current()?.uri?.scheme})")
@@ -2512,6 +2545,7 @@ object SongPlayer {
 
     private suspend fun checkLibrary(uris: List<String>): LibraryCheck {
         if (uris.isEmpty()) return LibraryCheck(emptySet(), emptySet(), false)
+        val session = sessionGen.get()
         val now = SystemClock.elapsedRealtime()
         // A page prefetch and the page opening ask for the same list within a second, and the
         // rows of a list ask again for what the list just confirmed: only what is unknown (or
@@ -2519,21 +2553,27 @@ object SongPlayer {
         val (known, unknown) = uris.partition { library.containsKey(it) && now - (savedAt[it] ?: 0L) < SAVED_FRESH_MS }
         val out = known.filterTo(mutableSetOf()) { library[it] == true }
         if (unknown.isEmpty()) return LibraryCheck(out, emptySet(), false)
+        val revisions = unknown.associateWith(youtubeLibraryWrites::revision)
         val flags = savedFlags(unknown) ?: return LibraryCheck(out, emptySet(), true)
-        val saved = unknown.filterIndexed { i, _ -> flags.getOrNull(i) == true }.toSet()
+        if (sessionGen.get() != session) return LibraryCheck(emptySet(), emptySet(), true)
+        val fresh = unknown.filter { !youtubeLibraryWrites.isPending(it) && youtubeLibraryWrites.revision(it) == revisions[it] }.toSet()
+        val saved = unknown.filterIndexed { i, uri -> uri in fresh && flags.getOrNull(i) == true }.toSet()
         main.post {
+            if (sessionGen.get() != session) return@post
             for (u in unknown) {
+                if (u !in fresh || youtubeLibraryWrites.isPending(u) || youtubeLibraryWrites.revision(u) != revisions[u]) continue
                 if (u == intentUri && SystemClock.elapsedRealtime() < intentUntil) continue
                 library[u] = u in saved
                 savedAt[u] = now
             }
         }
-        return LibraryCheck(out + saved, unknown.toSet(), false)
+        return LibraryCheck(out + saved, fresh, false)
     }
 
     /** [uris] in one request; two callers asking the same list share that one request. */
     private suspend fun savedFlags(uris: List<String>): List<Boolean>? {
-        val key = uris.sorted().joinToString("\n")
+        // The response is positional, so callers with different order cannot share a flight.
+        val key = sessionGen.get().toString() + "\n" + uris.joinToString("\n")
         val flight = savedFlightLock.withLock {
             savedFlights[key] ?: scope.async {
                 try {
@@ -2564,11 +2604,68 @@ object SongPlayer {
     /** Every like / unlike of a track the moment it is tapped (and its undo): track id, liked. */
     val likedTaps = kotlinx.coroutines.flow.MutableSharedFlow<Pair<String, Boolean>>(extraBufferCapacity = 16)
 
+    private val youtubeLibraryWrites = PendingLibraryWrites()
+
+    /** YouTube writes are account-specific and must never enter the Spotify offline outbox. */
+    private fun setYouTubeTrackSaved(uri: String, on: Boolean) {
+        val old = library[uri] ?: false
+        if (!com.music.spotui.data.offline.OfflineStore.isOnline(Graph.app)) {
+            com.music.spotui.ui.components.AppNotice.show(Graph.app.getString(app.myspoti.engine.R.string.library_change_failed), tone = com.music.spotui.ui.components.AppNotice.Tone.ERROR)
+            return
+        }
+        intentUri = uri
+        intentValue = on
+        intentUntil = SystemClock.elapsedRealtime() + 3000
+        onLibraryItem(uri, on)
+        val write = youtubeLibraryWrites.begin(uri, old)
+        val session = sessionGen.get()
+        scope.launch {
+            libraryLock.withLock {
+                try {
+                    // Do not send a pending write to a different account after an account switch.
+                    if (!YtmRuntime.chosen || sessionGen.get() != session) throw IllegalStateException("YouTube Music account changed")
+                    writeLibrary(uri, on)
+                    youtubeLibraryWrites.finish(uri, write, on, succeeded = true)
+                    if (sessionGen.get() == session && YtmRuntime.chosen) {
+                        likedChanges.value++
+                        com.music.spotui.data.offline.OfflineTrackKey.youtube(uri.removePrefix("ytmusic:track:"))?.let { key ->
+                            com.music.spotui.data.offline.OfflineCollections.refreshOne(Graph.app, LIKED_CONTEXT, mapOf(key to on))
+                        }
+                    }
+                } catch (e: app.myspoti.ytmusic.NotOnYtm) {
+                    youtubeLibraryWrites.finish(uri, write, on, succeeded = false)?.let { restored ->
+                        if (uri == intentUri) intentUntil = 0
+                        onLibraryItem(uri, restored)
+                        com.music.spotui.ui.components.AppNotice.show(Graph.app.getString(app.myspoti.engine.R.string.library_change_failed), tone = com.music.spotui.ui.components.AppNotice.Tone.ERROR)
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    youtubeLibraryWrites.finish(uri, write, on, succeeded = false)
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "YouTube Music like failed: ${e.javaClass.simpleName}")
+                    youtubeLibraryWrites.finish(uri, write, on, succeeded = false)?.let { restored ->
+                        if (uri == intentUri) intentUntil = 0
+                        onLibraryItem(uri, restored)
+                        com.music.spotui.ui.components.AppNotice.show(Graph.app.getString(app.myspoti.engine.R.string.library_change_failed), tone = com.music.spotui.ui.components.AppNotice.Tone.ERROR)
+                    }
+                }
+            }
+        }
+    }
+
     /** Like / unlike a track by id. */
     fun setTrackSaved(trackId: String, on: Boolean) {
         if (trackId.isBlank()) return
         Haptics.toggle(on)
         setSaved(SPOTIFY_TRACK_PREFIX + trackId, on)
+    }
+
+    fun setSongSaved(song: SongsModel, on: Boolean) {
+        val uri = songLibraryUri(song, YtmRuntime.chosen) ?: return
+        if (uri.startsWith("ytmusic:track:")) {
+            Haptics.toggle(on)
+            setYouTubeTrackSaved(uri, on)
+        } else setTrackSaved(song.spotifyTrackId, on)
     }
 
     /** Save / remove any item (album, playlist, track, artist, show, episode) in the user's library. */
@@ -3393,7 +3490,7 @@ object SongPlayer {
             if (isPlaying) spotifyDue = null
             bufferingState.value = false
             // A song an extension streams keeps its Spotify uri: its lyrics, Canvas and artists load as for Spotify.
-            val uri = if (trackId.isNotBlank()) SPOTIFY_TRACK_PREFIX + trackId else "local:${t.id}"
+            val uri = localYouTubeUri(t) ?: if (trackId.isNotBlank()) SPOTIFY_TRACK_PREFIX + trackId else "local:${t.id}"
             val songChanged = _nowPlaying.value.uri != uri
             // From the list, its song radio, or the songs the user queued (as Spotify's player says).
             val shown = NowPlaying(uri = uri, contextUri = LocalPlayer.contextUri, contextName = LocalPlayer.contextName,
@@ -3401,7 +3498,7 @@ object SongPlayer {
             if (_nowPlaying.value.let { it.uri != uri || it.contextUri != shown.contextUri || it.contextName != shown.contextName || it.provider != shown.provider })
                 _nowPlaying.value = shown
             val song = localSong(t, dur)
-            val likeUri = localSpotifyUri(t)
+            val likeUri = localYouTubeUri(t) ?: localSpotifyUri(t)
             val liked = likeUri?.let { likedFor(it, library[it] ?: false) } ?: false
             // Its large cover, as a song Spotify plays shows (the queue keeps the small one).
             val cover = app.myspoti.host.android.Covers.large(song.coverUri)
@@ -3417,7 +3514,7 @@ object SongPlayer {
                 else com.music.spotui.data.local.ListenHistory.Source.LOCAL
             trackListen("local:${t.id}", song, source, isPlaying)
             // An extension's stream or a download (it has a Spotify id): kept to come back to at launch.
-            if (likeUri != null) {
+            if (likeUri != null && localYouTubeUri(t) == null) {
                 val rest = LocalPlayer.upcoming().map { localSong(it.second) }.filter { it.spotifyTrackId.isNotBlank() }
                 saveLastTrack(song.copy(coverUri = cover), likeUri, liked, LocalPlayer.contextUri, LocalPlayer.contextName,
                     com.music.spotui.data.preferences.LastSession.SOURCE_LOCAL, listOf(song) + rest)
@@ -3450,10 +3547,14 @@ object SongPlayer {
         return LocalPlayer.spotifyIdOf(t).takeIf { it.isNotBlank() }?.let { SPOTIFY_TRACK_PREFIX + it }
     }
 
+    private fun localYouTubeUri(t: com.music.spotui.data.local.LocalTrack?): String? =
+        t?.let(LocalPlayer::youtubeIdOf)
+            ?.let { YTM_TRACK_PREFIX + it }
+
     /** The uri a like of the song shown saves ("" or a local: uri for a file of the device). */
     private fun currentLikeUri(): String = when {
         routing -> _nowPlaying.value.uri
-        LocalPlayer.active.value -> localSpotifyUri(LocalPlayer.current()).orEmpty()
+        LocalPlayer.active.value -> (localYouTubeUri(LocalPlayer.current()) ?: localSpotifyUri(LocalPlayer.current())).orEmpty()
         else -> pendingItemUri ?: _nowPlaying.value.uri
     }
 
@@ -3469,12 +3570,14 @@ object SongPlayer {
 
     /** The Spotify id of a song an extension streams (audio-source), "" for files. */
     private fun streamedTrackId(t: com.music.spotui.data.local.LocalTrack) =
-        t.uri.takeIf { it.scheme == com.music.spotui.extensions.ExtensionAudio.SCHEME }?.lastPathSegment.orEmpty()
+        t.uri.takeIf { it.scheme == com.music.spotui.extensions.ExtensionAudio.SCHEME && it.authority == "track" }?.lastPathSegment.orEmpty()
 
     private fun localSong(t: com.music.spotui.data.local.LocalTrack, dur: Long = t.durationMs): SongsModel {
         val trackId = streamedTrackId(t)
+        val youtubeUri = localYouTubeUri(t)
         return SongsModel(id = if (trackId.isNotBlank()) songIdFor(trackId, "") else ("local:" + t.id).hashCode() and 0x7fffffff, title = t.title, album = t.album,
-            singer = t.artist, coverUri = t.artUri.toString(), url = "local:${t.uri}", durationMs = dur.toInt(), spotifyTrackId = trackId)
+            singer = t.artist, coverUri = t.artUri.toString(), url = youtubeUri?.let { com.music.spotui.data.catalog.CatalogRuntime.PLAY_PREFIX + it } ?: "local:${t.uri}", durationMs = dur.toInt(), spotifyTrackId = trackId,
+            albumId = t.catalogAlbumId, artistIds = t.catalogArtistIds, explicit = t.explicit)
     }
 
     /**
@@ -3519,26 +3622,52 @@ object SongPlayer {
      */
     private fun playCatalogSong(
         song: String, context: Context?, askExtensions: Boolean,
-        contextUri: String? = null, known: SongsModel? = null, positionMs: Long? = null,
+        contextUri: String? = null, known: SongsModel? = null, positionMs: Long? = null, songs: List<SongsModel>? = null,
     ) {
         val uri = song.removePrefix(com.music.spotui.data.catalog.CatalogRuntime.PLAY_PREFIX)
         val ytm = uri.startsWith(YTM_TRACK_PREFIX)
         // With YouTube Music as the music account its songs are its page's to play, in their list.
-        if (ytm && YtmRuntime.chosen) { playYtm(uri, contextUri, known, positionMs); return }
+        if (ytm && YtmRuntime.chosen) {
+            if (known == null && contextUri == null) {
+                val request = routeAsk.incrementAndGet()
+                val session = sessionGen.get()
+                app.myspoti.host.android.MyspotiRuntime.scope.launch {
+                    val resolved = try { Graph.api.songOf(YtmRuntime.account.metadata.track(uri)) }
+                    catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                    catch (e: Exception) { null }
+                    main.post {
+                        if (routeAsk.get() != request || sessionGen.get() != session || !YtmRuntime.chosen) return@post
+                        if (resolved == null || !playNativeYouTube(song, null, resolved, null, positionMs))
+                            playYtm(uri, null, resolved, positionMs)
+                    }
+                }
+                return
+            }
+            if (!playNativeYouTube(song, contextUri, known, songs, positionMs)) playYtm(uri, contextUri, known, positionMs)
+            return
+        }
+        // A catalogue match can take longer than the user's next tap or an account change.
+        // Neither a late match nor its fallback may take over the newer selection.
+        val request = routeAsk.incrementAndGet()
+        val session = sessionGen.get()
+        fun isCurrent() = routeAsk.get() == request && sessionGen.get() == session
         app.myspoti.host.android.MyspotiRuntime.scope.launch {
             val m = try { com.music.spotui.data.catalog.CatalogRuntime.spotifyMatchFor(uri) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
                 com.music.spotui.data.catalog.SpotifyMatch.Unavailable(e.message ?: e.javaClass.simpleName)
             }
+            if (!isCurrent()) return@launch
             if (m !is com.music.spotui.data.catalog.SpotifyMatch.Found) {
                 // Not played by Spotify (not there, no Spotify account): YouTube Music's own page plays
                 // it, the song itself when it is YouTube Music's, else the same song found there.
                 val onYtm = if (ytm) uri else com.music.spotui.data.catalog.CatalogRuntime.ytmUriFor(uri)
+                if (!isCurrent()) return@launch
                 if (onYtm != null && onYtm.startsWith(YTM_TRACK_PREFIX)) {
                     app.myspoti.host.android.Logbook.log("catalog: $uri is not played on Spotify ($m): YouTube Music plays $onYtm")
-                    main.post { playYtm(onYtm, null, known, positionMs) }
+                    main.post { if (isCurrent()) playYtm(onYtm, null, known, positionMs) }
                     return@launch
                 }
             }
+            if (!isCurrent()) return@launch
             if (m !is com.music.spotui.data.catalog.SpotifyMatch.Found) {
                 app.myspoti.host.android.Logbook.log("catalog: $uri not played on Spotify: $m")
                 com.music.spotui.data.catalog.SpotifyMatch.message(m)?.let { android.widget.Toast.makeText(Graph.app, it, android.widget.Toast.LENGTH_SHORT).show() }
@@ -3550,6 +3679,22 @@ object SongPlayer {
     }
 
     private const val YTM_TRACK_PREFIX = "ytmusic:track:"
+
+    /** Starts a known native YouTube list without a Spotify lookup or a web player. */
+    private fun playNativeYouTube(song: String, ctx: String?, known: SongsModel?, songs: List<SongsModel>?, positionMs: Long?): Boolean {
+        val picked = known ?: return false
+        val list = songs?.takeIf { rows -> rows.any { it.url == song } } ?: listOf(picked)
+        // Do not silently drop unsupported items from a mixed-provider list.
+        val tracks = list.map { com.music.spotui.extensions.ExtensionAudio.youtubeTrack(it) ?: return false }
+        val index = list.indexOfFirst { it === picked }.takeIf { it >= 0 } ?: list.indexOfFirst { it.url == song }
+        if (index < 0) return false
+        userActed(); routeAsk.incrementAndGet(); routingState.value = null
+        YtmPlayback.asking = false
+        cancelBurst()
+        LocalPlayer.play(tracks, index, shuffle = isShuffleOn(), context = knownContextName(ctx.orEmpty()),
+            contextUri = ctx.orEmpty(), startMs = positionMs ?: 0L, continues = true)
+        return true
+    }
 
     /**
      * Plays the YouTube Music song [uri] in YouTube Music's own page ([YtmPlayback]), in the list

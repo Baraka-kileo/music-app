@@ -68,7 +68,7 @@ object OfflineDownloader {
 
         companion object {
             fun of(s: SongsModel) = Request(
-                trackId = s.spotifyTrackId, title = s.title, artist = s.singer, album = s.album,
+                trackId = OfflineTrackKey.of(s).orEmpty(), title = s.title, artist = s.singer, album = s.album,
                 albumId = s.albumId, durationMs = s.durationMs.toLong(), coverUrl = s.coverUri,
             )
             fun fromJson(o: JSONObject) = Request(
@@ -157,7 +157,7 @@ object OfflineDownloader {
         val q = quality?.let { com.music.spotui.data.preferences.DownloadQuality.saved(it.name) }?.name.orEmpty()
         // Episodes go to PodcastDownloader: their id is no track id, so the download-source lookup
         // would 404 (or worse, match an unrelated recording by title).
-        enqueueAll(songs.filter { it.spotifyTrackId.isNotBlank() && !isEpisodeKey(it.spotifyTrackId) }.map { Request.of(it).copy(quality = q) })
+        enqueueAll(songs.mapNotNull { song -> OfflineTrackKey.of(song)?.takeIf { !isEpisodeKey(it) }?.let { Request.of(song).copy(quality = q) } })
     }
 
     private fun enqueueAll(list: List<Request>) {
@@ -307,12 +307,18 @@ object OfflineDownloader {
         val tmp = OfflineStore.tmpDir
         val audioTmp = File(tmp, "${r.trackId}.part")
         try {
-            val meta = spotifyMeta(r)
+            val nativeVideo = OfflineTrackKey.youtubeId(r.trackId)
+            val meta = if (nativeVideo == null) spotifyMeta(r) else Meta(
+                title = r.title, artist = r.artist, album = r.album, albumId = r.albumId,
+                durationMs = r.durationMs, coverUrl = r.coverUrl, isrc = null,
+            ).also { if (it.title.isBlank() || it.artist.isBlank()) throw Unavailable("no track metadata") }
             Log.i(TAG, "${meta.title}: isrc=${meta.isrc ?: "-"}")
 
             // ── The files the download-source extensions give, tried in their order; each one
             // is checked (real audio, the song's length) before it is taken.
-            val file = resolveAndFetch(r, meta, audioTmp, quality)
+            val file = if (nativeVideo == null) resolveAndFetch(r, meta, audioTmp, quality)
+                else fetchNativeYouTube(r, meta, nativeVideo, audioTmp)
+                    ?: throw Unavailable("YouTube audio format is not supported")
             currentCoroutineContext().ensureActive()
 
             val out: File
@@ -457,6 +463,19 @@ object OfflineDownloader {
                 if (++attempts >= 3 || !isExpiredYouTubeStream(e)) throw e
                 com.music.spotui.extensions.YouTubeAudio.refused(track)
                 stream = com.music.spotui.extensions.YouTubeAudio.resolveChecked(track)
+            }
+        }
+    }
+
+    private suspend fun fetchNativeYouTube(r: Request, meta: Meta, videoId: String, out: File): Fetched? {
+        var attempts = 0
+        while (true) {
+            try {
+                return fetchYouTubeStream(r, meta, com.music.spotui.extensions.YouTubeAudio.resolveVideo(videoId), out)
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                if (++attempts >= 3 || !isExpiredYouTubeStream(e)) throw e
+                com.music.spotui.extensions.YouTubeAudio.refusedVideo(videoId)
             }
         }
     }

@@ -41,21 +41,36 @@ internal object YouTubeAudio {
                     video = chosen.first.id
                     store.remember(q.key, video, chosen.second.toFloat())
                 }
-                val excluded = refusedClients.remove(video)?.let(::setOf).orEmpty()
-                val stream = MeloStreamResolver.stream(video, excluded)
-                val remaining = (stream.expiresAtMs - System.currentTimeMillis() - 60_000).coerceAtLeast(1_000)
                 app.myspoti.host.android.Logbook.log("melo_youtube: resolved ${q.key} in ${android.os.SystemClock.elapsedRealtime() - started} ms")
-                AudioStream(url = stream.url, headers = mapOf("User-Agent" to stream.userAgent), mimeType = stream.mimeType.substringBefore(';'),
-                    durationMs = null, providerId = YOUTUBE_SOURCE, expiresInMs = remaining,
-                    codec = if (stream.mimeType.contains("opus", ignoreCase = true)) "opus" else "aac",
-                    source = "YouTube:$video:${stream.contentLength}")
+                streamFor(video)
             }
         }
+
+    /** A native YouTube track already has a video ID and never needs Spotify matching. */
+    suspend fun resolveVideo(videoId: String): AudioStream = runInterruptible(Dispatchers.IO) {
+        require(isVideoId(videoId)) { "Invalid YouTube video ID" }
+        streamFor(videoId)
+    }
+
+    internal fun isVideoId(id: String): Boolean = id.matches(Regex("[A-Za-z0-9_-]{11}"))
+
+    private fun streamFor(video: String): AudioStream {
+        val excluded = refusedClients.remove(video)?.let(::setOf).orEmpty()
+        val stream = MeloStreamResolver.stream(video, excluded)
+        val remaining = (stream.expiresAtMs - System.currentTimeMillis() - 60_000).coerceAtLeast(1_000)
+        return AudioStream(url = stream.url, headers = mapOf("User-Agent" to stream.userAgent), mimeType = stream.mimeType.substringBefore(';'),
+            durationMs = null, providerId = YOUTUBE_SOURCE, expiresInMs = remaining,
+            codec = if (stream.mimeType.contains("opus", ignoreCase = true)) "opus" else "aac",
+            source = "YouTube:$video:${stream.contentLength}")
+    }
     fun refused(track: TrackInfo) {
-        store.find(track.id)?.let {
-            MeloStreamResolver.cachedStream(it)?.client?.let { client -> refusedClients[it] = client }
-            MeloStreamResolver.forgetStream(it)
-            MeloStreamResolver.renewIdentity()
-        }
+        store.find(track.id)?.let(::refusedVideo)
+    }
+
+    fun refusedVideo(videoId: String) {
+        if (!isVideoId(videoId)) return
+        MeloStreamResolver.cachedStream(videoId)?.client?.let { refusedClients[videoId] = it }
+        MeloStreamResolver.forgetStream(videoId)
+        MeloStreamResolver.renewIdentity()
     }
 }

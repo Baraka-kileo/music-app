@@ -557,7 +557,7 @@ object Extensions {
         val withAccount = action == Action.AUDIO_SOURCE && com.music.spotui.di.SongPlayer.accountPlays
         val entries = when {
             withAccount -> ids + ACCOUNT_SOURCE + YOUTUBE_SOURCE
-            action == Action.DOWNLOAD_SOURCE -> ids + YOUTUBE_SOURCE
+            action == Action.DOWNLOAD_SOURCE || action == Action.AUDIO_SOURCE && com.music.spotui.di.YtmRuntime.chosen -> ids + YOUTUBE_SOURCE
             else -> ids
         }
         return r.bySourceOrder(action.key, Area.AUDIO.key, entries) { it }

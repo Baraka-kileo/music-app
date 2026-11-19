@@ -68,7 +68,14 @@ fun SourcePicker(modifier: Modifier = Modifier) {
     val uri = SongPlayer.nowPlaying.value.uri
     val local = LocalPlayer.active.value
     // The account's player first, the extensions in the order they are asked in.
-    val ids = remember(registry, lead) { Extensions.audioChoices().sortedBy { it != ACCOUNT_SOURCE } }
+    // Source availability also depends on the selected music account. Recompute when it changes,
+    // even if the extension registry and temporary source override are unchanged.
+    val accountProvider = com.music.spotui.data.preferences.AccountProviderPref.id
+    val nativeYouTube = local && LocalPlayer.current()?.uri?.let(ExtensionAudio::youtubeVideoId) != null
+    // Other providers still require a Spotify track identity; do not offer a switch that cannot work.
+    val ids = remember(registry, lead, accountProvider, nativeYouTube) {
+        Extensions.audioChoices().sortedBy { it != ACCOUNT_SOURCE }.let { if (nativeYouTube) it.filter { id -> id == YOUTUBE_SOURCE } else it }
+    }
     if (ids.none { it != ACCOUNT_SOURCE } || uri.startsWith("spotify:episode:")) return
     val account = stringResource(R.string.sources_account)
     val names = remember(ids, registry, account) { ids.associateWith { if (it == ACCOUNT_SOURCE) account else if (it == YOUTUBE_SOURCE) "YouTube" else registry.find(it)?.name ?: it } }
@@ -84,7 +91,7 @@ fun SourcePicker(modifier: Modifier = Modifier) {
     val ctx = LocalContext.current
     val pick = { id: String ->
         // One ask at a time: a second tap waits for the first source's answer.
-        if (asking == null) {
+        if (asking == null && !(nativeYouTube && id == YOUTUBE_SOURCE)) {
             asking = id
             SongPlayer.switchSource(id) { r ->
                 asking = null

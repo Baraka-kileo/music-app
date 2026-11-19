@@ -843,7 +843,7 @@ private fun ContextHeader(
                     tint = if (saved) Immersive.Accent else Immersive.Text,
                 )
                 // The page's own songs, downloaded as a whole stay in step with the catalogue.
-                val ids = p.tracks.map { it.spotifyTrackId }.filter { it.isNotBlank() }.distinct()
+                val ids = p.tracks.mapNotNull(com.music.spotui.data.offline.OfflineTrackKey::of).distinct()
                 // Songs with no matching recording count as settled: the list can still be removed.
                 val downloadedCount = ids.count {
                     OfflineStore.isDownloaded(it) || OfflineStore.status[it] == OfflineStatus.Unavailable

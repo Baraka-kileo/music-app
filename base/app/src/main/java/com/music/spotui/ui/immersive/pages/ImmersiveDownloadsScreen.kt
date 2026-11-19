@@ -223,7 +223,7 @@ fun ImmersiveDownloadsScreen(navController: NavController) {
                     com.music.spotui.ui.immersive.components.ImmersiveMessageState(stringResource(R.string.assisted_curation_search_empty_view_no_result_title, find.trim()))
                 }
                 itemsIndexed(shown, key = { _, t -> t.trackId }) { i, t ->
-                    val current = LocalPlayer.active.value && np.uri == "local:${OfflineStore.localIdOf(t.trackId)}"
+                    val current = LocalPlayer.active.value && LocalPlayer.current()?.id == OfflineStore.localIdOf(t.trackId)
                     val song = OfflineStore.toSong(t)
                     Column(Modifier.animateItem()) {
                         ImmersiveSwipeToRemove(t.trackId, onRemove = {

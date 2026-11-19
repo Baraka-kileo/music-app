@@ -29,12 +29,15 @@ class YtmLibrary(private val api: InnerTube, private val maxPages: Int = 20) : A
     /** The songs of a browse page and of its next pages, until [needed] are there (or the list ends). */
     private suspend fun songs(browseId: String, needed: Int): Pair<List<Track>, Boolean> {
         val out = ArrayList<Track>()
+        val seenTokens = HashSet<String>()
         var answer: JsonObject = api.browse(browseId)
         var pages = 1
         while (true) {
             out += YtmParse.rows(answer).filterIsInstance<Item.Song>().map { it.track }
             val token = YtmParse.continuation(answer)
-            if (token == null || out.size >= needed || pages >= maxPages) return out to (token != null)
+            if (token == null || out.size >= needed) return out to (token != null)
+            if (pages >= maxPages) throw java.io.IOException("YouTube Music returned more pages than the safety limit")
+            if (!seenTokens.add(token)) throw java.io.IOException("YouTube Music repeated a continuation token")
             answer = api.browseMore(token)
             pages++
         }
@@ -49,13 +52,36 @@ class YtmLibrary(private val api: InnerTube, private val maxPages: Int = 20) : A
 
     override suspend fun likedTracks(offset: Int, limit: Int): Page<Track> = page(LIKED_MUSIC, offset, limit)
 
-    override suspend fun playlists(): List<Playlist> =
-        YtmParse.cards(api.browse(LIKED_PLAYLISTS)).filterIsInstance<Item.PlaylistItem>().map { it.playlist }
+    /** A negative membership answer is trustworthy only if the full liked feed was read. */
+    internal suspend fun likedTrackUris(): Set<Uri> {
+        val (tracks, more) = songs(LIKED_MUSIC, Int.MAX_VALUE)
+        if (more) throw java.io.IOException("YouTube Music liked songs exceeded the page limit")
+        return tracks.mapTo(HashSet()) { it.uri }
+    }
+
+    override suspend fun playlists(): List<Playlist> {
+        val out = LinkedHashMap<Uri, Playlist>()
+        val seen = HashSet<String>()
+        var answer = api.browse(LIKED_PLAYLISTS)
+        var pages = 1
+        while (true) {
+            YtmParse.cards(answer).filterIsInstance<Item.PlaylistItem>().forEach { out[it.playlist.uri] = it.playlist }
+            val token = YtmParse.continuation(answer) ?: return out.values.toList()
+            if (pages >= maxPages) throw java.io.IOException("YouTube Music playlists exceeded the page limit")
+            if (!seen.add(token)) throw java.io.IOException("YouTube Music repeated a playlist continuation token")
+            answer = api.browseMore(token)
+            pages++
+        }
+    }
 
     override suspend fun playlistTracks(uri: Uri, offset: Int, limit: Int): Page<Track> = page("VL" + idOf(uri, "playlist"), offset, limit)
 
     override suspend fun history(limit: Int): List<Track> =
         YtmParse.rows(api.browse(HISTORY)).filterIsInstance<Item.Song>().map { it.track }.distinctBy { it.uri }.take(limit)
+
+    /** YouTube's radio for a native video; omit the seed itself and retain service order. */
+    suspend fun radio(videoId: String): List<Track> =
+        YtmParse.watchNextTracks(api.radio(videoId)).filterNot { it.uri == "${Ytm.PROVIDER}:track:$videoId" }
 
     companion object {
         const val LIKED_MUSIC = "VLLM"

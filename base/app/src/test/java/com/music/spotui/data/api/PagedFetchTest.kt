@@ -37,4 +37,18 @@ class PagedFetchTest {
         val all = PagedFetch.inOrder(page(0, 50, 120), total = 1000, pageSize = 50, fetch = { o -> page(o, 50, 120) })
         assertEquals((0 until 120).toList(), all)
     }
+
+    @Test fun followsNextOffsetsWhenTotalsAreOnlyEstimates() = runBlocking {
+        val batches = mutableListOf<Int>()
+        fun response(offset: Int) = app.myspoti.api.Page(page(offset, 2, 5), offset, offset + 1, (offset + 2).takeIf { it < 5 })
+        val all = PagedFetch.following(response(0), fetch = ::response, onPage = { batches += it.offset })
+        assertEquals(listOf(0, 1, 2, 3, 4), all)
+        assertEquals(listOf(0, 2, 4), batches)
+    }
+
+    @Test fun rejectsARepeatedOffset() = runBlocking {
+        val first = app.myspoti.api.Page(listOf(1), 0, 2, 1)
+        val failure = runCatching { PagedFetch.following(first, fetch = { app.myspoti.api.Page(listOf(2), it, 2, it) }) }.exceptionOrNull()
+        assertTrue(failure is java.io.IOException)
+    }
 }

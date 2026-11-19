@@ -28,7 +28,12 @@ object ScreenCache {
     // One thread: writes and clear() run in call order, so a write already in
     // flight at logout cannot land after the clear and restore the old account.
     private val io = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
-    private val dir: File by lazy { File(Graph.app.filesDir, DIR).also { it.mkdirs() } }
+    // Keep Spotify's existing cache path for migration; other providers have separate caches.
+    private fun currentDir(): File {
+        val provider = com.music.spotui.data.preferences.AccountProviderPref.id
+        val suffix = if (provider == app.myspoti.api.account.AccountProviders.SPOTIFY) "" else "_" + provider.replace(Regex("[^A-Za-z0-9_-]"), "_")
+        return File(Graph.app.filesDir, DIR + suffix).also { it.mkdirs() }
+    }
 
     val home = Entry("home", HomeFeedModel.serializer())
     val libraryRoot = Entry("library_root", ListSerializer(LibraryEntry.serializer()))
@@ -38,15 +43,16 @@ object ScreenCache {
      * When Liked Songs were last read in full from Spotify (not just their newest page): the list
      * on storage is trusted for a day after that, see Api.getLikedPage. Null when never.
      */
-    fun likedFullAt(): Long? = runCatching { File(dir, "liked_full.stamp").takeIf { it.exists() }?.readText()?.trim()?.toLong() }.getOrNull()
+    fun likedFullAt(): Long? = runCatching { File(currentDir(), "liked_full.stamp").takeIf { it.exists() }?.readText()?.trim()?.toLong() }.getOrNull()
 
-    fun markLikedFull() { io.launch { runCatching { File(dir, "liked_full.stamp").writeText(System.currentTimeMillis().toString()) } } }
+    fun markLikedFull() { val dir = currentDir(); io.launch { runCatching { File(dir, "liked_full.stamp").writeText(System.currentTimeMillis().toString()) } } }
 
     /** An album page opened before, one file per album: it opens whole at once, the network refreshing it behind. */
     fun albumPage(id: String) = Entry("album_page_$id", com.music.spotui.data.entity.ContextPageModel.serializer())
 
     /** Keeps the [keep] most recent album pages on storage and deletes the others. */
     fun pruneAlbumPages(keep: Int) {
+        val dir = currentDir()
         io.launch {
             dir.listFiles { f -> f.name.startsWith("album_page_") && f.name.endsWith(".json") }
                 ?.sortedByDescending { it.lastModified() }?.drop(keep)?.forEach { it.delete() }
@@ -62,13 +68,14 @@ object ScreenCache {
      */
     fun offlinePage(id: String) = Entry("offline_page_$id", com.music.spotui.data.entity.ContextPageModel.serializer())
 
-    fun dropOfflinePage(id: String) { io.launch { File(dir, "offline_page_$id.json").delete() } }
+    fun dropOfflinePage(id: String) { val dir = currentDir(); io.launch { File(dir, "offline_page_$id.json").delete() } }
 
     /** When the page of [id] was last saved; null when there is none. */
-    fun pageSavedAt(id: String): Long? = File(dir, "page_$id.json").takeIf { it.exists() }?.lastModified()
+    fun pageSavedAt(id: String): Long? = File(currentDir(), "page_$id.json").takeIf { it.exists() }?.lastModified()
 
     /** Keeps the [keep] most recent pages on storage and deletes the others. */
     fun prunePages(keep: Int) {
+        val dir = currentDir()
         io.launch {
             dir.listFiles { f -> f.name.startsWith("page_") && f.name.endsWith(".json") }
                 ?.sortedByDescending { it.lastModified() }?.drop(keep)?.forEach { it.delete() }
@@ -76,18 +83,19 @@ object ScreenCache {
     }
 
     class Entry<T>(private val name: String, private val serializer: KSerializer<T>) {
-        private val file get() = AtomicFile(File(dir, "$name.json"))
+        private fun file() = AtomicFile(File(currentDir(), "$name.json"))
 
         /** Blocking read: call from a background thread. */
-        fun read(): T? = runCatching {
+        fun read(): T? { val file = file(); return runCatching {
             if (!file.baseFile.exists()) return null
             json.decodeFromString(serializer, file.readFully().decodeToString())
-        }.onFailure { Log.w(TAG, "drop unreadable $name: ${it.javaClass.simpleName}"); runCatching { file.delete() } }.getOrNull()
+        }.onFailure { Log.w(TAG, "drop unreadable $name: ${it.javaClass.simpleName}"); runCatching { file.delete() } }.getOrNull() }
 
         fun write(value: T) {
+            val target = file()
             io.launch {
                 runCatching {
-                    val f = file
+                    val f = target
                     val out = f.startWrite()
                     try {
                         out.write(json.encodeToString(serializer, value).encodeToByteArray())
@@ -99,5 +107,5 @@ object ScreenCache {
     }
 
     /** Logout / account switch. */
-    fun clear() { io.launch { dir.listFiles()?.forEach { it.delete() } } }
+    fun clear() { val dir = currentDir(); io.launch { dir.listFiles()?.forEach { it.delete() } } }
 }

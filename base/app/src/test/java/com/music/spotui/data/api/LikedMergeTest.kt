@@ -37,4 +37,13 @@ class LikedMergeTest {
         // More than a page of new likes: nothing links the head to the list known.
         assertEquals(false, Api.LikedCache.reaches(head, listOf(song("old1"), song("old2"))))
     }
+
+    @Test fun youtubeTracksKeepTheirOwnIdentitiesWhenMerging() {
+        fun yt(n: Int) = song("n$n").copy(spotifyTrackId = "", url = "catalog:ytmusic:track:video$n")
+        val head = (1..50).map(::yt)
+        val old = (2..52).map(::yt)
+        assertEquals(true, Api.LikedCache.reaches(head, old))
+        assertEquals((1..52).map { "catalog:ytmusic:track:video$it" }, Api.LikedCache.merge(head, old).map { it.url })
+        assertEquals(false, Api.LikedCache.reaches(head, (51..100).map(::yt)))
+    }
 }

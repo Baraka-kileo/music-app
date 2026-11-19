@@ -18,6 +18,19 @@ fun rememberSaved(uri: String, fallback: Boolean = false): Boolean {
 fun rememberTrackSaved(trackId: String): Boolean =
     if (trackId.isBlank()) false else rememberSaved("spotify:track:$trackId")
 
+/** Account-qualified identity for a song's library action; local files have none. */
+fun songLibraryUri(song: com.music.spotui.data.entity.SongsModel, youtubeAccount: Boolean): String? {
+    val native = song.url.removePrefix("catalog:")
+    if (youtubeAccount && native.startsWith("ytmusic:track:") && app.myspoti.ytmusic.Ytm.isVideoId(native.removePrefix("ytmusic:track:"))) return native
+    return song.spotifyTrackId.takeIf { it.isNotBlank() && !youtubeAccount }?.let { "spotify:track:$it" }
+}
+
+@Composable
+fun rememberSongSaved(song: com.music.spotui.data.entity.SongsModel): Boolean {
+    val uri = songLibraryUri(song, YtmRuntime.chosen) ?: return false
+    return rememberSaved(uri)
+}
+
 /**
  * Whether a track is liked, for a row of a list: what Spotify last reported ([SongPlayer.library], which a like
  * made anywhere moves at once), else the list's own batch check [known] (the uris it asked about in one go).

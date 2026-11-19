@@ -268,7 +268,7 @@ fun DownloadsScreen(navController: NavController) {
             if (lists.isNotEmpty() && singles.isNotEmpty()) item(key = "singles_title") { SectionTitle(stringResource(R.string.downloads_singles)) }
             itemsIndexed(singles, key = { _, t -> t.trackId }) { _, t ->
                 val i = tracks.indexOf(t)
-                val current = LocalPlayer.active.value && np.uri == "spotify:track:${t.trackId}"
+                val current = LocalPlayer.active.value && LocalPlayer.current()?.id == OfflineStore.localIdOf(t.trackId)
                 com.music.spotui.ui.components.SwipeToRemove(t.trackId, onRemove = {
                     val gone = com.music.spotui.data.offline.OfflineCollections.removeSong(t.trackId)
                     android.widget.Toast.makeText(context, if (gone) context.getString(R.string.toast_undownload) else com.music.spotui.data.offline.OfflineCollections.keptMessage(context, t.trackId), android.widget.Toast.LENGTH_SHORT).show()

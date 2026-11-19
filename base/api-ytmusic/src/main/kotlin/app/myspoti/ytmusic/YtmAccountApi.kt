@@ -29,9 +29,11 @@ import app.myspoti.api.Track
 import app.myspoti.api.Uri
 import app.myspoti.api.WhatsNewContent
 import app.myspoti.api.WhatsNewItem
+import app.myspoti.api.sortedFor
 import app.myspoti.ytmusic.YtmParse.Item
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.serialization.json.JsonObject
 
 /**
@@ -59,9 +61,25 @@ private fun <T> onePage(items: List<T>, offset: Int): Page<T> =
 private const val WHOLE = 2000
 
 class YtmUserLibrary(private val api: InnerTube, private val lib: YtmLibrary) : Library {
-    override suspend fun contains(uris: List<Uri>): List<Boolean> = List(uris.size) { false }
-    override suspend fun add(uris: List<Uri>): Unit = throw NotOnYtm("saving")
-    override suspend fun remove(uris: List<Uri>): Unit = throw NotOnYtm("removing")
+    private val changed = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    override suspend fun contains(uris: List<Uri>): List<Boolean> {
+        if (uris.none { it.startsWith("ytmusic:track:") }) return List(uris.size) { false }
+        val liked = lib.likedTrackUris()
+        return uris.map { it in liked }
+    }
+    override suspend fun add(uris: List<Uri>) = setLiked(uris, true)
+    override suspend fun remove(uris: List<Uri>) = setLiked(uris, false)
+
+    private suspend fun setLiked(uris: List<Uri>, liked: Boolean) {
+        val ids = uris.map { uri ->
+            if (!uri.startsWith("ytmusic:track:")) throw NotOnYtm("saving this item")
+            uri.removePrefix("ytmusic:track:").also { require(Ytm.isVideoId(it)) { "Invalid YouTube video ID" } }
+        }
+        for (id in ids) {
+            api.setLiked(id, liked)
+            changed.tryEmit(Unit)
+        }
+    }
 
     private suspend fun playlists(): List<LibraryItem> = lib.playlists().map {
         LibraryItem(it.uri, MediaKind.PLAYLIST, it.name, it.owner, it.images, pinned = false, addedAt = null, count = it.trackCount.takeIf { n -> n > 0 })
@@ -92,9 +110,10 @@ class YtmUserLibrary(private val api: InnerTube, private val lib: YtmLibrary) : 
         return onePage(all, 0)
     }
 
-    override suspend fun likedTracks(offset: Int, limit: Int): Page<SavedTrack> =
-        if (offset > 0) Page(emptyList(), offset, 0, null)
-        else onePage(lib.likedTracks(0, WHOLE).items.map { SavedTrack(it, it.addedAt) }, 0)
+    override suspend fun likedTracks(offset: Int, limit: Int): Page<SavedTrack> {
+        val page = lib.likedTracks(offset, limit)
+        return Page(page.items.map { SavedTrack(it, it.addedAt) }, page.offset, page.total, page.nextOffset)
+    }
 
     override suspend fun pin(uri: Uri): Unit = throw NotOnYtm("pinning")
     override suspend fun unpin(uri: Uri): Unit = throw NotOnYtm("pinning")
@@ -102,7 +121,7 @@ class YtmUserLibrary(private val api: InnerTube, private val lib: YtmLibrary) : 
     override suspend fun renameFolder(folderUri: Uri, name: String): Unit = throw NotOnYtm("folders")
     override suspend fun deleteFolder(folderUri: Uri): Unit = throw NotOnYtm("folders")
     override suspend fun moveToFolder(uri: Uri, folderUri: Uri?): Unit = throw NotOnYtm("folders")
-    override val changes: Flow<Unit> = emptyFlow()
+    override val changes: Flow<Unit> = changed
 
     private companion object {
         const val LIKED_ALBUMS = "FEmusic_liked_albums"
@@ -125,14 +144,21 @@ class YtmPlaylists(private val api: InnerTube, private val lib: YtmLibrary) : Pl
     }
 
     override suspend fun tracks(uri: Uri, offset: Int, limit: Int): Page<Track> =
-        if (offset > 0) Page(emptyList(), offset, 0, null) else onePage(lib.playlistTracks(ytmUri(uri), 0, WHOLE).items, 0)
+        lib.playlistTracks(ytmUri(uri), offset, limit)
 
-    override suspend fun sortedTracks(uri: Uri, sort: PlaylistSort, descending: Boolean): List<Track> = tracks(uri, 0, WHOLE).items
+    override suspend fun sortedTracks(uri: Uri, sort: PlaylistSort, descending: Boolean): List<Track> {
+        val page = tracks(uri, 0, WHOLE)
+        if (page.nextOffset != null) throw java.io.IOException("YouTube Music playlist is too large to sort completely")
+        return page.items.sortedFor(sort, descending)
+    }
     override suspend fun mine(): List<Playlist> = lib.playlists()
-    /** None yet: nothing is written to the account from the app. */
-    override suspend fun editable(): List<Playlist> = emptyList()
+    /** Only cards with an editor endpoint for the same playlist are offered for edits. */
+    override suspend fun editable(): List<Playlist> = lib.playlists().filter { it.editable }
 
-    override suspend fun create(name: String, folderUri: Uri?): Uri = throw NotOnYtm("creating a playlist")
+    override suspend fun create(name: String, folderUri: Uri?): Uri {
+        if (folderUri != null) throw NotOnYtm("playlist folders")
+        return YtmParse.playlistUri(api.createPlaylist(name))
+    }
     override suspend fun rename(uri: Uri, name: String): Unit = throw NotOnYtm("renaming a playlist")
     override suspend fun setDescription(uri: Uri, description: String): Unit = throw NotOnYtm("editing a playlist")
     override suspend fun access(uri: Uri): PlaylistAccess = PlaylistAccess.PRIVATE
@@ -151,8 +177,24 @@ class YtmPlaylists(private val api: InnerTube, private val lib: YtmLibrary) : Pl
     override suspend fun removeMember(uri: Uri, username: String): Unit = throw NotOnYtm("shared playlists")
     override suspend fun stopCollaboration(uri: Uri): Unit = throw NotOnYtm("shared playlists")
     override suspend fun addedBy(uri: Uri): List<RowAdder> = emptyList()
-    override suspend fun addTracks(uri: Uri, trackUris: List<Uri>): Unit = throw NotOnYtm("adding to a playlist")
-    override suspend fun removeTracks(uri: Uri, uids: List<String>): Unit = throw NotOnYtm("editing a playlist")
+    override suspend fun addTracks(uri: Uri, trackUris: List<Uri>) {
+        val playlistId = YtmLibrary.idOf(ytmUri(uri), "playlist")
+        val ids = trackUris.map { YtmLibrary.idOf(it, "track") }
+        api.addPlaylistTracks(playlistId, ids)
+    }
+    override suspend fun removeTracks(uri: Uri, uids: List<String>) {
+        if (uids.isEmpty()) return
+        require(uids.all(String::isNotBlank) && uids.distinct().size == uids.size) { "Invalid playlist entry IDs" }
+        // Refuse a partial read or ambiguous entry rather than removing another duplicate.
+        val rows = sortedTracks(uri, PlaylistSort.CUSTOM, false)
+        val entries = uids.map { uid ->
+            val track = rows.singleOrNull { it.uid == uid } ?: throw java.io.IOException("Playlist entry could not be identified")
+            val videoId = YtmLibrary.idOf(track.uri, "track")
+            if (!Ytm.isVideoId(videoId)) throw java.io.IOException("Invalid playlist video ID")
+            videoId to uid
+        }
+        api.removePlaylistTracks(YtmLibrary.idOf(ytmUri(uri), "playlist"), entries)
+    }
     override suspend fun moveTracks(uri: Uri, uids: List<String>, beforeUid: String?): Unit = throw NotOnYtm("editing a playlist")
     override suspend fun recommended(uri: Uri, limit: Int, skip: List<Uri>): List<Track> = emptyList()
 

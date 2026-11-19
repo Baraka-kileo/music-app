@@ -12,6 +12,27 @@ import kotlinx.coroutines.coroutineScope
  * each round (not after each page: a screen redrawn 60 times for one list).
  */
 internal object PagedFetch {
+    /** Services with an unknown total must be followed until the next offset disappears. */
+    suspend fun <T> following(
+        first: app.myspoti.api.Page<T>,
+        fetch: suspend (Int) -> app.myspoti.api.Page<T>,
+        onPage: suspend (app.myspoti.api.Page<T>) -> Unit = {},
+    ): List<T> {
+        val out = ArrayList<T>()
+        val seen = HashSet<Int>()
+        var page = first
+        while (true) {
+            if (!seen.add(page.offset)) throw java.io.IOException("Pagination repeated an offset")
+            out.addAll(page.items)
+            val next = page.nextOffset
+            if (next != null && (next <= page.offset || page.items.isEmpty())) throw java.io.IOException("Pagination did not advance")
+            onPage(page)
+            if (next == null) return out
+            page = fetch(next)
+            if (page.offset != next) throw java.io.IOException("Pagination returned the wrong offset")
+        }
+    }
+
     suspend fun <T> inOrder(
         first: List<T>,
         total: Int,
