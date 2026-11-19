@@ -114,7 +114,12 @@ Each step is small, keeps everything working, and can ship alone. No rewrite.
    - `Recommender`: Spotify, YouTube Music or both, deduplicated by song ids
 5. **Data in view models.** When a screen is touched for a feature, move its API calls from the composable into its view model, where they can be tested.
 6. **One settings store** for new settings (a typed store, one place to read and reset). Old `…Pref` objects move only when touched.
-7. **The looks.** Build new screens in Immersive first, with shared menus and view models. Classic gets fixes and the shared sheets; TV keeps its own small UI on the same view models. Decide later whether Classic stays.
+7. **The looks stay, all three.** Classic (the Spotify-like look) has its users and stays.
+   - A screen is split in two:
+     - its **state and actions** (view model, menu rows, what each button does), written once
+     - its **drawing**: one per look, and only drawing (no API calls, no account checks)
+   - A new feature is then the shared state and actions, written once, plus a small drawing per look.
+   - Each look's drawing is checked with preview and screenshot tests from the same state.
 
 With 1 to 4 done, the issue's features become:
 - a `Recommender` choice per area
