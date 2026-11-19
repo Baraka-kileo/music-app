@@ -33,6 +33,14 @@ const app = {
     return true;
   },
 };
+// The web app's "still there?" dialog: its button, tapped, is counted; argv[3] 'stillthere' uses it.
+const clicks = [];
+const dialog = { opened: true, style: { display: '' }, getAttribute: () => null };
+const youThere = {
+  closest: (sel) => (sel === 'tp-yt-paper-dialog' ? dialog : null),
+  querySelector: () => ({ click: () => clicks.push('yes') }),
+};
+let youThereShown = false;
 const listened = [];
 const timers = [];
 const window = {
@@ -43,7 +51,7 @@ const window = {
   location: { assign: (u) => assigned.push(u) },
 };
 const document = {
-  querySelector: (s) => (s === '#movie_player' ? player : s === 'ytmusic-app' && inApp ? app : null),
+  querySelector: (s) => (s === '#movie_player' ? player : s === 'ytmusic-app' && inApp ? app : s === 'ytmusic-you-there-renderer' && youThereShown ? youThere : null),
   querySelectorAll: (s) => (s === 'video, audio' ? [media] : []),
   addEventListener: (t, f, capture) => listened.push(t + (capture ? ' capture' : '')),
 };
@@ -62,6 +70,16 @@ const src = fs.readFileSync(process.argv[2], 'utf8');
 const run = () => timers.forEach((f) => f && f());
 
 (async () => {
+  if (process.argv[3] === 'stillthere') {
+    vm.runInContext(src, context);
+    youThereShown = true;
+    run(); // the dialog is open: answered
+    const whileOpen = clicks.length;
+    dialog.opened = false; dialog.getAttribute = () => 'true';
+    run(); // closed (left in the page): not tapped again
+    console.log(JSON.stringify({ whileOpen, afterClose: clicks.length - whileOpen }));
+    return;
+  }
   if (inApp) {
     vm.runInContext(src, context);
     run();

@@ -14,6 +14,7 @@
  * - The page plays unseen: its video is asked at the lowest quality (the audio is the same), and a
  *   song is opened inside the web app (its own navigation, no page load) when it can be.
  * - The state is posted on the media elements' events, plus every 5 s (it was read every 0.5 s).
+ * - The web app's "still there?" pause, after a long while with no tap, is answered (stillThere).
  * - Nothing is sent to YouTube by this script: the page plays, the page reports what it plays.
  *
  * Host -> page: window.MyspotiPage.call(id, method, args)
@@ -150,9 +151,26 @@
     return !!p;
   };
 
+  // After a long while with no tap, the web app pauses its song and asks whether anyone is still
+  // there (ytmusic-you-there-renderer, in a dialog). Nobody sees this page to answer: its button is
+  // tapped, and the web app itself goes on with the song. Only while the dialog is open, so a
+  // pause of the user's own is never undone.
+  const stillThere = () => {
+    const r = document.querySelector('ytmusic-you-there-renderer');
+    if (!r) return false;
+    const dlg = typeof r.closest === 'function' ? r.closest('tp-yt-paper-dialog') : null;
+    const open = dlg ? (dlg.opened === true || (dlg.style && dlg.style.display !== 'none' && dlg.getAttribute('aria-hidden') !== 'true')) : true;
+    if (!open) return false;
+    const b = r.querySelector('button, yt-button-renderer, tp-yt-paper-button');
+    if (!b) return false;
+    b.click();
+    return true;
+  };
+
   let last = '';
   let lastAt = 0;
   const tick = () => {
+    stillThere();
     unheard();
     lowest();
     let s = state();

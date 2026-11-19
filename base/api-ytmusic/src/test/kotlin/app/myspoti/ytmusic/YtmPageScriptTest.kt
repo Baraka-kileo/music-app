@@ -85,4 +85,18 @@ class YtmPageScriptTest {
         assertTrue("tiny-tiny vidBBBBBBB2" in strings("quality"), out)
         assertTrue("playing capture" in strings("listened") && "pause capture" in strings("listened"))
     }
+
+    @Test fun `the web app's still-there pause is answered only while its dialog is open`() {
+        val bin = node()
+        assumeTrue(bin != null, "Node is not installed")
+        val harness = resourceFile("/node/ytm-page-harness.js")
+        val script = resourceFile("/ytmusic/ytm-page.js")
+        val p = ProcessBuilder(bin, harness.path, script.path, "stillthere").redirectErrorStream(true).start()
+        assertTrue(p.waitFor(30, TimeUnit.SECONDS))
+        val out = p.inputStream.bufferedReader().readText()
+        assertEquals(0, p.exitValue(), out)
+        val r = Json.parseToJsonElement(out.trim().lines().last()).jsonObject
+        assertTrue(r["whileOpen"]!!.jsonPrimitive.content.toInt() > 0, out)
+        assertEquals(0, r["afterClose"]!!.jsonPrimitive.content.toInt(), out)
+    }
 }
