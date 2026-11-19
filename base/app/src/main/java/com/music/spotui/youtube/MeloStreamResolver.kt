@@ -131,6 +131,20 @@ internal object MeloStreamResolver {
         return script
     }
 
+    @Volatile private var knownTimestamp: Pair<Long, Int>? = null
+
+    /**
+     * The current web player's signature timestamp (read from its script, kept [TIMESTAMP_KEPT_MS]),
+     * which YouTube Music's play reports need; [videoId] is any song, for the page the script is named on.
+     */
+    internal fun currentSignatureTimestamp(videoId: String): Int? {
+        knownTimestamp?.takeIf { System.currentTimeMillis() - it.first < TIMESTAMP_KEPT_MS }?.let { return it.second }
+        val sts = signatureTimestamp(playerScript(videoId)) ?: return null
+        knownTimestamp = System.currentTimeMillis() to sts
+        return sts
+    }
+    private const val TIMESTAMP_KEPT_MS = 6 * 60 * 60_000L
+
     private fun signatureTimestamp(script: String): Int? =
         Regex("""(?:signatureTimestamp|sts)\s*[=:]\s*(\d{5,6})""").find(script)?.groupValues?.get(1)?.toIntOrNull()
 

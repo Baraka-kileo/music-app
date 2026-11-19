@@ -52,7 +52,16 @@ class YtmAccount(
         host.navigate(Ytm.HOME_URL)
     }
 
-    /** The listen sync on this page (see [WebListenSync]). */
+    /**
+     * The listen sync by play reports ([YtmPlayReports]): the app's own plays reported to the
+     * account, nothing played on the page. [signatureTimestamp]: the current web player's.
+     */
+    fun playReports(
+        syncHost: ListenSyncHost, scope: CoroutineScope, main: kotlin.coroutines.CoroutineContext,
+        signatureTimestamp: suspend (String) -> Int?, resolver: TrackIdResolver = TrackIdResolver.KnownIds,
+    ) = YtmPlayReports(api, syncHost, scope, main, signatureTimestamp, resolver)
+
+    /** The listen sync on this page (see [WebListenSync]), before the play reports replaced it. */
     fun listenSync(syncHost: ListenSyncHost, scope: CoroutineScope, clock: () -> Long, resolver: TrackIdResolver = TrackIdResolver.KnownIds) =
         WebListenSync(Ytm.PROVIDER, page, syncHost, scope, clock, Ytm::isVideoId, resolver)
 }

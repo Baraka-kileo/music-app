@@ -51,8 +51,16 @@ object AccountSync {
     internal fun mirrorYieldsFocus(on: Boolean, key: String?): Boolean = on && key != SPOTIFY_ENGINE
 
     private fun make(provider: String): ListenSync = when (provider) {
-        AccountProviders.YTMUSIC -> YtmRuntime.account.listenSync(
-            Host, MyspotiRuntime.scope, SystemClock::elapsedRealtime, TrackIdResolver.chain(TrackIdResolver.KnownIds, CatalogIds),
+        // Play reports, as the web app sends its own: nothing is played on the hidden page any more
+        // (it stopped in the background, at the web app's "still there?" and when its sign-in went).
+        AccountProviders.YTMUSIC -> YtmRuntime.account.playReports(
+            Host, MyspotiRuntime.scope, kotlinx.coroutines.Dispatchers.Main,
+            signatureTimestamp = { id ->
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching { com.music.spotui.youtube.MeloStreamResolver.currentSignatureTimestamp(id) }.getOrNull()
+                }
+            },
+            resolver = TrackIdResolver.chain(TrackIdResolver.KnownIds, CatalogIds),
         )
         AccountProviders.NONE -> NoSync
         SPOTIFY_ENGINE -> SpotifyListenSync(
