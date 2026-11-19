@@ -96,9 +96,36 @@ class PlayerViewModel constructor(private val currentSongState: CurrentSongState
         }
     }
 
+    /**
+     * "Go to song radio" for any song: a YouTube Music song plays at once with YouTube Music's
+     * radio after it (it has no Spotify id, so Spotify's radio was never an answer); any other
+     * opens Spotify's radio playlist as before.
+     */
+    fun goToSongRadio(song: com.music.spotui.data.entity.SongsModel, navigate: (route: String) -> Unit, onFailed: () -> Unit) {
+        val videoId = youtubeVideoOf(song) ?: return goToSongRadio(song.spotifyTrackId, song.title, navigate, onFailed)
+        viewModelScope.launch {
+            val radio = runCatching {
+                com.music.spotui.di.YtmRuntime.account.library.radio(videoId).map(com.music.spotui.di.Graph.api::songOf)
+            }.getOrDefault(emptyList()).filter { it.playable }
+            if (radio.isEmpty()) { onFailed(); return@launch }
+            val all = listOf(song) + radio
+            SongPlayer.playSong("catalog:ytmusic:track:$videoId", songs = all, pickedSong = song)
+        }
+    }
+
     /** The song's artist page; a song by several artists asks which one first (see ArtistChooser). */
     fun goToArtist(trackId: String, fallbackName: String, navigate: (route: String) -> Unit) =
         com.music.spotui.ui.components.ArtistChooser.goForTrack(trackId, fallbackName, navigate)
+
+    /** [goToArtist] for a song of any provider (a YouTube Music song has no Spotify id). */
+    fun goToArtist(song: com.music.spotui.data.entity.SongsModel, navigate: (route: String) -> Unit) =
+        goToArtist(com.music.spotui.data.offline.OfflineTrackKey.of(song).orEmpty(), song.singer, navigate)
+
+    companion object {
+        /** The YouTube video id of a YouTube Music song, null for any other. */
+        fun youtubeVideoOf(song: com.music.spotui.data.entity.SongsModel): String? =
+            com.music.spotui.data.offline.OfflineTrackKey.of(song)?.let(com.music.spotui.data.offline.OfflineTrackKey::youtubeId)
+    }
 
     fun playPreviousSong(queueSongs : List<SongsModel>, context: Context) {
         SongPlayer.previous()

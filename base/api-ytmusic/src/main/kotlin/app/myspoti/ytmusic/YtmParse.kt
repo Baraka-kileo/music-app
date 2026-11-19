@@ -71,8 +71,24 @@ object YtmParse {
         val list = o?.let { deep(it, "thumbnail").firstNotNullOfOrNull { t -> t.a("thumbnails") } ?: it.a("thumbnails") }
         return list?.mapNotNull { it.o() }?.mapNotNull { t ->
             t.s("url")?.let { Image(it, (t["width"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull(), (t["height"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull()) }
-        }.orEmpty()
+        }.orEmpty().let(::withLarge)
     }
+
+    /**
+     * A list's songs come with covers of 60 or 120 px: shown on a whole screen they were a blur.
+     * Google's image server makes any size of the same picture from the size in its address, so a
+     * large one (the size BitChord asks) is added as the best image.
+     */
+    private fun withLarge(list: List<Image>): List<Image> {
+        val best = list.maxByOrNull { it.width ?: 0 } ?: return list
+        if ((best.width ?: 0) >= LARGE) return list
+        val large = SIZE.find(best.url)?.let { best.url.replaceRange(it.range, "=w$LARGE-h$LARGE") } ?: return list
+        if (!best.url.contains("googleusercontent.com") && !best.url.contains("ggpht.com")) return list
+        return list + Image(large, LARGE, LARGE)
+    }
+
+    private const val LARGE = 544
+    private val SIZE = Regex("""=w\d+-h\d+""")
 
     /** "3:45" or "1:02:03" in ms; null when it is not a length. */
     fun lengthMs(s: String?): Long? {

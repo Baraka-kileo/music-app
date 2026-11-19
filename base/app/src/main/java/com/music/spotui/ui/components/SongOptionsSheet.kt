@@ -254,9 +254,9 @@ fun SongOptionsSheet(
                     onDismiss()
                 }
             }
-            MenuRow(Icons.Outlined.Radio, stringResource(R.string.context_menu_go_to_song_radio), enabled = hasId) {
+            MenuRow(Icons.Outlined.Radio, stringResource(R.string.context_menu_go_to_song_radio), enabled = hasId || com.music.spotui.ui.viewmodel.PlayerViewModel.youtubeVideoOf(song) != null) {
                 onDismiss()
-                playerViewModel.goToSongRadio(song.spotifyTrackId, song.title,
+                playerViewModel.goToSongRadio(song,
                     navigate = { route -> navController.navigate(route) },
                     onFailed = { toast(context.getString(R.string.song_radio_failed)) })
             }
@@ -266,7 +266,7 @@ fun SongOptionsSheet(
             }
             MenuRow(Icons.Outlined.Person, stringResource(R.string.context_menu_browse_artist), enabled = !isRadio && song.singer.isNotBlank()) {
                 onDismiss()
-                playerViewModel.goToArtist(song.spotifyTrackId, song.singer) { route -> navController.navigate(route) }
+                playerViewModel.goToArtist(song) { route -> navController.navigate(route) }
             }
             MenuRow(Icons.Outlined.Info, stringResource(R.string.track_credits), enabled = hasId) { showCredits = true }
             // "Not interested": kept on this phone only; the song leaves the queue and lists skip it.

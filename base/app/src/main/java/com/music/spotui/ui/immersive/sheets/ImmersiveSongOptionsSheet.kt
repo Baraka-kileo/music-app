@@ -197,9 +197,9 @@ fun ImmersiveSongOptionsSheet(
                 onDismiss()
             }
         }
-        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Radio, stringResource(R.string.context_menu_go_to_song_radio), enabled = hasId) {
+        ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Radio, stringResource(R.string.context_menu_go_to_song_radio), enabled = hasId || com.music.spotui.ui.viewmodel.PlayerViewModel.youtubeVideoOf(song) != null) {
             onDismiss()
-            playerViewModel.goToSongRadio(song.spotifyTrackId, song.title,
+            playerViewModel.goToSongRadio(song,
                 navigate = { route -> navController.navigate(route) },
                 onFailed = { toast(context.getString(R.string.song_radio_failed)) })
         }
@@ -209,7 +209,7 @@ fun ImmersiveSongOptionsSheet(
         }
         ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Person, stringResource(R.string.context_menu_browse_artist), enabled = !isRadio && song.singer.isNotBlank()) {
             onDismiss()
-            playerViewModel.goToArtist(song.spotifyTrackId, song.singer) { route -> navController.navigate(route) }
+            playerViewModel.goToArtist(song) { route -> navController.navigate(route) }
         }
         ImmersiveSheetRow(com.music.spotui.ui.design.AppIcons.Info, stringResource(R.string.track_credits), enabled = hasId) { showCredits = true }
         if (nowPlaying && hasId && !song.url.startsWith("episode:")) {
