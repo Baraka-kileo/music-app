@@ -356,17 +356,17 @@ object SongPlayer {
             MyspotiRuntime.spotify.player.refused.collect {
                 // No Widevine in this WebView: the refusal is the WebView's, not the account's.
                 val message = if (MyspotiRuntime.spotify.player.drmMissing.value) app.myspoti.engine.R.string.drm_missing else app.myspoti.engine.R.string.play_refused
-                android.widget.Toast.makeText(Graph.app, message, android.widget.Toast.LENGTH_LONG).show()
+                com.music.spotui.ui.components.AccountToast.makeText(Graph.app, message, android.widget.Toast.LENGTH_LONG).show()
             }
         }
         scope.launch {
             MyspotiRuntime.spotify.player.refusedAll.collect {
-                android.widget.Toast.makeText(Graph.app, app.myspoti.engine.R.string.play_refused_all, android.widget.Toast.LENGTH_LONG).show()
+                com.music.spotui.ui.components.AccountToast.makeText(Graph.app, app.myspoti.engine.R.string.play_refused_all, android.widget.Toast.LENGTH_LONG).show()
             }
         }
         scope.launch {
             MyspotiRuntime.spotify.player.skipChained.collect {
-                android.widget.Toast.makeText(Graph.app, app.myspoti.engine.R.string.songs_skipped_by_spotify, android.widget.Toast.LENGTH_LONG).show()
+                com.music.spotui.ui.components.AccountToast.makeText(Graph.app, app.myspoti.engine.R.string.songs_skipped_by_spotify, android.widget.Toast.LENGTH_LONG).show()
             }
         }
         scope.launch {
@@ -377,21 +377,21 @@ object SongPlayer {
                 val text = if (app.myspoti.host.android.Widevine.tooOld(drm))
                     Graph.app.getString(app.myspoti.engine.R.string.licences_refused_old_widevine, drm?.substringBefore('@'))
                 else Graph.app.getString(app.myspoti.engine.R.string.licences_refused_by_spotify)
-                android.widget.Toast.makeText(Graph.app, text, android.widget.Toast.LENGTH_LONG).show()
+                com.music.spotui.ui.components.AccountToast.makeText(Graph.app, text, android.widget.Toast.LENGTH_LONG).show()
             }
         }
         // Said once the page has asked its WebView: a device that cannot decrypt Spotify's streams
         // plays nothing (no sound, 0:00), and nothing else in the app says why.
         scope.launch {
             MyspotiRuntime.spotify.player.drmMissing.first { it }
-            android.widget.Toast.makeText(Graph.app, app.myspoti.engine.R.string.drm_missing, android.widget.Toast.LENGTH_LONG).show()
+            com.music.spotui.ui.components.AccountToast.makeText(Graph.app, app.myspoti.engine.R.string.drm_missing, android.widget.Toast.LENGTH_LONG).show()
         }
         scope.launch {
             MyspotiRuntime.host.licenseLimitedUntil.collect { until ->
                 if (until > SystemClock.elapsedRealtime()) main.post {
                     playing = false
                     boundState?.updatePlayingState(false)
-                    android.widget.Toast.makeText(Graph.app, app.myspoti.engine.R.string.spotify_limited, android.widget.Toast.LENGTH_LONG).show()
+                    com.music.spotui.ui.components.AccountToast.makeText(Graph.app, app.myspoti.engine.R.string.spotify_limited, android.widget.Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -1336,7 +1336,7 @@ object SongPlayer {
                 }
             }
             main.post {
-                android.widget.Toast.makeText(Graph.app, app.myspoti.engine.R.string.data_saver_blocked, android.widget.Toast.LENGTH_SHORT).show()
+                com.music.spotui.ui.components.AccountToast.makeText(Graph.app, app.myspoti.engine.R.string.data_saver_blocked, android.widget.Toast.LENGTH_SHORT).show()
             }
             return
         }
@@ -1550,11 +1550,11 @@ object SongPlayer {
         if (next == null || fallbackFailures > MAX_FALLBACK_FAILURES) {
             app.myspoti.host.android.Logbook.log("local: Spotify did not play $title either, ${if (next == null) "no song after it" else "$fallbackFailures songs failed in a row"}: stopped")
             fallbackFailures = 0; spotifyFallbackId = null; fallbackRest = null
-            android.widget.Toast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.song_unavailable, title), android.widget.Toast.LENGTH_LONG).show()
+            com.music.spotui.ui.components.AccountToast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.song_unavailable, title), android.widget.Toast.LENGTH_LONG).show()
             return
         }
         app.myspoti.host.android.Logbook.log("local: Spotify did not play $title within ${FALLBACK_START_MS / 1000} s: the queue goes on with ${next.title}")
-        android.widget.Toast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.song_unavailable_skipped, title), android.widget.Toast.LENGTH_SHORT).show()
+        com.music.spotui.ui.components.AccountToast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.song_unavailable_skipped, title), android.widget.Toast.LENGTH_SHORT).show()
         val name = rest!!.third
         playThroughExtensions(next.spotifyTrackId, next, name, fallback = {
             // The next one is not on the extensions either: Spotify is tried for it, watched the same way.
@@ -2015,7 +2015,7 @@ object SongPlayer {
         // (a tester's log: 183 refusals in 8 min of fast skipping, the page then skipping on its
         // own through songs it could not play). Nothing is sent until the limit is over.
         if (MyspotiRuntime.host.licenseLimited()) {
-            android.widget.Toast.makeText(Graph.app, app.myspoti.engine.R.string.spotify_limited, android.widget.Toast.LENGTH_SHORT).show()
+            com.music.spotui.ui.components.AccountToast.makeText(Graph.app, app.myspoti.engine.R.string.spotify_limited, android.widget.Toast.LENGTH_SHORT).show()
             return
         }
         // Off a song Spotify played for want of an extension: the next one is asked there first.
@@ -2961,7 +2961,7 @@ object SongPlayer {
         Haptics.confirm()
         if (!MyspotiRuntime.isStarted) { transferNow(device); return }
         if (transferAfterAd.run(device.name) { transferNow(device) }) main.post {
-            android.widget.Toast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.connect_after_ad, device.name), android.widget.Toast.LENGTH_SHORT).show()
+            com.music.spotui.ui.components.AccountToast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.connect_after_ad, device.name), android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -3007,7 +3007,7 @@ object SongPlayer {
         chosenRemote = null
         _activeDevice.value = null
         main.post {
-            android.widget.Toast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.cast_failed, device.name), android.widget.Toast.LENGTH_LONG).show()
+            com.music.spotui.ui.components.AccountToast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.cast_failed, device.name), android.widget.Toast.LENGTH_LONG).show()
         }
     }
 
@@ -3733,7 +3733,7 @@ object SongPlayer {
             if (!isCurrent()) return@launch
             if (m !is com.music.spotui.data.catalog.SpotifyMatch.Found) {
                 app.myspoti.host.android.Logbook.log("catalog: $uri not played on Spotify: $m")
-                com.music.spotui.data.catalog.SpotifyMatch.message(m)?.let { android.widget.Toast.makeText(Graph.app, it, android.widget.Toast.LENGTH_SHORT).show() }
+                com.music.spotui.data.catalog.SpotifyMatch.message(m)?.let { com.music.spotui.ui.components.AccountToast.makeText(Graph.app, it, android.widget.Toast.LENGTH_SHORT).show() }
                 return@launch
             }
             val (id, t) = m.id to m.track

@@ -173,7 +173,7 @@ fun AddSongsScreen(page: ContextPageModel, onClose: (added: Boolean) -> Unit) {
                             com.music.spotui.data.api.SpotifySync.addTrackToPlaylist(context, playlistId, song.spotifyTrackId) { ok ->
                                 if (!ok) android.os.Handler(android.os.Looper.getMainLooper()).post {
                                     added -= song.spotifyTrackId
-                                    android.widget.Toast.makeText(context, context.getString(R.string.playlist_change_refused), android.widget.Toast.LENGTH_SHORT).show()
+                                    com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.playlist_change_refused), android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }

@@ -228,7 +228,7 @@ fun ImmersiveDownloadsScreen(navController: NavController) {
                     Column(Modifier.animateItem()) {
                         ImmersiveSwipeToRemove(t.trackId, onRemove = {
                             val gone = OfflineCollections.removeSong(t.trackId)
-                            Toast.makeText(
+                            com.music.spotui.ui.components.AccountToast.makeText(
                                 context,
                                 if (gone) context.getString(R.string.toast_undownload) else OfflineCollections.keptMessage(context, t.trackId),
                                 Toast.LENGTH_SHORT,

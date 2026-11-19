@@ -658,7 +658,7 @@ private fun LyricsList(
                 },
                 selected = picked?.let { row.sourceIndex in it } == true,
                 onPick = if (selecting && !row.isGap && row.sourceIndex >= 0) ({
-                    if (!vm.pick(row.sourceIndex)) android.widget.Toast.makeText(context, context.getString(R.string.lyrics_select_max, LyricsViewModel.MAX_SHARED_LINES), android.widget.Toast.LENGTH_SHORT).show()
+                    if (!vm.pick(row.sourceIndex)) com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.lyrics_select_max, LyricsViewModel.MAX_SHARED_LINES), android.widget.Toast.LENGTH_SHORT).show()
                 }) else null,
                 onSeek = { timeMs ->
                     if (selecting) return@PanelRow

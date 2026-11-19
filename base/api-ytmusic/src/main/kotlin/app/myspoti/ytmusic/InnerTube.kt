@@ -115,6 +115,24 @@ class InnerTube(
             throw IOException("YouTube Music refused the playlist edit")
     }
 
+    /** One edit of the user's playlist (name, description, privacy, order), as the web app sends it. */
+    suspend fun editPlaylist(playlistId: String, action: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit) {
+        require(playlistId.matches(Regex("[A-Za-z0-9_-]{2,200}"))) { "Invalid YouTube playlist ID" }
+        val response = post("browse/edit_playlist", body {
+            put("playlistId", playlistId.removePrefix("VL"))
+            putJsonArray("actions") { addJsonObject(action) }
+        })
+        if ("error" in response || response["status"]?.jsonPrimitive?.contentOrNull?.let { it != "STATUS_SUCCEEDED" } == true)
+            throw IOException("YouTube Music refused the playlist edit")
+    }
+
+    /** Deletes one of the user's playlists. */
+    suspend fun deletePlaylist(playlistId: String) {
+        require(playlistId.matches(Regex("[A-Za-z0-9_-]{2,200}"))) { "Invalid YouTube playlist ID" }
+        val response = post("playlist/delete", body { put("playlistId", playlistId.removePrefix("VL")) })
+        if ("error" in response) throw IOException("YouTube Music refused to delete the playlist")
+    }
+
     /** Remove exact playlist entries; a video may appear more than once with different entry IDs. */
     suspend fun removePlaylistTracks(playlistId: String, entries: List<Pair<String, String>>) {
         require(playlistId.isNotBlank() && entries.all { (video, entry) -> Ytm.isVideoId(video) && entry.isNotBlank() })

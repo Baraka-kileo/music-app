@@ -199,7 +199,7 @@ private fun BlendSheet(navController: NavController, onDismiss: () -> Unit) {
     val blends = app.myspoti.host.android.MyspotiRuntime.api.blends
     var joining by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
-    fun say(res: Int) = Toast.makeText(context, context.getString(res), Toast.LENGTH_SHORT).show()
+    fun say(res: Int) = com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(res), Toast.LENGTH_SHORT).show()
     if (joining) NameDialog(stringResource(R.string.blend_join_title), "", stringResource(R.string.blend_join_button),
         onDismiss = { joining = false }) { link ->
         joining = false
@@ -304,7 +304,7 @@ fun BlendInviteSheet(link: com.music.spotui.data.api.InviteLinks.BlendLink, navC
                     scope.launch {
                         val uri = runCatching { api.blends.join(link.id) }.getOrNull()
                         busy = false
-                        if (uri == null) Toast.makeText(context, context.getString(R.string.blend_failed), Toast.LENGTH_SHORT).show()
+                        if (uri == null) com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.blend_failed), Toast.LENGTH_SHORT).show()
                         else {
                             com.music.spotui.data.api.Api.HomeCache.libraryRoot = null
                             LibraryEdits.reloadSoon()
@@ -524,7 +524,7 @@ fun AddLocalToPlaylistSheet(track: LocalTrack, onDismiss: () -> Unit) {
         spotifyLists = com.music.spotui.data.api.EditablePlaylists.loadWithCovers()
     }
     fun added(name: String) {
-        Toast.makeText(context, context.getString(R.string.local_added_to, name), Toast.LENGTH_SHORT).show()
+        com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.local_added_to, name), Toast.LENGTH_SHORT).show()
         onDismiss()
     }
     if (creating) {

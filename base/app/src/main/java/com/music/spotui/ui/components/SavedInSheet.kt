@@ -66,6 +66,7 @@ import com.music.spotui.data.api.SpotifySync
 import com.music.spotui.data.entity.SongsModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 
 private val SpotifyGreen: Color get() = com.music.spotui.ui.theme.AppAccent
 
@@ -88,6 +89,7 @@ fun SavedInSheet(
     var playlists by remember { mutableStateOf<List<com.music.spotui.data.api.EditablePlaylist>?>(null) }
     // playlistId → does it contain this track (filled lazily per row).
     val membership = remember { mutableStateMapOf<String, Boolean>() }
+    val tapScope = androidx.compose.runtime.rememberCoroutineScope()
     var creating by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
     // Folders opened so far (uri to name); the last one is shown.
@@ -251,8 +253,31 @@ fun SavedInSheet(
                                 )
                             },
                         ) {
-                            if (songId.isBlank() || membership[pl.id] == null) {
-                                android.widget.Toast.makeText(context, context.getString(R.string.playlist_change_refused), android.widget.Toast.LENGTH_SHORT).show()
+                            if (songId.isBlank()) {
+                                com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.playlist_change_refused), android.widget.Toast.LENGTH_SHORT).show()
+                                return@SavedInRow
+                            }
+                            // Tapped before the playlist was read (a YouTube Music playlist takes a few
+                            // seconds): it is read now, then the tap acts; unread, the song is added.
+                            // It said "refused" at once before, with nothing sent.
+                            if (membership[pl.id] == null) {
+                                tapScope.launch {
+                                    val inIt = withContext(Dispatchers.IO) { SpotifySync.playlistTrackIds(context, pl.id) }?.let { songId in it } ?: false
+                                    membership[pl.id] = !inIt
+                                    val done: (Boolean) -> Unit = { ok ->
+                                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                            if (!ok) membership[pl.id] = inIt
+                                            val text = when {
+                                                !ok -> context.getString(R.string.playlist_change_refused)
+                                                inIt -> context.getString(R.string.removed_from, pl.name)
+                                                else -> context.getString(R.string.local_added_to, pl.name)
+                                            }
+                                            com.music.spotui.ui.components.AccountToast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                    if (inIt) SpotifySync.removeTrackFromPlaylist(context, pl.id, songId, done)
+                                    else SpotifySync.addTrackToPlaylist(context, pl.id, songId, done)
+                                }
                                 return@SavedInRow
                             }
                             membership[pl.id] = !saved
@@ -266,7 +291,7 @@ fun SavedInSheet(
                                         saved -> context.getString(R.string.removed_from, pl.name)
                                         else -> context.getString(R.string.local_added_to, pl.name)
                                     }
-                                    android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show()
+                                    com.music.spotui.ui.components.AccountToast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             }
                             if (saved) SpotifySync.removeTrackFromPlaylist(context, pl.id, songId, done)

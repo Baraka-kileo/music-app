@@ -302,14 +302,14 @@ fun ExtensionScreen(navController: NavController, id: String) {
             if (e.origin != null) TextButton(enabled = id !in checking, onClick = {
                 scope.launch {
                     val r = ExtensionUpdates.check(id, manual = true)
-                    android.widget.Toast.makeText(ctx, ctx.getString(checkResult(r)), android.widget.Toast.LENGTH_SHORT).show()
+                    com.music.spotui.ui.components.AccountToast.makeText(ctx, ctx.getString(checkResult(r)), android.widget.Toast.LENGTH_SHORT).show()
                 }
             }) { Text(stringResource(R.string.extension_check_updates), color = AppAccent) }
             e.previous?.let { prev ->
                 TextButton(onClick = {
                     scope.launch {
                         runCatching { ExtensionUpdates.revert(id) }
-                            .onSuccess { android.widget.Toast.makeText(ctx, ctx.getString(R.string.extension_reverted, prev.version), android.widget.Toast.LENGTH_SHORT).show() }
+                            .onSuccess { com.music.spotui.ui.components.AccountToast.makeText(ctx, ctx.getString(R.string.extension_reverted, prev.version), android.widget.Toast.LENGTH_SHORT).show() }
                             .onFailure { toastError(ctx, it) }
                     }
                 }) { Text(stringResource(R.string.extension_revert, prev.version), color = AppAccent) }
@@ -578,7 +578,7 @@ internal fun RateButtons(repo: String) {
     if ((ratings[repo]?.issue ?: 0) <= 0) return
     fun rate(up: Boolean) = scope.launch {
         runCatching { ExtensionStore.rate(repo, up) }
-            .onSuccess { android.widget.Toast.makeText(ctx, ctx.getString(R.string.extension_rated), android.widget.Toast.LENGTH_SHORT).show() }
+            .onSuccess { com.music.spotui.ui.components.AccountToast.makeText(ctx, ctx.getString(R.string.extension_rated), android.widget.Toast.LENGTH_SHORT).show() }
             .onFailure { toastError(ctx, it) }
     }
     Row(Modifier.padding(horizontal = 12.dp)) {

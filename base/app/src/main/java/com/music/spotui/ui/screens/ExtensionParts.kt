@@ -126,7 +126,7 @@ internal fun toastError(ctx: Context, t: Throwable) {
     if (t is kotlinx.coroutines.CancellationException) return
     // The whole chain in the log: a cancellation wrapped in another exception still shows here.
     app.myspoti.host.android.Logbook.log("ext: not installed: " + generateSequence(t) { it.cause }.take(4).joinToString(" <- ") { "${it.javaClass.name}: ${it.message}" })
-    Toast.makeText(ctx.applicationContext, ctx.getString(R.string.extensions_error, t.message ?: t.toString()), Toast.LENGTH_LONG).show()
+    com.music.spotui.ui.components.AccountToast.makeText(ctx.applicationContext, ctx.getString(R.string.extensions_error, t.message ?: t.toString()), Toast.LENGTH_LONG).show()
 }
 
 /** Reads [zip] and opens the install prompt; a refused package says why. */
@@ -163,7 +163,7 @@ internal fun rememberPackagePicker(): () -> Unit {
                     }
                 }.getOrNull()
             }
-            if (bytes == null) Toast.makeText(ctx, ctx.getString(R.string.extensions_unreadable_file), Toast.LENGTH_LONG).show()
+            if (bytes == null) com.music.spotui.ui.components.AccountToast.makeText(ctx, ctx.getString(R.string.extensions_unreadable_file), Toast.LENGTH_LONG).show()
             else offer(ctx, bytes, "file")
         }
     }

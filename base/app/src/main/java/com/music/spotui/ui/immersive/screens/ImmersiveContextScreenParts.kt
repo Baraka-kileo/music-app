@@ -69,7 +69,7 @@ internal class TrackTapper(private val scope: CoroutineScope, private val contex
             delay(UNAVAILABLE_CHECK_MS)
             val playing = SongPlayer.nowPlaying.value.uri
             if (song.spotifyTrackId.isNotBlank() && !playing.endsWith(song.spotifyTrackId)) {
-                Toast.makeText(context, R.string.track_unavailable_region, Toast.LENGTH_LONG).show()
+                com.music.spotui.ui.components.AccountToast.makeText(context, R.string.track_unavailable_region, Toast.LENGTH_LONG).show()
             }
         }
     }

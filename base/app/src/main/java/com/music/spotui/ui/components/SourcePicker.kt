@@ -100,7 +100,7 @@ fun SourcePicker(modifier: Modifier = Modifier) {
                     SongPlayer.SourceSwitch.MISSING -> ctx.getString(R.string.source_pick_missing, name)
                     SongPlayer.SourceSwitch.NEXT_SONG -> ctx.getString(R.string.source_pick_next, name)
                     SongPlayer.SourceSwitch.PLAYING -> null
-                }?.let { android.widget.Toast.makeText(ctx, it, android.widget.Toast.LENGTH_LONG).show() }
+                }?.let { com.music.spotui.ui.components.AccountToast.makeText(ctx, it, android.widget.Toast.LENGTH_LONG).show() }
             }
         }
     }

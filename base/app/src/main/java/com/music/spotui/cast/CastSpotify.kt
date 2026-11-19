@@ -47,7 +47,7 @@ object CastSpotify {
                 waking.value = null
                 device.onSuccess { SongPlayer.transferTo(it) }.onFailure {
                     log("failed: ${it.javaClass.simpleName} ${it.message.orEmpty().take(80)}")
-                    android.widget.Toast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.cast_spotify_failed, d.name), android.widget.Toast.LENGTH_LONG).show()
+                    com.music.spotui.ui.components.AccountToast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.cast_spotify_failed, d.name), android.widget.Toast.LENGTH_LONG).show()
                 }
             }
         }

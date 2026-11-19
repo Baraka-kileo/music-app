@@ -772,7 +772,7 @@ private fun StoragePage(back: () -> Unit) {
                             storage.clearCaches(ctx)
                             clearing = false
                             refresh++
-                            android.widget.Toast.makeText(ctx, ctx.getString(R.string.settings_storage_cleared), android.widget.Toast.LENGTH_SHORT).show()
+                            com.music.spotui.ui.components.AccountToast.makeText(ctx, ctx.getString(R.string.settings_storage_cleared), android.widget.Toast.LENGTH_SHORT).show()
                         }
                     },
                 )
@@ -1177,7 +1177,7 @@ private fun AdvancedPage(back: () -> Unit) {
                     stringResource(R.string.restart_player_title), detail = stringResource(R.string.restart_player_detail),
                     onClick = {
                         app.myspoti.host.android.MyspotiRuntime.host.reload()
-                        android.widget.Toast.makeText(ctx, ctx.getString(R.string.restart_player_done), android.widget.Toast.LENGTH_SHORT).show()
+                        com.music.spotui.ui.components.AccountToast.makeText(ctx, ctx.getString(R.string.restart_player_done), android.widget.Toast.LENGTH_SHORT).show()
                     },
                 )
             }
@@ -1187,7 +1187,7 @@ private fun AdvancedPage(back: () -> Unit) {
                     onClick = {
                         val file = runCatching { app.myspoti.host.android.Logbook.export(ctx) }.getOrNull()
                         if (file != null) shareDiagnosticReport(ctx, file)
-                        else android.widget.Toast.makeText(ctx, ctx.getString(R.string.diagnostic_export_failed), android.widget.Toast.LENGTH_SHORT).show()
+                        else com.music.spotui.ui.components.AccountToast.makeText(ctx, ctx.getString(R.string.diagnostic_export_failed), android.widget.Toast.LENGTH_SHORT).show()
                     },
                 )
             }

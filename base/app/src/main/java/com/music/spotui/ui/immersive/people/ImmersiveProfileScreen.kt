@@ -237,7 +237,7 @@ fun ImmersiveProfileScreen(navController: NavController, userId: String, userNam
                                         blocked = false
                                         runCatching { MyspotiRuntime.api.users.unblockUser(uri) }.onFailure {
                                             blocked = true
-                                            android.widget.Toast.makeText(context, R.string.profile_block_failed, android.widget.Toast.LENGTH_SHORT).show()
+                                            com.music.spotui.ui.components.AccountToast.makeText(context, R.string.profile_block_failed, android.widget.Toast.LENGTH_SHORT).show()
                                         }
                                     } else blockAsk = true
                                 },
@@ -259,7 +259,7 @@ fun ImmersiveProfileScreen(navController: NavController, userId: String, userNam
                 scope.launch {
                     runCatching { MyspotiRuntime.api.users.blockUser(uri) }
                         .onSuccess { blocked = true; following = false }
-                        .onFailure { android.widget.Toast.makeText(context, R.string.profile_block_failed, android.widget.Toast.LENGTH_SHORT).show() }
+                        .onFailure { com.music.spotui.ui.components.AccountToast.makeText(context, R.string.profile_block_failed, android.widget.Toast.LENGTH_SHORT).show() }
                 }
             }) { Text(stringResource(R.string.profile_block), style = Immersive.BodyStrong.copy(color = Color(0xFFF15E6C))) }
         },

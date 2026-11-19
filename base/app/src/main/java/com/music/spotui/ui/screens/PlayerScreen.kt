@@ -1359,11 +1359,11 @@ fun PlayerFull(
                         smartOn -> { SmartShuffle.on.value = null; playerViewModel.updateShuffleState(false) }
                         shuffle && SmartShuffle.canPlay(ctx) -> {
                             SmartShuffle.on.value = ctx
-                            android.widget.Toast.makeText(context, context.getString(R.string.smart_shuffle_on), android.widget.Toast.LENGTH_SHORT).show()
+                            com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.smart_shuffle_on), android.widget.Toast.LENGTH_SHORT).show()
                             smartScope.launch {
                                 if (!SmartShuffle.startFor(ctx)) {
                                     SmartShuffle.on.value = null
-                                    android.widget.Toast.makeText(context, context.getString(R.string.page_load_failed), android.widget.Toast.LENGTH_SHORT).show()
+                                    com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.page_load_failed), android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
@@ -1656,16 +1656,22 @@ fun nowPlayingSong(playerViewModel: PlayerViewModel): SongsModel {
     val np = SongPlayer.nowPlaying.value
     val songId = playerViewModel.currentSongId.value
     val known = playerViewModel.queue.value.firstOrNull { it.id == songId }
+    // A YouTube Music song has no Spotify id: its menu knows it by its own uri (like, add to
+    // playlist, download, radio). Without it, the player's menu had all of those greyed out,
+    // where the same song's menu in a playlist worked.
+    val youtube = np.uri.removePrefix("ytmusic:track:").takeIf { np.uri.startsWith("ytmusic:track:") && it.isNotBlank() }
+    // Spotify's album by its bare id; any other catalog's by its whole uri (its bare id was read as Spotify's).
+    val album = np.albumUri.let { if (it.startsWith("spotify:")) it.substringAfterLast(":") else it }
     return SongsModel(
         id = songId,
         title = playerViewModel.currentSongTitle.value,
         album = known?.album?.ifBlank { null } ?: playerViewModel.currentSongAlbum.value,
         singer = playerViewModel.currentSongSinger.value,
         coverUri = playerViewModel.currentSongCoverUri.value,
-        url = known?.url.orEmpty(),
-        spotifyTrackId = SongPlayer.currentTrackId,
+        url = known?.url?.ifBlank { null } ?: youtube?.let { "catalog:ytmusic:track:$it" }.orEmpty(),
+        spotifyTrackId = if (youtube != null) "" else SongPlayer.currentTrackId,
         explicit = np.explicit,
-        albumId = np.albumUri.substringAfterLast(":", "").ifBlank { known?.albumId.orEmpty() },
+        albumId = album.ifBlank { known?.albumId.orEmpty() },
     )
 }
 

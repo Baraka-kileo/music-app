@@ -112,10 +112,10 @@ fun PassSendFlow(onDismiss: () -> Unit) {
         com.google.mlkit.vision.codescanner.GmsBarcodeScanning.getClient(context).startScan()
             .addOnSuccessListener { code ->
                 val i = PassInvite.parse(code.rawValue.orEmpty())
-                if (i == null) { Toast.makeText(context, R.string.pass_not_invite, Toast.LENGTH_LONG).show(); onDismiss() } else invite = i
+                if (i == null) { com.music.spotui.ui.components.AccountToast.makeText(context, R.string.pass_not_invite, Toast.LENGTH_LONG).show(); onDismiss() } else invite = i
             }
             .addOnCanceledListener { onDismiss() }
-            .addOnFailureListener { Toast.makeText(context, R.string.pass_scan_unavailable, Toast.LENGTH_LONG).show(); onDismiss() }
+            .addOnFailureListener { com.music.spotui.ui.components.AccountToast.makeText(context, R.string.pass_scan_unavailable, Toast.LENGTH_LONG).show(); onDismiss() }
     }
     invite?.let { PassSendConfirm(it, fromLink = false, onDismiss = onDismiss) }
 }
@@ -146,7 +146,7 @@ fun PassSendConfirm(i: PassInvite, fromLink: Boolean, onDismiss: () -> Unit) {
                 sending = true
                 scope.launch {
                     val r = withContext(Dispatchers.IO) { runCatching { PassClient.send(i, PassAndroid.collect(context.applicationContext)) } }
-                    Toast.makeText(context, r.fold({ context.getString(R.string.pass_sent, i.name) }, { context.getString(R.string.pass_failed, it.message ?: it.javaClass.simpleName) }), Toast.LENGTH_LONG).show()
+                    com.music.spotui.ui.components.AccountToast.makeText(context, r.fold({ context.getString(R.string.pass_sent, i.name) }, { context.getString(R.string.pass_failed, it.message ?: it.javaClass.simpleName) }), Toast.LENGTH_LONG).show()
                     onDismiss()
                 }
             }) { Text(stringResource(R.string.pass_send_action)) }
@@ -177,8 +177,8 @@ object PassLinks {
         if (!isPassLink(link)) return false
         val i = PassInvite.parse(link)
         when {
-            i == null -> Toast.makeText(context, R.string.pass_not_invite, Toast.LENGTH_LONG).show()
-            !signedIn -> Toast.makeText(context, R.string.pass_need_sign_in, Toast.LENGTH_LONG).show()
+            i == null -> com.music.spotui.ui.components.AccountToast.makeText(context, R.string.pass_not_invite, Toast.LENGTH_LONG).show()
+            !signedIn -> com.music.spotui.ui.components.AccountToast.makeText(context, R.string.pass_need_sign_in, Toast.LENGTH_LONG).show()
             else -> pending.value = i
         }
         return true

@@ -153,7 +153,7 @@ internal fun WhatsNewItem.togglePlay(state: WhatsNewPlayback) {
             }
             val songs = (page as? Response.Success)?.data?.tracks.orEmpty()
             withContext(Dispatchers.Main) {
-                if (songs.isEmpty()) Toast.makeText(Graph.app, R.string.page_load_failed, Toast.LENGTH_SHORT).show()
+                if (songs.isEmpty()) com.music.spotui.ui.components.AccountToast.makeText(Graph.app, R.string.page_load_failed, Toast.LENGTH_SHORT).show()
                 else SongPlayer.playSong(songs.first().url, contextUri = uri, songs = songs)
             }
         }

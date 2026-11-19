@@ -560,7 +560,7 @@ class ContextViewModel(
             val local = ids.mapNotNull { store.tracks[it] }
             val at = local.indexOfFirst { it.trackId == selectedOfflineId }.coerceAtLeast(0)
             if (limited && local.size < p.tracks.size)
-                android.widget.Toast.makeText(app, app.getString(R.string.offline_only_downloaded, local.size, p.tracks.size), android.widget.Toast.LENGTH_SHORT).show()
+                com.music.spotui.ui.components.AccountToast.makeText(app, app.getString(R.string.offline_only_downloaded, local.size, p.tracks.size), android.widget.Toast.LENGTH_SHORT).show()
             com.music.spotui.di.LocalPlayer.play(local.map(store::toLocalTrack), at, shuffle = state.shuffle.value, context = p.name, contextUri = p.uri)
             return
         }
@@ -678,7 +678,7 @@ private fun ContextContent(navController: NavController, vm: ContextViewModel, p
         com.music.spotui.data.api.SpotifySync.removeRowFromPlaylist(context, playlistId, song.spotifyTrackId, song.rowUid) { ok ->
             if (!ok) {
                 vm.reload()
-                android.widget.Toast.makeText(context, context.getString(R.string.playlist_change_refused), android.widget.Toast.LENGTH_SHORT).show()
+                com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.playlist_change_refused), android.widget.Toast.LENGTH_SHORT).show()
             } else scope.launch {
                 val chosen = snackbar.showSnackbar(
                     message = context.getString(R.string.removed_from, p.name),
@@ -690,7 +690,7 @@ private fun ContextContent(navController: NavController, vm: ContextViewModel, p
                 if (chosen == androidx.compose.material3.SnackbarResult.ActionPerformed) {
                     com.music.spotui.data.api.SpotifySync.addTrackToPlaylist(context, playlistId, song.spotifyTrackId) { back ->
                         if (back) vm.reload()
-                        else android.widget.Toast.makeText(context, context.getString(R.string.playlist_change_refused), android.widget.Toast.LENGTH_SHORT).show()
+                        else com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.playlist_change_refused), android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -734,7 +734,7 @@ private fun ContextContent(navController: NavController, vm: ContextViewModel, p
             androidx.compose.material3.TextButton(onClick = {
                 askRemoveDownloads = false
                 com.music.spotui.data.offline.OfflineCollections.remove(p.uri)
-                android.widget.Toast.makeText(context, context.getString(R.string.toast_undownload), android.widget.Toast.LENGTH_SHORT).show()
+                com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.toast_undownload), android.widget.Toast.LENGTH_SHORT).show()
             }) { Text(stringResource(R.string.playlist_entity_remove_download_dialog_positive_button), color = SpotifyGreen) }
         },
         dismissButton = {
@@ -795,7 +795,7 @@ private fun ContextContent(navController: NavController, vm: ContextViewModel, p
     drag.rows = rows
     drag.onDrop = { move ->
         vm.moveRow(move) { ok ->
-            if (!ok) android.widget.Toast.makeText(context, context.getString(R.string.playlist_change_refused), android.widget.Toast.LENGTH_SHORT).show()
+            if (!ok) com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.playlist_change_refused), android.widget.Toast.LENGTH_SHORT).show()
         }
     }
     // The page has the new order (or had it put back): its own rows are shown again.
@@ -889,7 +889,7 @@ private fun ContextContent(navController: NavController, vm: ContextViewModel, p
                                 ownPlaylist = ownPlaylist, me = com.music.spotui.data.api.ProfileCache.id, canLeave = p.canLeave,
                                 onChange = { m, collaborator ->
                                     vm.changeMember(p, m, collaborator) { ok ->
-                                        if (!ok) android.widget.Toast.makeText(context, R.string.playlist_change_refused, android.widget.Toast.LENGTH_SHORT).show()
+                                        if (!ok) com.music.spotui.ui.components.AccountToast.makeText(context, R.string.playlist_change_refused, android.widget.Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 onLeave = { showMembers = false; leaveAsk = true },
@@ -998,7 +998,7 @@ private fun ContextContent(navController: NavController, vm: ContextViewModel, p
                                 com.music.spotui.ui.components.DownloadAsk.start(context) { q ->
                                     com.music.spotui.di.Haptics.confirm()
                                     com.music.spotui.data.offline.OfflineCollections.download(p, q)
-                                    android.widget.Toast.makeText(context, context.getString(R.string.download_notification_downloading), android.widget.Toast.LENGTH_SHORT).show()
+                                    com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.download_notification_downloading), android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
@@ -1054,7 +1054,7 @@ private fun ContextContent(navController: NavController, vm: ContextViewModel, p
                                         smart -> { SmartShuffle.on.value = null; playerVm.updateShuffleState(false) }
                                         shuffle && (p.type == "playlist" || p.type == "liked") -> {
                                             SmartShuffle.on.value = p.uri
-                                            android.widget.Toast.makeText(context, context.getString(R.string.smart_shuffle_on), android.widget.Toast.LENGTH_SHORT).show()
+                                            com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.smart_shuffle_on), android.widget.Toast.LENGTH_SHORT).show()
                                             if (isThisContext) vm.playSmart(p, p.tracks.firstOrNull { it.id == currentSongId })
                                         }
                                         else -> playerVm.updateShuffleState(!shuffle)
@@ -1267,7 +1267,7 @@ private fun ContextContent(navController: NavController, vm: ContextViewModel, p
                         vm.contextSaved.value = true
                         SongPlayer.library[p.uri] = true
                         vm.reload()
-                        android.widget.Toast.makeText(context, context.getString(R.string.playlist_invite_joined), android.widget.Toast.LENGTH_SHORT).show()
+                        com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.playlist_invite_joined), android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
             },
@@ -1345,7 +1345,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.recommendedItems(vm: 
                 vm.takeRec(p, song)
                 com.music.spotui.data.api.SpotifySync.addTrackToPlaylist(context, p.uri.substringAfterLast(':'), song.spotifyTrackId) { ok ->
                     if (ok) vm.reload()
-                    else android.widget.Toast.makeText(context, context.getString(R.string.playlist_change_refused), android.widget.Toast.LENGTH_SHORT).show()
+                    else com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.playlist_change_refused), android.widget.Toast.LENGTH_SHORT).show()
                 }
             },
             modifier = Modifier.animateItem(),
@@ -1471,7 +1471,7 @@ private fun TrackRow(
                     kotlinx.coroutines.delay(UNAVAILABLE_CHECK_MS)
                     val playing = SongPlayer.nowPlaying.value.uri
                     if (song.spotifyTrackId.isNotBlank() && !playing.endsWith(song.spotifyTrackId)) {
-                        android.widget.Toast.makeText(
+                        com.music.spotui.ui.components.AccountToast.makeText(
                             appContext,
                             app.myspoti.engine.R.string.track_unavailable_region,
                             android.widget.Toast.LENGTH_LONG,
@@ -1596,14 +1596,14 @@ object SmartShuffle {
                     com.music.spotui.data.offline.OfflineCollections.refreshOne(context.applicationContext, "spotify:collection:tracks", mapOf(id to true))
                 }
             }
-            android.widget.Toast.makeText(context, context.getString(R.string.snackbar_added_to_liked_songs), android.widget.Toast.LENGTH_SHORT).show()
+            com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.snackbar_added_to_liked_songs), android.widget.Toast.LENGTH_SHORT).show()
             return
         }
         com.music.spotui.data.api.SpotifySync.addTrackToPlaylist(context, list.substringAfterLast(':'), id) { ok ->
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 if (!ok) recommended.value = recommended.value + id
                 val name = SongPlayer.knownContextName(list)
-                android.widget.Toast.makeText(context,
+                com.music.spotui.ui.components.AccountToast.makeText(context,
                     if (ok) context.getString(R.string.local_added_to, name.ifBlank { context.getString(R.string.smart_shuffle_title) })
                     else context.getString(R.string.playlist_change_refused),
                     android.widget.Toast.LENGTH_SHORT).show()

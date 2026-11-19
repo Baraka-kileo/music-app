@@ -84,7 +84,7 @@ fun EpisodeDownloadButton(song: SongsModel, size: Dp = 26.dp) {
             when (status) {
                 OfflineStatus.Done -> {
                     PodcastDownloader.remove(key)
-                    Toast.makeText(context, context.getString(R.string.toast_undownload), Toast.LENGTH_SHORT).show()
+                    com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.toast_undownload), Toast.LENGTH_SHORT).show()
                 }
                 OfflineStatus.Queued, is OfflineStatus.Downloading -> PodcastDownloader.cancel(key)
                 else -> PodcastDownloader.enqueue(song)
@@ -144,7 +144,7 @@ fun EpisodeOptionsSheet(
             when {
                 status == OfflineStatus.Done -> SheetAction(Icons.Outlined.DeleteOutline, stringResource(R.string.episode_download_remove)) {
                     key?.let { PodcastDownloader.remove(it) }
-                    Toast.makeText(context, context.getString(R.string.toast_undownload), Toast.LENGTH_SHORT).show()
+                    com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.toast_undownload), Toast.LENGTH_SHORT).show()
                     onDismiss()
                 }
                 status == OfflineStatus.Queued || status is OfflineStatus.Downloading ->
@@ -161,13 +161,13 @@ fun EpisodeOptionsSheet(
             if (finished) {
                 SheetAction(Icons.Outlined.Undo, stringResource(R.string.episode_mark_unplayed)) {
                     onMarkFinished(false)
-                    Toast.makeText(context, context.getString(R.string.episode_marked_unplayed), Toast.LENGTH_SHORT).show()
+                    com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.episode_marked_unplayed), Toast.LENGTH_SHORT).show()
                     onDismiss()
                 }
             } else {
                 SheetAction(Icons.Outlined.Done, stringResource(R.string.episode_mark_played)) {
                     onMarkFinished(true)
-                    Toast.makeText(context, context.getString(R.string.episode_marked_played), Toast.LENGTH_SHORT).show()
+                    com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.episode_marked_played), Toast.LENGTH_SHORT).show()
                     onDismiss()
                 }
             }

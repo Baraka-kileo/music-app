@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import app.myspoti.engine.R
 import com.music.spotui.ui.components.GlyphSwap
 import com.music.spotui.ui.immersive.Immersive
+import com.music.spotui.ui.immersive.shell.immersiveGlassSurface
 import com.music.spotui.ui.immersive.motion.ImmersiveMotion
 import com.music.spotui.ui.look.rememberReduceMotion
 
@@ -69,8 +70,8 @@ fun ImmersiveButton(
         modifier = modifier
             .immersiveClickable(onClick = onClick, enabled = enabled)
             .height(ImmersiveActionButtonHeight)
-            .clip(shape)
-            .background(fill)
+            // Liquid Glass while it is not lit (the bars' own glass); lit, the accent fill.
+            .then(if (filled) Modifier.clip(shape).background(fill) else Modifier.immersiveGlassSurface(shape))
             .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
@@ -105,8 +106,8 @@ fun ImmersiveCircleButton(
         modifier = modifier
             .immersiveClickable(onClick = onClick)
             .size(size)
-            .clip(CircleShape)
-            .background(Immersive.Raised),
+            // A disc of Liquid Glass, as the top bar's buttons (a flat grey disc before).
+            .immersiveGlassSurface(CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         GlyphSwap(icon) { Icon(it, contentDescription = contentDescription, tint = shownTint, modifier = Modifier.size(22.dp)) }

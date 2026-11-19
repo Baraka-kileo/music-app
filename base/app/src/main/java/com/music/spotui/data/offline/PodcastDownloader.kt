@@ -193,7 +193,7 @@ object PodcastDownloader {
     }
 
     private fun toast(res: Int) = scope.launch(Dispatchers.Main) {
-        android.widget.Toast.makeText(Graph.app, res, android.widget.Toast.LENGTH_LONG).show()
+        com.music.spotui.ui.components.AccountToast.makeText(Graph.app, res, android.widget.Toast.LENGTH_LONG).show()
     }
 
     private suspend fun work(r: Request) {

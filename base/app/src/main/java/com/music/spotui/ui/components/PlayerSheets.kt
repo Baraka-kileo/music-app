@@ -387,7 +387,7 @@ private fun JamSection(onDismiss: () -> Unit) {
     val availability by androidx.compose.runtime.produceState<app.myspoti.api.JamAvailability?>(null) {
         value = runCatching { jam.refresh(); jam.availability() }.getOrDefault(app.myspoti.api.JamAvailability.UNKNOWN)
     }
-    fun failed() = android.widget.Toast.makeText(context, context.getString(R.string.jam_failed), android.widget.Toast.LENGTH_SHORT).show()
+    fun failed() = com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.jam_failed), android.widget.Toast.LENGTH_SHORT).show()
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
         Text(stringResource(R.string.jam_title), color = AppText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         val s = session
@@ -445,7 +445,7 @@ private fun JamSection(onDismiss: () -> Unit) {
  * was shown as a failure. Only an answer Spotify refused (or a link that is not one) says so now.
  */
 private fun joinJam(context: android.content.Context, raw: String, onDismiss: () -> Unit) {
-    fun failed() = android.widget.Toast.makeText(context.applicationContext, context.getString(R.string.jam_failed), android.widget.Toast.LENGTH_SHORT).show()
+    fun failed() = com.music.spotui.ui.components.AccountToast.makeText(context.applicationContext, context.getString(R.string.jam_failed), android.widget.Toast.LENGTH_SHORT).show()
     onDismiss()
     app.myspoti.host.android.MyspotiRuntime.scope.launch {
         // A short link (spotify.link) is followed to its token first.

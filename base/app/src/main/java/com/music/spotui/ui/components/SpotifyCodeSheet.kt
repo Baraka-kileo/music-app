@@ -198,7 +198,7 @@ private fun copy(context: Context, link: String) {
     (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Spotify", link))
     // Android 13+ shows its own confirmation.
     if (android.os.Build.VERSION.SDK_INT < 33)
-        android.widget.Toast.makeText(context, context.getString(R.string.link_copied), android.widget.Toast.LENGTH_SHORT).show()
+        com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.link_copied), android.widget.Toast.LENGTH_SHORT).show()
 }
 
 @Composable

@@ -44,7 +44,7 @@ object LanLogin {
                         it is ConnectCode.Failure -> app.myspoti.engine.R.string.lan_sonos_refused
                         else -> app.myspoti.engine.R.string.lan_failed
                     }
-                    android.widget.Toast.makeText(Graph.app, Graph.app.getString(message, d.info.name.ifBlank { d.service }), android.widget.Toast.LENGTH_LONG).show()
+                    com.music.spotui.ui.components.AccountToast.makeText(Graph.app, Graph.app.getString(message, d.info.name.ifBlank { d.service }), android.widget.Toast.LENGTH_LONG).show()
                 }
             }
         }

@@ -43,7 +43,7 @@ fun sendLoginReport(context: android.content.Context) {
     MyspotiRuntime.host.noteLoginPage {
         val file = runCatching { Logbook.export(context) }.getOrNull()
         if (file != null) shareDiagnosticReport(context, file)
-        else android.widget.Toast.makeText(context, context.getString(R.string.diagnostic_export_failed), android.widget.Toast.LENGTH_SHORT).show()
+        else com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.diagnostic_export_failed), android.widget.Toast.LENGTH_SHORT).show()
     }
 }
 

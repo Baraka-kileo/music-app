@@ -31,7 +31,7 @@ object SongQueue {
         if (youtube != null && com.music.spotui.di.LocalPlayer.active.value) {
             com.music.spotui.di.LocalPlayer.enqueue(youtube, next)
             val said = if (next) R.string.context_menu_play_next else R.string.snackbar_added_to_queue
-            Toast.makeText(appContext, said, Toast.LENGTH_SHORT).show()
+            com.music.spotui.ui.components.AccountToast.makeText(appContext, said, Toast.LENGTH_SHORT).show()
             return
         }
         val id = song.spotifyTrackId
@@ -44,7 +44,7 @@ object SongQueue {
             }
             withContext(Dispatchers.Main) {
                 if (m is SpotifyMatch.Found) queue(appContext, m.id, next)
-                else SpotifyMatch.message(m)?.let { Toast.makeText(appContext, it, Toast.LENGTH_SHORT).show() }
+                else SpotifyMatch.message(m)?.let { com.music.spotui.ui.components.AccountToast.makeText(appContext, it, Toast.LENGTH_SHORT).show() }
             }
         }
     }
@@ -52,6 +52,6 @@ object SongQueue {
     private fun queue(context: Context, spotifyTrackId: String, next: Boolean) {
         if (next) SongPlayer.playNext(spotifyTrackId) else SongPlayer.addToQueue(spotifyTrackId)
         val said = if (next) R.string.context_menu_play_next else R.string.snackbar_added_to_queue
-        Toast.makeText(context, said, Toast.LENGTH_SHORT).show()
+        com.music.spotui.ui.components.AccountToast.makeText(context, said, Toast.LENGTH_SHORT).show()
     }
 }

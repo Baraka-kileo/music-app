@@ -168,6 +168,9 @@ private fun ArtistOverviewContent(
     var saved by remember(overview.id) { mutableStateOf<Set<String>>(emptySet()) }
     // An artist of another provider (its id a whole uri): Spotify cannot follow it; its page reads, its songs play.
     val onSpotify = !com.music.spotui.di.YtmRuntime.chosen && !overview.id.contains(':')
+    // Spotify's follow; YouTube Music's artists have their own Subscribe button below.
+    val artistUri = "spotify:artist:${overview.id}"
+    val canFollow = onSpotify
     val onYouTube = com.music.spotui.di.YtmRuntime.chosen && Regex("ytmusic:artist:UC[A-Za-z0-9_-]{22}").matches(overview.id)
     var subscribed by remember(overview.id, onYouTube) { mutableStateOf<Boolean?>(null) }
     var subscribing by remember(overview.id) { mutableStateOf(false) }
@@ -178,11 +181,11 @@ private fun ArtistOverviewContent(
             catch (e: Exception) { null } else null
     }
     LaunchedEffect(overview.id) {
-        if (!onSpotify) return@LaunchedEffect
-        val uris = tracks.map { "spotify:track:${it.song.spotifyTrackId}" } + "spotify:artist:${overview.id}"
+        if (!canFollow) return@LaunchedEffect
+        val uris = (if (onSpotify) tracks.map { "spotify:track:${it.song.spotifyTrackId}" } else emptyList()) + artistUri
         val res = SongPlayer.libraryContains(uris)
         saved = res
-        following = "spotify:artist:${overview.id}" in res
+        following = artistUri in res
     }
     var showAllPopular by remember { mutableStateOf(false) }
     // The user's liked songs by this artist: from the session cache, else loaded once in the background.
@@ -328,11 +331,11 @@ private fun ArtistOverviewContent(
                         )
                         Spacer(Modifier.width(16.dp))
                     }
-                    if (onSpotify) Box(modifier = Modifier.pressable(0.96f) {
-                            val on = !(SongPlayer.library["spotify:artist:${overview.id}"] ?: following)
+                    if (canFollow) Box(modifier = Modifier.pressable(0.96f) {
+                            val on = !(SongPlayer.library[artistUri] ?: following)
                             following = on
                             com.music.spotui.di.Haptics.toggle(on)
-                            SongPlayer.setSaved("spotify:artist:${overview.id}", on)
+                            SongPlayer.setSaved(artistUri, on)
                         }
                         .clip(RoundedCornerShape(20.dp))
                         .border(1.dp, Color.Gray, RoundedCornerShape(20.dp))
@@ -340,13 +343,13 @@ private fun ArtistOverviewContent(
                         .padding(16.dp, 7.dp),
                     ) {
                         Text(
-                            text = stringResource(if (SongPlayer.library["spotify:artist:${overview.id}"] ?: following) R.string.curation_button_following_state_text else R.string.curation_button_follow_state_text),
+                            text = stringResource(if (SongPlayer.library[artistUri] ?: following) R.string.curation_button_following_state_text else R.string.curation_button_follow_state_text),
                             color = AppText,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
-                    if (onSpotify) Spacer(Modifier.width(16.dp))
+                    if (canFollow) Spacer(Modifier.width(16.dp))
                     if (onYouTube && subscribed != null) {
                         val on = subscribed == true
                         Box(modifier = Modifier.pressable(0.96f) {
@@ -360,7 +363,7 @@ private fun ArtistOverviewContent(
                                     } catch (e: kotlinx.coroutines.CancellationException) { throw e }
                                     catch (e: Exception) { false }
                                     subscribing = false
-                                    if (success) subscribed = !on else android.widget.Toast.makeText(context, R.string.library_change_failed, android.widget.Toast.LENGTH_SHORT).show()
+                                    if (success) subscribed = !on else com.music.spotui.ui.components.AccountToast.makeText(context, R.string.library_change_failed, android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }.clip(RoundedCornerShape(20.dp)).border(1.dp, Color.Gray, RoundedCornerShape(20.dp)).padding(16.dp, 7.dp)) {

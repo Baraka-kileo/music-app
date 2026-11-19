@@ -96,7 +96,7 @@ object AppNotice {
         onAction: (() -> Unit)? = null,
     ) {
         main.post {
-            current.value = Item(++seq, title, subtitle, icon, coverUrl?.takeIf { it.isNotBlank() }, tone, actionLabel, onAction)
+            current.value = Item(++seq, AccountWords.fit(title), subtitle?.let { AccountWords.fit(it) }, icon, coverUrl?.takeIf { it.isNotBlank() }, tone, actionLabel, onAction)
             when (tone) {
                 Tone.ERROR -> Haptics.thud()
                 Tone.LIKE, Tone.SUCCESS -> Haptics.confirm()

@@ -125,13 +125,13 @@ object OfflineDownloader {
     fun ready(auto: Boolean = false): Boolean {
         if (!isDownloadsEnabled(Graph.app)) {
             scope.launch(Dispatchers.Main) {
-                android.widget.Toast.makeText(Graph.app, app.myspoti.engine.R.string.downloads_off_toast, android.widget.Toast.LENGTH_LONG).show()
+                com.music.spotui.ui.components.AccountToast.makeText(Graph.app, app.myspoti.engine.R.string.downloads_off_toast, android.widget.Toast.LENGTH_LONG).show()
             }
             return false
         }
         if (!com.music.spotui.extensions.Extensions.hasDownloadSource()) {
             if (!auto) scope.launch(Dispatchers.Main) {
-                android.widget.Toast.makeText(Graph.app, app.myspoti.engine.R.string.downloads_need_source, android.widget.Toast.LENGTH_LONG).show()
+                com.music.spotui.ui.components.AccountToast.makeText(Graph.app, app.myspoti.engine.R.string.downloads_need_source, android.widget.Toast.LENGTH_LONG).show()
             }
             return false
         }
@@ -151,7 +151,7 @@ object OfflineDownloader {
         } else if (com.music.spotui.data.DataSaver.metered) {
             // Asked for by the user on mobile data: it goes ahead, but they are told.
             scope.launch(Dispatchers.Main) {
-                android.widget.Toast.makeText(Graph.app, app.myspoti.engine.R.string.download_on_mobile_data, android.widget.Toast.LENGTH_LONG).show()
+                com.music.spotui.ui.components.AccountToast.makeText(Graph.app, app.myspoti.engine.R.string.download_on_mobile_data, android.widget.Toast.LENGTH_LONG).show()
             }
         }
         val q = quality?.let { com.music.spotui.data.preferences.DownloadQuality.saved(it.name) }?.name.orEmpty()

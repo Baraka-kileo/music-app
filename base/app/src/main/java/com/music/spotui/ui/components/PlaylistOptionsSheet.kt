@@ -130,7 +130,7 @@ fun PlaylistOptionsSheet(
     fun restore() = scope.launch {
         access = runCatching { MyspotiRuntime.api.playlists.access(page.uri) }.getOrNull()
         published = runCatching { MyspotiRuntime.api.playlists.published(page.uri) }.getOrNull()
-        android.widget.Toast.makeText(context, R.string.playlist_change_refused, android.widget.Toast.LENGTH_SHORT).show()
+        com.music.spotui.ui.components.AccountToast.makeText(context, R.string.playlist_change_refused, android.widget.Toast.LENGTH_SHORT).show()
     }
 
     fun setAccess(target: PlaylistAccess) {
@@ -175,7 +175,7 @@ fun PlaylistOptionsSheet(
                     scope.launch {
                         val link = BlendInfo.recent[page.uri]?.group?.link
                             ?: runCatching { MyspotiRuntime.api.blends.group(page.uri).link }.getOrNull()
-                        if (link == null) android.widget.Toast.makeText(context, R.string.blend_failed, android.widget.Toast.LENGTH_SHORT).show()
+                        if (link == null) com.music.spotui.ui.components.AccountToast.makeText(context, R.string.blend_failed, android.widget.Toast.LENGTH_SHORT).show()
                         else { BlendInfo.share(context, link); onDismiss() }
                     }
                 }
@@ -189,7 +189,7 @@ fun PlaylistOptionsSheet(
                     if (access != PlaylistAccess.COLLABORATIVE) setAccess(PlaylistAccess.COLLABORATIVE)
                     scope.launch {
                         val link = runCatching { MyspotiRuntime.api.playlists.collaboratorInvite(page.uri) }.getOrNull()
-                        if (link == null) { android.widget.Toast.makeText(context, R.string.playlist_invite_failed, android.widget.Toast.LENGTH_SHORT).show(); return@launch }
+                        if (link == null) { com.music.spotui.ui.components.AccountToast.makeText(context, R.string.playlist_invite_failed, android.widget.Toast.LENGTH_SHORT).show(); return@launch }
                         val send = android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain")
                             .putExtra(android.content.Intent.EXTRA_TEXT, context.getString(R.string.playlist_invite_message, page.name, link))
                         context.startActivity(android.content.Intent.createChooser(send, null).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -202,7 +202,7 @@ fun PlaylistOptionsSheet(
                 val a = access
                 fun change(target: PlaylistAccess, said: Int) {
                     setAccess(target)
-                    android.widget.Toast.makeText(context, said, android.widget.Toast.LENGTH_SHORT).show()
+                    com.music.spotui.ui.components.AccountToast.makeText(context, said, android.widget.Toast.LENGTH_SHORT).show()
                 }
                 when (a) {
                     null -> OptionRow(Icons.Outlined.Lock, stringResource(R.string.playlist_access_title), enabled = false) {}
@@ -216,7 +216,7 @@ fun PlaylistOptionsSheet(
                     OptionRow(if (on) Icons.Outlined.PersonRemove else Icons.Outlined.Person,
                         stringResource(if (on) R.string.playlist_remove_profile else R.string.playlist_add_profile)) {
                         setPublished(!on)
-                        android.widget.Toast.makeText(context, if (on) R.string.playlist_now_off_profile else R.string.playlist_now_on_profile, android.widget.Toast.LENGTH_SHORT).show()
+                        com.music.spotui.ui.components.AccountToast.makeText(context, if (on) R.string.playlist_now_off_profile else R.string.playlist_now_on_profile, android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
                 OptionRow(Icons.Outlined.Delete, stringResource(R.string.local_delete_playlist)) { deleting = true }
@@ -256,7 +256,7 @@ fun PlaylistOptionsSheet(
                 CoverChange.Keep -> {}
             }
         }, onDone = { ok ->
-            if (ok) android.widget.Toast.makeText(context, R.string.playlist_saved, android.widget.Toast.LENGTH_SHORT).show()
+            if (ok) com.music.spotui.ui.components.AccountToast.makeText(context, R.string.playlist_saved, android.widget.Toast.LENGTH_SHORT).show()
             // Refused: the page goes back to what Spotify has; a new cover shows only once it is read again.
             if (!ok || cover != CoverChange.Keep) onChanged()
         })
@@ -303,7 +303,7 @@ fun PlaylistOptionsSheet(
                 TextButton(onClick = {
                     stoppingCollab = false
                     access = if (public) PlaylistAccess.PUBLIC else PlaylistAccess.PRIVATE
-                    android.widget.Toast.makeText(context, R.string.playlist_now_solo, android.widget.Toast.LENGTH_SHORT).show()
+                    com.music.spotui.ui.components.AccountToast.makeText(context, R.string.playlist_now_solo, android.widget.Toast.LENGTH_SHORT).show()
                     // Written in order with the other visibility taps; a refusal puts back what Spotify has.
                     com.music.spotui.data.api.SpotifySync.stopPlaylistCollaboration(page.uri) { ok -> if (ok) onChanged() else restore() }
                 }) { Text(stringResource(R.string.playlist_stop_collab), color = AppDestructive) }

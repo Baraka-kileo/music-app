@@ -478,7 +478,7 @@ object CastPlayback {
 
     private fun toast(res: Int) {
         val name = device.value?.name.orEmpty()
-        android.widget.Toast.makeText(Graph.app, Graph.app.getString(res, name), android.widget.Toast.LENGTH_SHORT).show()
+        com.music.spotui.ui.components.AccountToast.makeText(Graph.app, Graph.app.getString(res, name), android.widget.Toast.LENGTH_SHORT).show()
     }
 
     private fun now() = android.os.SystemClock.elapsedRealtime()

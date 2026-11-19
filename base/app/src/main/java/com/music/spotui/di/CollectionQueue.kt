@@ -32,17 +32,17 @@ object CollectionQueue {
         val app = Graph.app
         scope.launch {
             val shown = known?.takeIf { it.complete }
-            if (shown == null) withContext(Dispatchers.Main) { Toast.makeText(app, R.string.add_collection_reading, Toast.LENGTH_SHORT).show() }
+            if (shown == null) withContext(Dispatchers.Main) { com.music.spotui.ui.components.AccountToast.makeText(app, R.string.add_collection_reading, Toast.LENGTH_SHORT).show() }
             val songs = shown?.tracks ?: read(uri)
             val list = songs?.let { TrackOrder.load(app, uri).apply(it) }.orEmpty()
             if (list.isEmpty()) {
-                withContext(Dispatchers.Main) { Toast.makeText(app, if (songs == null) R.string.page_load_failed else R.string.queue_list_none, Toast.LENGTH_SHORT).show() }
+                withContext(Dispatchers.Main) { com.music.spotui.ui.components.AccountToast.makeText(app, if (songs == null) R.string.page_load_failed else R.string.queue_list_none, Toast.LENGTH_SHORT).show() }
                 return@launch
             }
             SongPlayer.queueSongs(list, next) { count ->
                 val text = if (count == 0) app.getString(R.string.queue_list_none)
                     else app.resources.getQuantityString(if (next) R.plurals.queue_list_next else R.plurals.queue_list_added, count, count)
-                Toast.makeText(app, text, Toast.LENGTH_SHORT).show()
+                com.music.spotui.ui.components.AccountToast.makeText(app, text, Toast.LENGTH_SHORT).show()
             }
         }
     }

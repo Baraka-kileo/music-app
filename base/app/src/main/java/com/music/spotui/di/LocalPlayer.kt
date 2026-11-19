@@ -296,14 +296,14 @@ object LocalPlayer {
             when (errors.failed(item.toString(), p.hasNextMediaItem())) {
                 StreamErrors.Step.SKIP -> {
                     log("skipped ${t.title}: no extension had it and Spotify cannot play it now")
-                    android.widget.Toast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.song_unavailable_skipped, t.title), android.widget.Toast.LENGTH_SHORT).show()
+                    com.music.spotui.ui.components.AccountToast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.song_unavailable_skipped, t.title), android.widget.Toast.LENGTH_SHORT).show()
                     p.seekToNextMediaItem()
                     p.prepare()
                     p.play()
                 }
                 else -> {
                     log("stopped on ${t.title}: it cannot be played, and the songs after it failed too or none follows")
-                    android.widget.Toast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.song_unavailable, t.title), android.widget.Toast.LENGTH_LONG).show()
+                    com.music.spotui.ui.components.AccountToast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.song_unavailable, t.title), android.widget.Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -493,12 +493,12 @@ object LocalPlayer {
         when (errors.failed(uri.toString(), p.hasNextMediaItem())) {
             StreamErrors.Step.SKIP -> {
                 log("skipped ${t.title}: its file is gone")
-                android.widget.Toast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.song_unavailable_skipped, t.title), android.widget.Toast.LENGTH_SHORT).show()
+                com.music.spotui.ui.components.AccountToast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.song_unavailable_skipped, t.title), android.widget.Toast.LENGTH_SHORT).show()
                 p.seekToNextMediaItem(); p.prepare(); p.play()
             }
             else -> {
                 log("stopped on ${t.title}: its file is gone, and the songs after it failed too or none follows")
-                android.widget.Toast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.song_unavailable, t.title), android.widget.Toast.LENGTH_LONG).show()
+                com.music.spotui.ui.components.AccountToast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.song_unavailable, t.title), android.widget.Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -2187,14 +2187,14 @@ object LocalPlayer {
         if (network) return reconnectRadio(p, t)
         radioRetries = 0
         log("${t.title}: not reconnected, the stream itself failed (${error.errorCodeName})")
-        android.widget.Toast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.song_unavailable, t.title), android.widget.Toast.LENGTH_LONG).show()
+        com.music.spotui.ui.components.AccountToast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.song_unavailable, t.title), android.widget.Toast.LENGTH_LONG).show()
     }
 
     private fun reconnectRadio(p: ExoPlayer, t: LocalTrack) {
         if (radioRetries >= RADIO_TRIES) {
             radioRetries = 0
             log("${t.title}: gave up reconnecting after repeated failures")
-            android.widget.Toast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.song_unavailable, t.title), android.widget.Toast.LENGTH_LONG).show()
+            com.music.spotui.ui.components.AccountToast.makeText(Graph.app, Graph.app.getString(app.myspoti.engine.R.string.song_unavailable, t.title), android.widget.Toast.LENGTH_LONG).show()
             return
         }
         radioRetries++

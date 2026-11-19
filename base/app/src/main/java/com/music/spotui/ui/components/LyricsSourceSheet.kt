@@ -65,7 +65,7 @@ fun LyricsSourceSheet(onDismiss: () -> Unit, vm: LyricsViewModel = viewModel()) 
         asked = null
         if (vm.triedNothing.value == was) {
             val name = sources.firstOrNull { it.id == was }?.name ?: was
-            Toast.makeText(context, context.getString(R.string.lyrics_source_nothing, name), Toast.LENGTH_SHORT).show()
+            com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.lyrics_source_nothing, name), Toast.LENGTH_SHORT).show()
         } else onDismiss()
     }
 

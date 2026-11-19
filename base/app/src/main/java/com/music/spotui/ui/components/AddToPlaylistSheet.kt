@@ -90,7 +90,7 @@ fun AddToPlaylistSheet(
             Handler(Looper.getMainLooper()).post {
                 val text = if (ok) context.getString(R.string.local_added_to, playlist.name)
                 else context.getString(R.string.playlist_change_refused)
-                Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+                com.music.spotui.ui.components.AccountToast.makeText(context, text, Toast.LENGTH_SHORT).show()
             }
         }
     }

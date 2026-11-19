@@ -86,7 +86,7 @@ fun ArtistOptionsSheet(artistId: String, artistName: String, artistImage: String
                 app.myspoti.host.android.MyspotiRuntime.scope.launch {
                     runCatching { app.myspoti.host.android.MyspotiRuntime.api.extras.setArtistBanned(uri, keepOut) }
                 }
-                Toast.makeText(
+                com.music.spotui.ui.components.AccountToast.makeText(
                     context,
                     context.getString(if (keepOut) R.string.artist_banned else R.string.artist_unbanned, artistName),
                     Toast.LENGTH_SHORT,

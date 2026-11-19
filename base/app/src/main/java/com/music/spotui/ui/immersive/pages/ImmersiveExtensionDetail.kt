@@ -326,7 +326,7 @@ fun ImmersiveExtensionScreen(navController: NavController, id: String) {
                 ImmersiveGroupRow(stringResource(R.string.extension_check_updates), enabled = id !in checking, chevron = true, onClick = {
                     scope.launch {
                         val r = ExtensionUpdates.check(id, manual = true)
-                        android.widget.Toast.makeText(ctx, ctx.getString(checkResult(r)), android.widget.Toast.LENGTH_SHORT).show()
+                        com.music.spotui.ui.components.AccountToast.makeText(ctx, ctx.getString(checkResult(r)), android.widget.Toast.LENGTH_SHORT).show()
                     }
                 })
             }
@@ -335,7 +335,7 @@ fun ImmersiveExtensionScreen(navController: NavController, id: String) {
                     ImmersiveGroupRow(stringResource(R.string.extension_revert, prev.version), chevron = true, onClick = {
                         scope.launch {
                             runCatching { ExtensionUpdates.revert(id) }
-                                .onSuccess { android.widget.Toast.makeText(ctx, ctx.getString(R.string.extension_reverted, prev.version), android.widget.Toast.LENGTH_SHORT).show() }
+                                .onSuccess { com.music.spotui.ui.components.AccountToast.makeText(ctx, ctx.getString(R.string.extension_reverted, prev.version), android.widget.Toast.LENGTH_SHORT).show() }
                                 .onFailure { toastError(ctx, it) }
                         }
                     })

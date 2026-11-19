@@ -288,7 +288,7 @@ private fun ImmersiveContextContent(navController: NavController, vm: ContextVie
         ownPlaylist = ownPlaylist, me = com.music.spotui.data.api.ProfileCache.id, canLeave = p.canLeave,
         onChange = { m, collaborator ->
             vm.changeMember(p, m, collaborator) { ok ->
-                if (!ok) android.widget.Toast.makeText(context, R.string.playlist_change_refused, android.widget.Toast.LENGTH_SHORT).show()
+                if (!ok) com.music.spotui.ui.components.AccountToast.makeText(context, R.string.playlist_change_refused, android.widget.Toast.LENGTH_SHORT).show()
             }
         },
         onLeave = { showMembers = false; leaveAsk = true },
@@ -322,7 +322,7 @@ private fun ImmersiveContextContent(navController: NavController, vm: ContextVie
         com.music.spotui.data.api.SpotifySync.removeTrackFromPlaylist(context, playlistId, song.spotifyTrackId) { ok ->
             if (!ok) {
                 vm.reload()
-                Toast.makeText(context, context.getString(R.string.playlist_change_refused), Toast.LENGTH_SHORT).show()
+                com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.playlist_change_refused), Toast.LENGTH_SHORT).show()
             } else scope.launch {
                 val chosen = snackbar.showSnackbar(
                     message = context.getString(R.string.removed_from, p.name),
@@ -334,7 +334,7 @@ private fun ImmersiveContextContent(navController: NavController, vm: ContextVie
                 if (chosen == SnackbarResult.ActionPerformed) {
                     com.music.spotui.data.api.SpotifySync.addTrackToPlaylist(context, playlistId, song.spotifyTrackId) { back ->
                         if (back) vm.reload()
-                        else Toast.makeText(context, context.getString(R.string.playlist_change_refused), Toast.LENGTH_SHORT).show()
+                        else com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.playlist_change_refused), Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -360,7 +360,7 @@ private fun ImmersiveContextContent(navController: NavController, vm: ContextVie
             TextButton(onClick = {
                 askRemoveDownloads = false
                 OfflineCollections.remove(p.uri)
-                Toast.makeText(context, context.getString(R.string.toast_undownload), Toast.LENGTH_SHORT).show()
+                com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.toast_undownload), Toast.LENGTH_SHORT).show()
             }) { Text(stringResource(R.string.playlist_entity_remove_download_dialog_positive_button), style = Immersive.BodyStrong.copy(color = Immersive.Accent)) }
         },
         dismissButton = {
@@ -426,7 +426,7 @@ private fun ImmersiveContextContent(navController: NavController, vm: ContextVie
             playerVm.updateShuffleState(false)
         } else {
             SmartShuffle.on.value = p.uri
-            Toast.makeText(context, context.getString(R.string.immersive_detail_smart_shuffle_on), Toast.LENGTH_SHORT).show()
+            com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.immersive_detail_smart_shuffle_on), Toast.LENGTH_SHORT).show()
             if (isThisContext) vm.playSmart(p, p.tracks.firstOrNull { it.id == currentSongId })
         }
     }
@@ -447,7 +447,7 @@ private fun ImmersiveContextContent(navController: NavController, vm: ContextVie
     drag.rows = rows
     drag.onDrop = { move ->
         vm.moveRow(move) { ok ->
-            if (!ok) Toast.makeText(context, context.getString(R.string.playlist_change_refused), Toast.LENGTH_SHORT).show()
+            if (!ok) com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.playlist_change_refused), Toast.LENGTH_SHORT).show()
         }
     }
     // The page has the new order (or had it put back): its own rows are shown again.
@@ -855,8 +855,9 @@ private fun ContextHeader(
                         .fillMaxWidth()
                         .immersiveClickable(onClick = onPlay)
                         .height(52.dp)
-                        .clip(CircleShape)
-                        .background(Color.White),
+                        // Liquid Glass with a white body: the page's main action, lit (rim, shadow, lens).
+                        .immersiveGlassSurface(CircleShape)
+                        .background(Color.White.copy(alpha = 0.94f), CircleShape),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -897,7 +898,7 @@ private fun ContextHeader(
                     else DownloadAsk.start(context) { q ->
                         com.music.spotui.di.Haptics.confirm()
                         OfflineCollections.download(p, q)
-                        Toast.makeText(context, context.getString(R.string.download_notification_downloading), Toast.LENGTH_SHORT).show()
+                        com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.download_notification_downloading), Toast.LENGTH_SHORT).show()
                     }
                 }
                 if (SmartShuffle.canPlay(p.uri)) ImmersiveCircleButton(
@@ -1073,7 +1074,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.immersiveRecommended(
                             vm.takeRec(p, song)
                             com.music.spotui.data.api.SpotifySync.addTrackToPlaylist(context, p.uri.substringAfterLast(':'), song.spotifyTrackId) { ok ->
                                 if (ok) vm.reload()
-                                else android.widget.Toast.makeText(context, context.getString(R.string.playlist_change_refused), android.widget.Toast.LENGTH_SHORT).show()
+                                else com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.playlist_change_refused), android.widget.Toast.LENGTH_SHORT).show()
                             }
                         })
                         .padding(8.dp),
@@ -1111,7 +1112,7 @@ private fun InviteJoinBar(vm: ContextViewModel, p: ContextPageModel, modifier: M
                         vm.contextSaved.value = true
                         SongPlayer.library[p.uri] = true
                         vm.reload()
-                        android.widget.Toast.makeText(context, context.getString(R.string.playlist_invite_joined), android.widget.Toast.LENGTH_SHORT).show()
+                        com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.playlist_invite_joined), android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
             },

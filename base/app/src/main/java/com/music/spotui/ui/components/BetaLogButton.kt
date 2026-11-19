@@ -166,7 +166,7 @@ private fun LogsDialog(onDismiss: () -> Unit) {
 private fun copy(context: Context, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     clipboard.setPrimaryClip(ClipData.newPlainText("Myspoti logs", text))
-    Toast.makeText(context, R.string.beta_logs_copied, Toast.LENGTH_SHORT).show()
+    com.music.spotui.ui.components.AccountToast.makeText(context, R.string.beta_logs_copied, Toast.LENGTH_SHORT).show()
 }
 
 private fun share(context: Context, text: String) {

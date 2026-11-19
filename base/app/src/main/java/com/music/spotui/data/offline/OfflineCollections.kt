@@ -132,7 +132,7 @@ object OfflineCollections {
     /** Download a list as a whole, and keep it in step from now on. */
     fun download(page: ContextPageModel, quality: com.music.spotui.data.preferences.DownloadQuality? = null) {
         if (!page.complete || !page.completeForSync) {
-            android.widget.Toast.makeText(Graph.app, app.myspoti.engine.R.string.download_list_incomplete, android.widget.Toast.LENGTH_LONG).show()
+            com.music.spotui.ui.components.AccountToast.makeText(Graph.app, app.myspoti.engine.R.string.download_list_incomplete, android.widget.Toast.LENGTH_LONG).show()
             return
         }
         // An episode in a list is not a track: it stays out of the collection, and the

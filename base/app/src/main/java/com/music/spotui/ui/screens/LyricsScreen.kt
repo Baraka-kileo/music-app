@@ -671,7 +671,7 @@ fun LyricsScreen(
                                 duet = duet,
                                 // Picking lines: a tap selects instead of seeking.
                                 onTap = if (selecting) ({ _ ->
-                                    if (!vm.pick(i)) android.widget.Toast.makeText(context, context.getString(R.string.lyrics_select_max, LyricsViewModel.MAX_SHARED_LINES), android.widget.Toast.LENGTH_SHORT).show()
+                                    if (!vm.pick(i)) com.music.spotui.ui.components.AccountToast.makeText(context, context.getString(R.string.lyrics_select_max, LyricsViewModel.MAX_SHARED_LINES), android.widget.Toast.LENGTH_SHORT).show()
                                 }) else if (l.synced) ({ jumpTo(it) }) else null,
                                 annotated = i in notes,
                                 // A line Genius explains opens its note; any other starts picking lines to share.

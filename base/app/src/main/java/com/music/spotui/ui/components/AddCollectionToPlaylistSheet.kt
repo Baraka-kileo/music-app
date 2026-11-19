@@ -79,7 +79,7 @@ fun AddCollectionToPlaylistSheet(sourceUri: String, title: String, onDismiss: ()
         playlists.orEmpty().filter { "spotify:playlist:${it.id}" != sourceUri && matchesFind(query, it.name) }
     }
 
-    fun say(text: String) = Handler(Looper.getMainLooper()).post { Toast.makeText(context, text, Toast.LENGTH_SHORT).show() }
+    fun say(text: String) = Handler(Looper.getMainLooper()).post { com.music.spotui.ui.components.AccountToast.makeText(context, text, Toast.LENGTH_SHORT).show() }
 
     fun write(target: EditablePlaylist, uris: List<String>) {
         onDismiss()

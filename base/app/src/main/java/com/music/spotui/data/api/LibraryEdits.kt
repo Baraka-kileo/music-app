@@ -150,7 +150,7 @@ object LibraryEdits {
             else {
                 Log.w(TAG, "library write refused: ${failure.message}")
                 edit?.let(::cancel)
-                Toast.makeText(app, app.getString(R.string.library_change_undone), Toast.LENGTH_SHORT).show()
+                com.music.spotui.ui.components.AccountToast.makeText(app, app.getString(R.string.library_change_undone), Toast.LENGTH_SHORT).show()
             }
             onDone(failure == null)
         }

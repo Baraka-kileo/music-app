@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 package app.myspoti.ytmusic
 
+import kotlinx.serialization.json.put
 import app.myspoti.api.Album
 import app.myspoti.api.BrowsePage
 import app.myspoti.api.Category
@@ -182,16 +183,27 @@ class YtmPlaylists(private val api: InnerTube, private val lib: YtmLibrary) : Pl
         if (folderUri != null) throw NotOnYtm("playlist folders")
         return YtmParse.playlistUri(api.createPlaylist(name))
     }
-    override suspend fun rename(uri: Uri, name: String): Unit = throw NotOnYtm("renaming a playlist")
-    override suspend fun setDescription(uri: Uri, description: String): Unit = throw NotOnYtm("editing a playlist")
+    private fun pid(uri: Uri) = YtmLibrary.idOf(ytmUri(uri), "playlist")
+    override suspend fun rename(uri: Uri, name: String) {
+        require(name.isNotBlank()) { "Playlist name is empty" }
+        api.editPlaylist(pid(uri)) { put("action", "ACTION_SET_PLAYLIST_NAME"); put("playlistName", name) }
+    }
+    override suspend fun setDescription(uri: Uri, description: String) =
+        api.editPlaylist(pid(uri)) { put("action", "ACTION_SET_PLAYLIST_DESCRIPTION"); put("playlistDescription", description) }
     override suspend fun access(uri: Uri): PlaylistAccess = PlaylistAccess.PRIVATE
-    override suspend fun setAccess(uri: Uri, access: PlaylistAccess): Unit = throw NotOnYtm("editing a playlist")
+    /** Spotify's "public" is YouTube Music's public; anything else stays private (YouTube Music has no "collaborative" here). */
+    override suspend fun setAccess(uri: Uri, access: PlaylistAccess) =
+        api.editPlaylist(pid(uri)) {
+            put("action", "ACTION_SET_PLAYLIST_PRIVACY")
+            put("playlistPrivacy", if (access.name == "PUBLIC") "PUBLIC" else "PRIVATE")
+        }
     override suspend fun published(uri: Uri): Boolean = false
     override suspend fun setPublished(uri: Uri, published: Boolean): Unit = throw NotOnYtm("editing a playlist")
     override suspend fun setCover(uri: Uri, jpeg: ByteArray?): Unit = throw NotOnYtm("editing a playlist")
-    override suspend fun delete(uri: Uri): Unit = throw NotOnYtm("deleting a playlist")
-    override suspend fun follow(uri: Uri): Unit = throw NotOnYtm("saving a playlist")
-    override suspend fun unfollow(uri: Uri): Unit = throw NotOnYtm("removing a playlist")
+    override suspend fun delete(uri: Uri) = api.deletePlaylist(pid(uri))
+    // Following a playlist is YouTube Music's "add to library" (a like of the playlist).
+    override suspend fun follow(uri: Uri) = api.setPlaylistSaved(pid(uri), true)
+    override suspend fun unfollow(uri: Uri) = api.setPlaylistSaved(pid(uri), false)
     override suspend fun join(uri: Uri, invitationToken: String): PlaylistAccess = throw NotOnYtm("shared playlists")
     override suspend fun collaboratorInvite(uri: Uri): String = throw NotOnYtm("shared playlists")
     override suspend fun members(uri: Uri): List<PlaylistMember> = emptyList()
@@ -218,7 +230,15 @@ class YtmPlaylists(private val api: InnerTube, private val lib: YtmLibrary) : Pl
         }
         api.removePlaylistTracks(YtmLibrary.idOf(ytmUri(uri), "playlist"), entries)
     }
-    override suspend fun moveTracks(uri: Uri, uids: List<String>, beforeUid: String?): Unit = throw NotOnYtm("editing a playlist")
+    /** Each moved entry goes before [beforeUid] (the end when null), in the order given, as the web app moves them. */
+    override suspend fun moveTracks(uri: Uri, uids: List<String>, beforeUid: String?) {
+        require(uids.all(String::isNotBlank)) { "Invalid playlist entry IDs" }
+        val id = pid(uri)
+        for (uid in uids) api.editPlaylist(id) {
+            put("action", "ACTION_MOVE_VIDEO_BEFORE"); put("setVideoId", uid)
+            if (beforeUid != null) put("movedSetVideoIdSuccessor", beforeUid)
+        }
+    }
     override suspend fun recommended(uri: Uri, limit: Int, skip: List<Uri>): List<Track> = emptyList()
 
     private companion object {

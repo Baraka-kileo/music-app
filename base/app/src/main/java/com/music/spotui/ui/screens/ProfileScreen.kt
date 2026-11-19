@@ -97,7 +97,7 @@ fun ProfileScreen(navController: NavController, userId: String, userName: String
                     scope.launch {
                         runCatching { MyspotiRuntime.api.users.blockUser(uri) }
                             .onSuccess { blocked = true; following = false }
-                            .onFailure { android.widget.Toast.makeText(context, R.string.profile_block_failed, android.widget.Toast.LENGTH_SHORT).show() }
+                            .onFailure { com.music.spotui.ui.components.AccountToast.makeText(context, R.string.profile_block_failed, android.widget.Toast.LENGTH_SHORT).show() }
                     }
                 }) { Text(stringResource(R.string.profile_block), color = AppDestructive) }
             },
@@ -133,7 +133,7 @@ fun ProfileScreen(navController: NavController, userId: String, userName: String
                                         blocked = false
                                         runCatching { MyspotiRuntime.api.users.unblockUser(uri) }.onFailure {
                                             blocked = true
-                                            android.widget.Toast.makeText(context, R.string.profile_block_failed, android.widget.Toast.LENGTH_SHORT).show()
+                                            com.music.spotui.ui.components.AccountToast.makeText(context, R.string.profile_block_failed, android.widget.Toast.LENGTH_SHORT).show()
                                         }
                                     } else blockAsk = true
                                 },

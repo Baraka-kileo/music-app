@@ -246,7 +246,7 @@ object AppShuffle {
         if (restore) SongPlayer.setPageShuffle(true)
         told?.let { l ->
             app.myspoti.host.android.Logbook.log("shuffle: Spotify keeps its own shuffle on $l, Myspoti's order left")
-            main.post { android.widget.Toast.makeText(Graph.app, Graph.app.getString(R.string.myspoti_shuffle_imposed), android.widget.Toast.LENGTH_LONG).show() }
+            main.post { com.music.spotui.ui.components.AccountToast.makeText(Graph.app, Graph.app.getString(R.string.myspoti_shuffle_imposed), android.widget.Toast.LENGTH_LONG).show() }
         }
         return mine
     }

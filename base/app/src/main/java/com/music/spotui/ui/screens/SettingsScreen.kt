@@ -518,7 +518,7 @@ fun SettingsScreen(navController: NavController) {
                 Modifier.fillMaxWidth().clickable {
                     app.myspoti.host.android.MyspotiRuntime.host.reload()
                     // Reported: nothing said the restart happened.
-                    android.widget.Toast.makeText(ctx, ctx.getString(R.string.restart_player_done), android.widget.Toast.LENGTH_SHORT).show()
+                    com.music.spotui.ui.components.AccountToast.makeText(ctx, ctx.getString(R.string.restart_player_done), android.widget.Toast.LENGTH_SHORT).show()
                 }
                     .padding(horizontal = 20.dp, vertical = 10.dp),
             ) {
@@ -531,7 +531,7 @@ fun SettingsScreen(navController: NavController) {
                 Modifier.fillMaxWidth().clickable {
                     val file = runCatching { app.myspoti.host.android.Logbook.export(ctx) }.getOrNull()
                     if (file != null) shareDiagnosticReport(ctx, file)
-                    else android.widget.Toast.makeText(ctx, ctx.getString(R.string.diagnostic_export_failed), android.widget.Toast.LENGTH_SHORT).show()
+                    else com.music.spotui.ui.components.AccountToast.makeText(ctx, ctx.getString(R.string.diagnostic_export_failed), android.widget.Toast.LENGTH_SHORT).show()
                 }.padding(horizontal = 20.dp, vertical = 10.dp),
             ) {
                 Text(stringResource(R.string.diagnostic_export_title), color = AppText, fontSize = 16.sp)
@@ -1260,7 +1260,7 @@ private fun StorageRows() {
                 storage.clearCaches(ctx)
                 clearing = false
                 refresh++
-                android.widget.Toast.makeText(ctx, ctx.getString(R.string.settings_storage_cleared), android.widget.Toast.LENGTH_SHORT).show()
+                com.music.spotui.ui.components.AccountToast.makeText(ctx, ctx.getString(R.string.settings_storage_cleared), android.widget.Toast.LENGTH_SHORT).show()
             }
         }.padding(horizontal = 20.dp, vertical = 10.dp),
     ) {

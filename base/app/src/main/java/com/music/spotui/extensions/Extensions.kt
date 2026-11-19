@@ -1192,7 +1192,7 @@ object Extensions {
         if (!first) return
         val name = _registry.value.find(id)?.name ?: id
         main.post {
-            android.widget.Toast.makeText(ctx, ctx.getString(app.myspoti.engine.R.string.extension_sign_in_needed, name), android.widget.Toast.LENGTH_LONG).show()
+            com.music.spotui.ui.components.AccountToast.makeText(ctx, ctx.getString(app.myspoti.engine.R.string.extension_sign_in_needed, name), android.widget.Toast.LENGTH_LONG).show()
         }
     }
 
@@ -1590,7 +1590,7 @@ object Extensions {
         setError(id, reason)
         log(id, "turned off: $reason")
         main.post {
-            android.widget.Toast.makeText(ctx, ctx.getString(app.myspoti.engine.R.string.extension_turned_off, e.name, reason), android.widget.Toast.LENGTH_LONG).show()
+            com.music.spotui.ui.components.AccountToast.makeText(ctx, ctx.getString(app.myspoti.engine.R.string.extension_turned_off, e.name, reason), android.widget.Toast.LENGTH_LONG).show()
         }
     }
 
@@ -1697,7 +1697,7 @@ object Extensions {
         override fun notify(extensionId: String, text: String) {
             val name = _registry.value.find(extensionId)?.name ?: extensionId
             Extensions.log(extensionId, "notify: $text")
-            main.post { android.widget.Toast.makeText(ctx, "$name: $text", android.widget.Toast.LENGTH_SHORT).show() }
+            main.post { com.music.spotui.ui.components.AccountToast.makeText(ctx, "$name: $text", android.widget.Toast.LENGTH_SHORT).show() }
         }
 
         override suspend fun spotify(extensionId: String, call: SpotifyCall): String {

@@ -21,7 +21,7 @@ object SpotifySync {
     private const val TAG = "SpotifySync"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val api get() = MyspotiRuntime.api
-    private fun playlistUri(id: String) = "${if (com.music.spotui.di.YtmRuntime.chosen) "ytmusic" else "spotify"}:playlist:$id"
+    private fun playlistUri(id: String) = if (id.contains(':')) id else "${if (com.music.spotui.di.YtmRuntime.chosen) "ytmusic" else "spotify"}:playlist:$id"
     private fun trackUri(id: String) = "${if (com.music.spotui.di.YtmRuntime.chosen) "ytmusic" else "spotify"}:track:$id"
 
     fun addTrackToPlaylist(context: Context, playlistId: String, trackId: String, onDone: (Boolean) -> Unit = {}) {
@@ -184,7 +184,10 @@ object SpotifySync {
         var trackAdded = true
         LibraryEdits.run(context, edit, write = {
             val uri = api.playlists.create(title, folderUri)
-            LibraryEdits.resolve(edit, edit.entry.copy(spotifyId = uri.substringAfterLast(':'), uri = uri))
+            // Spotify's playlists by their bare id, YouTube Music's by their whole uri (as the
+            // library lists them): a new YouTube Music playlist's row opened nothing.
+            val entryId = if (uri.startsWith("spotify:")) uri.substringAfterLast(':') else uri
+            LibraryEdits.resolve(edit, edit.entry.copy(spotifyId = entryId, uri = uri))
             Api.HomeCache.libraryRoot = null
             folderUri?.let { Api.HomeCache.folders.remove(it) }
             if (trackId.isNotBlank()) {

@@ -119,7 +119,7 @@ fun VideoSwitchPill(on: Boolean, modifier: Modifier = Modifier, checking: Boolea
                     .clickable {
                         MusicVideoController.setClipSound(!clip)
                         // What changed, said once per tap: the label alone did not tell (reported).
-                        android.widget.Toast.makeText(context, if (clip) R.string.clip_sound_off_hint else R.string.clip_sound_on_hint, android.widget.Toast.LENGTH_LONG).show()
+                        com.music.spotui.ui.components.AccountToast.makeText(context, if (clip) R.string.clip_sound_off_hint else R.string.clip_sound_on_hint, android.widget.Toast.LENGTH_LONG).show()
                     }
                     .padding(start = 10.dp, end = 12.dp),
             ) {
