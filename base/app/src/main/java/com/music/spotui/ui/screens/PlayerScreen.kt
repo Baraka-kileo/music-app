@@ -969,7 +969,7 @@ private fun isLikedContext(uri: String) = LIKED_CONTEXT.matches(uri)
  * is none to open. A radio (spotify:station:...) has no page of its own: it never falls back to
  * Liked Songs.
  */
-private fun contextRoute(np: SongPlayer.NowPlaying): String? {
+internal fun contextRoute(np: SongPlayer.NowPlaying): String? {
     val parts = np.contextUri.split(":")
     val id = parts.getOrNull(2).orEmpty()
     // Catalog routes need the full provider identity; a bare YouTube ID is interpreted as Spotify.

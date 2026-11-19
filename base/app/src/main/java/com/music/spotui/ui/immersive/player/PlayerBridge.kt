@@ -78,6 +78,8 @@ data class ImmersivePlayerState(
     /** The list the music plays from (playlist, album, Liked Songs…), or blank. */
     val contextName: String = "",
     val contextUri: String = "",
+    /** The page of that list can be opened (a radio or a lone song has none). */
+    val contextOpens: Boolean = false,
     /** The other device the sound goes to, or null for this phone. */
     val deviceName: String? = null,
     /** The track as the options sheet wants it; null while nothing is known. */
@@ -108,6 +110,8 @@ class ImmersivePlayerActions(
     val openArtist: () -> Unit = {},
     /** Opens one artist of the credit line directly. */
     val openArtistRef: (app.myspoti.api.ArtistRef) -> Unit = {},
+    /** Opens the list the music plays from (the player closes on the way). */
+    val openContext: () -> Unit = {},
     /** Closes the player (PlayerSheet.close()). */
     val close: () -> Unit = {},
 )
@@ -183,6 +187,7 @@ fun rememberImmersivePlayer(navController: NavController): ImmersivePlayerBridge
         adPlaying = adPlaying,
         contextName = np.contextName.ifBlank { SongPlayer.knownContextName(np.contextUri) }.ifBlank { album },
         contextUri = np.contextUri.takeUnless { np.provider == "queue" }.orEmpty(),
+        contextOpens = np.provider != "queue" && com.music.spotui.ui.screens.contextRoute(np) != null,
         deviceName = device,
         song = if (title.isBlank()) null else nowPlayingSong(vm),
         blend = blend,
@@ -257,6 +262,10 @@ fun rememberImmersivePlayer(navController: NavController): ImmersivePlayerBridge
                 vm.goToArtist(SongPlayer.currentTrackId, vm.currentSongSinger.value) { route -> navController.navigate(route) }
             },
             openArtistRef = { a -> navController.navigate(com.music.spotui.ui.components.ArtistChooser.routeOf(a)) },
+            openContext = {
+                SongPlayer.nowPlaying.value.takeIf { it.provider != "queue" }
+                    ?.let { com.music.spotui.ui.screens.contextRoute(it) }?.let { navController.navigate(it) }
+            },
             close = { PlayerSheet.close() },
         )
     }

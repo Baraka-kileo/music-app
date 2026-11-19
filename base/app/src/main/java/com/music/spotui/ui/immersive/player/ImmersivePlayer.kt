@@ -234,7 +234,7 @@ internal fun PlayerDismissStrip(tint: Color, onClose: () -> Unit) {
 }
 
 @Composable
-private fun PlayingContext(state: ImmersivePlayerState, tint: Color) {
+private fun PlayingContext(state: ImmersivePlayerState, tint: Color, onOpen: () -> Unit) {
     if (state.contextUri.isBlank() || state.contextName.isBlank()) return
     Text(
         text = stringResource(R.string.player_context_name, state.contextName),
@@ -242,7 +242,10 @@ private fun PlayingContext(state: ImmersivePlayerState, tint: Color) {
         style = Immersive.Caption,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 2.dp),
+        // A tap opens that list; nothing to open (a radio), nothing to tap.
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
+            .clickable(enabled = state.contextOpens, onClickLabel = stringResource(R.string.player_context_name, state.contextName), onClick = onOpen)
+            .padding(vertical = 2.dp),
         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
     )
 }
@@ -477,7 +480,7 @@ fun ImmersivePlayer(
             Column(Modifier.fillMaxWidth().height(pageH - peek).statusBarsPadding().then(if (panel == Panel.NONE) Modifier.padding(bottom = 8.dp) else Modifier.navigationBarsPadding())) {
                 // The handle: always hands its drags to the sheet.
                 PlayerDismissStrip(tint) { actions.close() }
-                PlayingContext(state, tint)
+                PlayingContext(state, tint, actions.openContext)
 
                 // Large windows (a portrait tablet): the box below is no taller than the cover and
                 // the credits need, and the two are centred with the controls under the handle.
@@ -994,7 +997,7 @@ private fun LandscapePlayer(
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
         // The handle: always hands its drags to the sheet.
         PlayerDismissStrip(tint) { actions.close() }
-        PlayingContext(state, tint)
+        PlayingContext(state, tint, actions.openContext)
         Row(
             Modifier.weight(1f).fillMaxWidth().padding(start = PLAYER_GUTTER, end = PLAYER_GUTTER, bottom = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(PLAYER_GUTTER),
