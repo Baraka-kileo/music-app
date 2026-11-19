@@ -624,7 +624,7 @@
     <string name="settings_headset_skip_title">Headphone buttons skip 15 s on podcasts</string>
     <string name="settings_headset_skip_detail">When off, they go to the next or previous episode</string>
     <string name="settings_connect_mirror_title">Count extension plays on your music account</string>
-    <string name="settings_connect_mirror_detail">Plays the song muted in the background on the music account you chose, so it counts in your history (on Spotify, your devices can also control it). Uses a little more data and battery: turn it off if you don\'t need it.</string>
+    <string name="settings_connect_mirror_detail">Your plays count in your music account\'s history. On YouTube Music each play is reported directly; on Spotify the song plays muted in the background, where your devices can also control it (a little more data and battery).</string>
     <string name="explicit_badge">E</string>
     <string name="spotify_plan">Spotify %1$s</string>
     <string name="aa_recent">Recently played</string>
