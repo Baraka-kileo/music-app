@@ -382,6 +382,7 @@ object MusicVideoController {
         val refFile = File(app.cacheDir, "mv_ref_${trackId}_$token")
         val candidateFiles = mutableListOf<File>()
         try {
+            ownVideo(trackId, title, durationMs)?.let { return@withLock it }
             coroutineScope {
                 val song = async(Dispatchers.IO) {
                     val nativeId = trackId.removePrefix("ytm_").takeIf { trackId.startsWith("ytm_") && com.music.spotui.extensions.YouTubeAudio.isVideoId(it) }
@@ -469,6 +470,32 @@ object MusicVideoController {
         } finally {
             refFile.delete()
             candidateFiles.forEach { it.delete() }
+        }
+    }
+
+    /**
+     * A YouTube Music song that is itself a video (YouTube Music files it as a music video, official
+     * or an upload, not as a song's audio track): its own picture, in step with it from the start.
+     * The search below looks for the artist's official clip by name and drops covers, live takes and
+     * unverified channels, so a cover's own video (a kids' choir, a small channel) was never shown.
+     * Null when the song is an audio track, its picture is a still image, or this cannot be told.
+     */
+    private suspend fun ownVideo(trackId: String, title: String, durationMs: Long): State? {
+        val id = trackId.removePrefix("ytm_").takeIf { trackId.startsWith("ytm_") && com.music.spotui.extensions.YouTubeAudio.isVideoId(it) } ?: return null
+        val url = "https://www.youtube.com/watch?v=$id"
+        return try {
+            val type = withContext(Dispatchers.IO) { runInterruptible { YouTubeSource.musicVideoType(url) } }
+            if (type != "MUSIC_VIDEO_TYPE_OMV" && type != "MUSIC_VIDEO_TYPE_UGC") return null
+            val info = withContext(Dispatchers.IO) { runInterruptible { YouTubeSource.info(url) } }
+            // A still picture over the song (an upload of the audio with its cover) is not a clip.
+            if (withContext(Dispatchers.IO) { runInterruptible { YouTubeSource.isStatic(info) } } != false) return null
+            Log.i(TAG, "$title: the song is a video itself ($type), shown as it is")
+            State.Ready(trackId, url, AudioAlign.TimeMap(listOf(AudioAlign.Segment(0, durationMs.coerceAtLeast(1L), 0)), 1.0), mapComplete = true)
+        } catch (t: kotlinx.coroutines.CancellationException) {
+            throw t
+        } catch (t: Throwable) {
+            Log.w(TAG, "$title: its own video could not be read (${t.javaClass.simpleName}), searched for instead")
+            null
         }
     }
 
