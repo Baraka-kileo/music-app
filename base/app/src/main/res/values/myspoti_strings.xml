@@ -865,4 +865,6 @@
     <string name="download_youtube_validation">Downloaded audio could not be verified</string>
     <string name="download_youtube_transfer">YouTube audio transfer failed</string>
     <string name="immersive_context_kind_playlist">Playlist</string>
+    <string name="search_filter_videos">Videos</string>
+    <string name="search_filter_all">All</string>
 </resources>

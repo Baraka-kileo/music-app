@@ -420,16 +420,31 @@ private fun SearchStatus(query: String, loading: Boolean, failed: Boolean, onRet
 enum class SearchFilter(@androidx.annotation.StringRes val label: Int) {
     Top(R.string.assisted_curation_search_filter_top),
     Songs(R.string.assisted_curation_search_filter_songs),
+    Videos(R.string.search_filter_videos),
     Artists(R.string.assisted_curation_search_filter_artists),
     Albums(R.string.assisted_curation_search_filter_albums),
     Playlists(R.string.assisted_curation_search_filter_playlists),
     Podcasts(R.string.assisted_curation_search_filter_podcasts),
-    Profiles(R.string.search_filter_profiles),
+    Profiles(R.string.search_filter_profiles);
+
+    /** "All" is YouTube Music's name for its first tab. */
+    fun labelFor(youtubeMusic: Boolean): Int = if (youtubeMusic && this == Top) R.string.search_filter_all else label
+
+    companion object {
+        /**
+         * The tabs of the account in use, as its own app shows them: Spotify's (no videos), or
+         * YouTube Music's (All, Songs, Videos, Albums, Artists, Playlists: no podcasts or profiles).
+         */
+        fun forAccount(youtubeMusic: Boolean): List<SearchFilter> =
+            if (youtubeMusic) listOf(Top, Songs, Videos, Albums, Artists, Playlists)
+            else entries.filter { it != Videos && (it != Podcasts || com.music.spotui.data.api.Features.PODCASTS) }
+    }
 }
 
 private fun filterSearchResults(results: SearchResults, filter: SearchFilter): List<SearchRow> = when (filter) {
     SearchFilter.Top -> mixSearchResults(results)
     SearchFilter.Songs -> results.songs.map { SearchRow.Song(it) }
+    SearchFilter.Videos -> results.videos.map { SearchRow.Song(it) }
     SearchFilter.Artists -> results.artists.map { SearchRow.Artist(it) }
     SearchFilter.Albums -> results.albums.map { SearchRow.Album(it) }
     SearchFilter.Playlists -> results.playlists.map { SearchRow.Playlist(it) }
@@ -443,7 +458,8 @@ private fun SearchFilterChips(selected: SearchFilter, onSelect: (SearchFilter) -
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
     ) {
-        val filters = SearchFilter.entries.filter { it != SearchFilter.Podcasts || com.music.spotui.data.api.Features.PODCASTS }
+        val ytm = com.music.spotui.di.YtmRuntime.chosen
+        val filters = SearchFilter.forAccount(ytm)
         items(filters.size) { i ->
             val f = filters[i]
             val on = f == selected
@@ -454,7 +470,7 @@ private fun SearchFilterChips(selected: SearchFilter, onSelect: (SearchFilter) -
                     .pressable(0.96f) { onSelect(if (on && f != SearchFilter.Top) SearchFilter.Top else f) }
                     .padding(horizontal = 14.dp),
             ) {
-                Text(stringResource(f.label), color = if (on) Color.Black else AppText, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text(stringResource(f.labelFor(ytm)), color = if (on) Color.Black else AppText, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
         }
     }

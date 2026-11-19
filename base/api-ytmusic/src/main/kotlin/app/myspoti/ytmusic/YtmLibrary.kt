@@ -172,10 +172,45 @@ class YtmMetadata(private val api: InnerTube) : Search, Catalog {
         )
     }
 
-    override suspend fun tracks(query: String, offset: Int, limit: Int) = one(if (offset > 0) emptyList() else found(query).filterIsInstance<Item.Song>().map { it.track }, offset, limit)
-    override suspend fun artists(query: String, offset: Int, limit: Int) = one(if (offset > 0) emptyList() else found(query).filterIsInstance<Item.ArtistItem>().map { it.artist }, offset, limit)
-    override suspend fun albums(query: String, offset: Int, limit: Int) = one(if (offset > 0) emptyList() else found(query).filterIsInstance<Item.AlbumItem>().map { it.album }, offset, limit)
-    override suspend fun playlists(query: String, offset: Int, limit: Int) = one(if (offset > 0) emptyList() else found(query).filterIsInstance<Item.PlaylistItem>().map { it.playlist }, offset, limit)
+    /**
+     * One tab of YouTube Music's search, as its web app asks it (the tab's code in `params`), page by
+     * page: one plain search only gave the few results of each kind its "All" page shows.
+     */
+    enum class Tab(val params: String) {
+        SONGS("EgWKAQIIAWoMEA4QChADEAQQCRAF"),
+        VIDEOS("EgWKAQIQAWoMEA4QChADEAQQCRAF"),
+        ALBUMS("EgWKAQIYAWoMEA4QChADEAQQCRAF"),
+        ARTISTS("EgWKAQIgAWoMEA4QChADEAQQCRAF"),
+        PLAYLISTS("EgeKAQQoAEABagwQDhAKEAMQBBAJEAU="),
+    }
+
+    /** The next page's token of a tab's search, by "tab|query|offset" (the screens page by offset). */
+    private val nextPages = object : LinkedHashMap<String, String>(32, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>) = size > 64
+    }
+
+    /** The items of one page of [tab] for [query] from [offset], and the next page's offset. */
+    suspend fun tab(query: String, tab: Tab, offset: Int, limit: Int): Pair<List<Item>, Int?> {
+        val answer = if (offset == 0) api.search(query, tab.params)
+            else synchronized(nextPages) { nextPages["${tab.name}|$query|$offset"] }?.let { api.searchMore(it) } ?: return emptyList<Item>() to null
+        val items = YtmParse.rows(answer).ifEmpty { YtmParse.search(answer) }
+        val token = YtmParse.continuation(answer)
+        val next = if (token != null && items.isNotEmpty()) offset + items.size else null
+        if (next != null) synchronized(nextPages) { nextPages["${tab.name}|$query|$next"] = token!! }
+        return items.take(limit.coerceAtLeast(items.size)) to next
+    }
+
+    private suspend inline fun <reified I : Item, T> tabPage(query: String, tab: Tab, offset: Int, limit: Int, map: (I) -> T): Page<T> {
+        val (items, next) = tab(query, tab, offset, limit)
+        val list = items.filterIsInstance<I>().map(map)
+        return Page(list, offset, next?.let { it + 1 } ?: (offset + list.size), next)
+    }
+
+    override suspend fun tracks(query: String, offset: Int, limit: Int) = tabPage<Item.Song, Track>(query, Tab.SONGS, offset, limit) { it.track }
+    override suspend fun videos(query: String, offset: Int, limit: Int) = tabPage<Item.Song, Track>(query, Tab.VIDEOS, offset, limit) { it.track }
+    override suspend fun artists(query: String, offset: Int, limit: Int) = tabPage<Item.ArtistItem, Artist>(query, Tab.ARTISTS, offset, limit) { it.artist }
+    override suspend fun albums(query: String, offset: Int, limit: Int) = tabPage<Item.AlbumItem, Album>(query, Tab.ALBUMS, offset, limit) { it.album }
+    override suspend fun playlists(query: String, offset: Int, limit: Int) = tabPage<Item.PlaylistItem, Playlist>(query, Tab.PLAYLISTS, offset, limit) { it.playlist }
     override suspend fun shows(query: String, offset: Int, limit: Int) = Page(emptyList<MediaCard>(), offset, 0, null)
     override suspend fun episodes(query: String, offset: Int, limit: Int) = Page(emptyList<Episode>(), offset, 0, null)
     override suspend fun audiobooks(query: String, offset: Int, limit: Int) = Page(emptyList<MediaCard>(), offset, 0, null)

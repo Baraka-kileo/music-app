@@ -8,4 +8,6 @@ data class SearchResults(
     val shows: List<PodcastModel> = emptyList(),
     val episodes: List<SongsModel> = emptyList(),
     val playlists: List<LibraryEntry> = emptyList(),
+    /** Music videos (YouTube Music's Videos tab), played as songs. */
+    val videos: List<SongsModel> = emptyList(),
 )

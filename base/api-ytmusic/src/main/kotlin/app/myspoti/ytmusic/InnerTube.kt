@@ -55,7 +55,13 @@ class InnerTube(
     /** The next page of a list, by the token its previous page gave. */
     suspend fun browseMore(token: String): JsonObject = post("browse", body { put("continuation", token) }, mapOf("ctoken" to token, "continuation" to token, "type" to "next"))
 
-    suspend fun search(query: String): JsonObject = post("search", body { put("query", query) })
+    /** A search; [params]: one tab of YouTube Music's results (songs, videos, ...), all of them when null. */
+    suspend fun search(query: String, params: String? = null): JsonObject =
+        post("search", body { put("query", query); params?.let { put("params", it) } })
+
+    /** The next page of a tab's results. */
+    suspend fun searchMore(token: String): JsonObject =
+        post("search", body {}, mapOf("ctoken" to token, "continuation" to token, "type" to "next"))
 
     /** The watch-next list of a song: its own row first (title, artists, album, length). */
     suspend fun next(videoId: String): JsonObject = post("next", body { put("videoId", videoId); put("isAudioOnly", true) })

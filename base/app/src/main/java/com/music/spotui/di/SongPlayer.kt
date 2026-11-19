@@ -1421,8 +1421,8 @@ object SongPlayer {
                 val onYtm = runCatching { com.music.spotui.data.catalog.CatalogRuntime.ytmUriForSong(song.title, song.singer, song.durationMs.toLong()) }.getOrNull()
                 if (routeAsk.get() != ask) return@launch
                 if (onYtm != null && onYtm.startsWith(YTM_TRACK_PREFIX)) {
-                    app.myspoti.host.android.Logbook.log("audio: no extension plays ${song.title}: YouTube Music plays $onYtm")
-                    playYtm(onYtm, null, song)
+                    app.myspoti.host.android.Logbook.log("audio: no extension plays ${song.title}: YouTube audio plays $onYtm")
+                    main.post { playYouTubeHere(onYtm, null, null, null, null, song.title) }
                 } else {
                     app.myspoti.host.android.Logbook.log("audio: no extension plays ${song.title} and YouTube Music has no such song")
                     routingState.value = null; playing = false; bufferingState.value = false
@@ -1915,7 +1915,7 @@ object SongPlayer {
         // Myspoti's shuffle turned on or off while paused: the song goes on in the list's new order.
         if (AppShuffle.resume()) { Haptics.click(); return }
         if (!YtmPlayback.active && _nowPlaying.value.uri.startsWith(YTM_TRACK_PREFIX)) {
-            Haptics.click(); playYtm(_nowPlaying.value.uri, null, null, getCurrentPosition()); return
+            Haptics.click(); playYouTubeHere(_nowPlaying.value.uri, null, null, null, getCurrentPosition()); return
         }
         if (!isEpisode && refusedWithoutAccountPlayer(null, trackIdOf(_nowPlaying.value.uri))) return
         Haptics.click(); intendPlaying(); playing = true; positionAt = SystemClock.elapsedRealtime()
@@ -2266,6 +2266,20 @@ object SongPlayer {
      */
     fun shufflePlay(songs: List<SongsModel>, askExtensions: Boolean = true) {
         if (songs.isEmpty()) return
+        // A YouTube Music list (no Spotify ids): shuffled in the app's own player, its sound from
+        // YouTube, never handed to Spotify's player or to YouTube Music's hidden page.
+        if (songs.none { it.spotifyTrackId.isNotBlank() }) {
+            val native = songs.filter { it.playable }.mapNotNull { s -> com.music.spotui.extensions.ExtensionAudio.youtubeTrack(s)?.let { s to it } }
+            if (native.isNotEmpty()) {
+                val ctx = contextRegistry[songs.first().url].orEmpty()
+                userActed(); routeAsk.incrementAndGet(); routingState.value = null
+                YtmPlayback.asking = false
+                cancelBurst()
+                LocalPlayer.play(native.map { it.second }, native.indices.random(), shuffle = true, context = knownContextName(ctx),
+                    contextUri = ctx, startMs = 0L, continues = true)
+                return
+            }
+        }
         val first = if (askExtensions && com.music.spotui.extensions.Extensions.hasAudioSource()) com.music.spotui.extensions.AudioRoute.shufflePick(songs) else null
         if (askExtensions && first == null) com.music.spotui.extensions.Extensions.audioSkipped()?.let {
             app.myspoti.host.android.Logbook.log("audio: $it, Spotify shuffles the list")
@@ -3701,12 +3715,12 @@ object SongPlayer {
                     main.post {
                         if (routeAsk.get() != request || sessionGen.get() != session || !YtmRuntime.chosen) return@post
                         if (resolved == null || !playNativeYouTube(song, null, resolved, null, positionMs))
-                            playYtm(uri, null, resolved, positionMs)
+                            playYouTubeHere(uri, null, resolved, null, positionMs)
                     }
                 }
                 return
             }
-            if (!playNativeYouTube(song, contextUri, known, songs, positionMs)) playYtm(uri, contextUri, known, positionMs)
+            if (!playNativeYouTube(song, contextUri, known, songs, positionMs)) playYouTubeHere(uri, contextUri, known, songs, positionMs)
             return
         }
         // A catalogue match can take longer than the user's next tap or an account change.
@@ -3726,7 +3740,7 @@ object SongPlayer {
                 if (!isCurrent()) return@launch
                 if (onYtm != null && onYtm.startsWith(YTM_TRACK_PREFIX)) {
                     app.myspoti.host.android.Logbook.log("catalog: $uri is not played on Spotify ($m): YouTube Music plays $onYtm")
-                    main.post { if (isCurrent()) playYtm(onYtm, null, known, positionMs) }
+                    main.post { if (isCurrent()) playYouTubeHere(onYtm, contextUri, known?.takeIf { ytm }, songs?.takeIf { ytm }, positionMs) }
                     return@launch
                 }
             }
@@ -3760,39 +3774,37 @@ object SongPlayer {
     }
 
     /**
-     * Plays the YouTube Music song [uri] in YouTube Music's own page ([YtmPlayback]), in the list
-     * [ctx] when it is one of YouTube Music's (the page goes on with it; else with its own "up
-     * next"). [known]: the song as its row showed it, on screen while the page loads. Main thread.
+     * Plays the YouTube Music song [uri] in the app's own player, its sound from YouTube (the
+     * built-in source: checked links, then NewPipe), with either account: in its list ([songs])
+     * when every song of it can play so, else alone. Not played: the user is told, nothing else
+     * plays it. It went to YouTube Music's hidden page before: a second player with its own
+     * queue, its plays counted on YouTube Music whatever the account, stopped by Android in the
+     * background or by a lost sign-in. [title]: the song's name for the message, when not [known].
      */
-    private fun playYtm(uri: String, ctx: String?, known: SongsModel?, positionMs: Long? = null) {
-        userActed()
-        routeAsk.incrementAndGet(); routingState.value = null
-        LocalPlayer.stop()
-        cancelBurst()
-        val list = when {
-            ctx == null -> null
-            ctx.contains("ytmusic:playlist:") -> "ytmusic:playlist:" + ctx.substringAfter("ytmusic:playlist:")
-            ctx == LIKED_CONTEXT && YtmRuntime.chosen -> "ytmusic:playlist:LM"
-            else -> null
-        }
-        YtmPlayback.asking = true
-        YtmPlayback.show(known?.let {
-            app.myspoti.api.NowPlaying(
-                kind = ItemKind.TRACK, uri = uri, uid = null, name = it.title,
-                artists = listOf(app.myspoti.api.ArtistRef("", it.singer)),
-                album = it.album.takeIf { a -> a.isNotBlank() }?.let { a -> app.myspoti.api.AlbumRef(it.albumId, a) },
-                imageUrl = app.myspoti.host.android.Covers.large(it.coverUri), durationMs = it.durationMs.toLong(),
-                explicit = it.explicit, provider = "context",
-            )
-        })
-        playedByHand = uri
-        markPending("", uri)
-        app.myspoti.host.android.Logbook.log("ytmusic: $uri asked${list?.let { l -> " in $l" }.orEmpty()}")
-        transport(pullBack = false) {
-            if (list != null) api.player.play(list, trackUri = uri, positionMs = positionMs?.takeIf { it > 0 })
-            else api.player.play(uri, positionMs = positionMs?.takeIf { it > 0 })
+    private fun playYouTubeHere(uri: String, ctx: String?, known: SongsModel?, songs: List<SongsModel>?, positionMs: Long?, title: String? = null) {
+        val key = com.music.spotui.data.catalog.CatalogRuntime.PLAY_PREFIX + uri
+        val picked = known?.takeIf { it.url == key }
+        if (picked != null && (playNativeYouTube(key, ctx, picked, songs, positionMs) || playNativeYouTube(key, ctx, picked, null, positionMs))) return
+        val request = routeAsk.incrementAndGet()
+        val session = sessionGen.get()
+        app.myspoti.host.android.MyspotiRuntime.scope.launch {
+            val resolved = try { Graph.api.songOf(YtmRuntime.account.metadata.track(uri)) }
+                catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                catch (e: Exception) { app.myspoti.host.android.Logbook.log("ytmusic: $uri not read: ${e.javaClass.simpleName}"); null }
+            main.post {
+                if (routeAsk.get() != request || sessionGen.get() != session) return@post
+                if (resolved != null && playNativeYouTube(key, ctx, resolved, null, positionMs)) return@post
+                app.myspoti.host.android.Logbook.log("ytmusic: $uri could not be played in the app's player")
+                playing = false; bufferingState.value = false; routingState.value = null
+                com.music.spotui.ui.components.AppNotice.show(
+                    Graph.app.getString(app.myspoti.engine.R.string.why_source_none_chosen),
+                    known?.title ?: resolved?.title ?: title, tone = com.music.spotui.ui.components.AppNotice.Tone.ERROR,
+                )
+                pushNotification(null, boundState?.likeState?.value ?: false)
+            }
         }
     }
+
 
     fun buildSpotifyPlayQuery(spotifyTrackId: String, title: String, artist: String): String {
         val searchText = listOf(title.replace(featSearchPattern, "").trim(), artist)

@@ -212,10 +212,10 @@ fun ImmersiveSearchScreen(navController: NavController) {
                     }
                     if (text.isNotBlank()) {
                         ImmersiveChipRow {
-                            val filters = SearchFilter.entries.filter { it != SearchFilter.Podcasts || Features.PODCASTS }
-                            filters.forEach { f ->
+                            val ytm = com.music.spotui.di.YtmRuntime.chosen
+                            SearchFilter.forAccount(ytm).forEach { f ->
                                 val on = f == filter
-                                ImmersiveChip(stringResource(f.label), selected = on) {
+                                ImmersiveChip(stringResource(f.labelFor(ytm)), selected = on) {
                                     vm.filter = if (on && f != SearchFilter.Top) SearchFilter.Top else f
                                 }
                             }
@@ -451,6 +451,7 @@ private fun LazyListScope.searchResults(
 ) {
     val top = filter == SearchFilter.Top
     val songs = if (top || filter == SearchFilter.Songs) data.songs else emptyList()
+    val videos = if (filter == SearchFilter.Videos) data.videos else emptyList()
     val artists = if (top || filter == SearchFilter.Artists) data.artists else emptyList()
     val albums = if (top || filter == SearchFilter.Albums) data.albums else emptyList()
     val playlists = if (top || filter == SearchFilter.Playlists) data.playlists else emptyList()
@@ -460,7 +461,7 @@ private fun LazyListScope.searchResults(
     val sectioned = top
 
     if (filter != SearchFilter.Profiles &&
-        songs.isEmpty() && artists.isEmpty() && albums.isEmpty() && playlists.isEmpty() && shows.isEmpty() && episodes.isEmpty()
+        songs.isEmpty() && videos.isEmpty() && artists.isEmpty() && albums.isEmpty() && playlists.isEmpty() && shows.isEmpty() && episodes.isEmpty()
     ) {
         when {
             loading -> immersiveSongListSkeleton(keyPrefix = "skeleton:search")
@@ -506,6 +507,13 @@ private fun LazyListScope.searchResults(
     section("songs", sectioned, title(R.string.assisted_curation_search_filter_songs), songs.size) { range ->
         items(range.count(), key = { "song:${songs[range.first + it].id}:${range.first + it}" }) { n ->
             val song = songs[range.first + n]
+            SongResultRow(song, currentSongId, playing, onClick = { onSong(song) }, onMore = { onSongMore(song) })
+            if (n < range.count() - 1) RowDivider()
+        }
+    }
+    section("videos", sectioned, title(R.string.search_filter_videos), videos.size) { range ->
+        items(range.count(), key = { "video:${videos[range.first + it].id}:${range.first + it}" }) { n ->
+            val song = videos[range.first + n]
             SongResultRow(song, currentSongId, playing, onClick = { onSong(song) }, onMore = { onSongMore(song) })
             if (n < range.count() - 1) RowDivider()
         }

@@ -77,6 +77,8 @@ interface Search {
     suspend fun artists(query: String, offset: Int = 0, limit: Int = 30): Page<Artist>
     suspend fun albums(query: String, offset: Int = 0, limit: Int = 30): Page<Album>
     suspend fun playlists(query: String, offset: Int = 0, limit: Int = 30): Page<Playlist>
+    /** Music videos (YouTube Music's Videos tab); none for a service without them. */
+    suspend fun videos(query: String, offset: Int = 0, limit: Int = 30): Page<Track> = Page(emptyList(), offset, 0, null)
     suspend fun shows(query: String, offset: Int = 0, limit: Int = 30): Page<MediaCard>
     suspend fun episodes(query: String, offset: Int = 0, limit: Int = 30): Page<Episode>
     suspend fun audiobooks(query: String, offset: Int = 0, limit: Int = 30): Page<MediaCard>
