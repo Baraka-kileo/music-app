@@ -482,12 +482,15 @@ class Api constructor(
         // YouTube Music: each tab its own search, as its app shows them (songs, videos, albums,
         // artists, playlists, many of each); it has no podcasts here.
         if (com.music.spotui.di.YtmRuntime.chosen) {
+            // Asked of YouTube Music itself: the app's search is Spotify's with the catalog
+            // chain in front, which has no Videos tab and pages each kind its own way.
+            val ytm = com.music.spotui.di.YtmRuntime.account.metadata
             val tabs = coroutineScope {
-                val songs = async { runCatching { api.search.tracks(query, limit = 40).items.map(::songOf) }.getOrNull() }
-                val videos = async { runCatching { api.search.videos(query, limit = 40).items.map(::songOf) }.getOrNull() }
-                val albums = async { runCatching { api.search.albums(query, limit = 40).items.map(::albumOf) }.getOrNull() }
-                val artists = async { runCatching { api.search.artists(query, limit = 40).items.map(::artistOf) }.getOrNull() }
-                val playlists = async { runCatching { api.search.playlists(query, limit = 40).items.map(::playlistEntry) }.getOrNull() }
+                val songs = async { runCatching { ytm.tracks(query, limit = 40).items.map(::songOf) }.getOrNull() }
+                val videos = async { runCatching { ytm.videos(query, limit = 40).items.map(::songOf) }.getOrNull() }
+                val albums = async { runCatching { ytm.albums(query, limit = 40).items.map(::albumOf) }.getOrNull() }
+                val artists = async { runCatching { ytm.artists(query, limit = 40).items.map(::artistOf) }.getOrNull() }
+                val playlists = async { runCatching { ytm.playlists(query, limit = 40).items.map(::playlistEntry) }.getOrNull() }
                 base.copy(
                     songs = songs.await()?.ifEmpty { null } ?: base.songs,
                     videos = videos.await().orEmpty(),

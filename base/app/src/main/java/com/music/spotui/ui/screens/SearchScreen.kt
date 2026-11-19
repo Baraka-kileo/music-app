@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -319,7 +320,7 @@ fun SumUpSearchScreen(
             items(mixed.size) { i ->
                 when (val row = mixed[i]) {
                     is SearchRow.Song -> com.music.spotui.ui.components.SwipeToQueue(row.song) {
-                        SearchSongRow(row.song, searchViewModel, onPlayed = {
+                        SearchSongRow(row.song, searchViewModel, video = filter == SearchFilter.Videos, onPlayed = {
                             recordRecent(row.song.toRecentItem())
                         }, onLongClick = { menuSong = row.song })
                     }
@@ -556,6 +557,8 @@ fun SearchSongRow(
     searchViewModel: SearchViewModel,
     onPlayed: () -> Unit = {},
     onLongClick: (() -> Unit)? = null,
+    // YouTube Music's Videos tab: a wide 16:9 thumbnail, the channel, the length and the menu.
+    video: Boolean = false,
 ) {
     val context = LocalContext.current
     val isLiked = com.music.spotui.di.rememberTrackSaved(song.spotifyTrackId)
@@ -599,9 +602,9 @@ fun SearchSongRow(
         ) {
             GlideImage(
                 modifier = Modifier
-                    .padding(0.dp, 0.dp, 10.dp, 0.dp)
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(6.dp)),
+                    .padding(0.dp, 0.dp, if (video) 12.dp else 10.dp, 0.dp)
+                    .then(if (video) Modifier.width(120.dp).aspectRatio(16f / 9f) else Modifier.size(48.dp))
+                    .clip(RoundedCornerShape(if (video) 8.dp else 6.dp)),
                 model = song.coverUri,
                 contentScale = ContentScale.Crop,
                 failure = placeholder(R.drawable.placeholder),
@@ -609,19 +612,32 @@ fun SearchSongRow(
                 contentDescription = "",
             )
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = song.title, color = currentPlayingIndicatorColor, fontSize = 16.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text(text = song.title, color = currentPlayingIndicatorColor, fontSize = if (video) 15.sp else 16.sp, fontWeight = if (video) FontWeight.SemiBold else null,
+                    maxLines = if (video) 2 else 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
                     if (song.explicit) { com.music.spotui.ui.screens.ExplicitBadge(); androidx.compose.foundation.layout.Spacer(Modifier.width(6.dp)) }
-                    Text(text = stringResource(R.string.assisted_curation_search_song) + " • ${song.singer}", color = AppMuted, fontSize = 13.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text(text = if (video) song.singer else stringResource(R.string.assisted_curation_search_song) + " • ${song.singer}", color = AppMuted, fontSize = 13.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 }
             }
         }
 
-com.music.spotui.ui.screens.AddButton(song = { song }, liked = isLiked, size = 22.dp) {
+        if (video) {
+            if (song.durationMs > 0) Text(text = videoLength(song.durationMs), color = AppMuted, fontSize = 13.sp, maxLines = 1)
+            androidx.compose.material3.IconButton(onClick = { onLongClick?.invoke() }) {
+                androidx.compose.material3.Icon(com.music.spotui.ui.design.AppIcons.MoreVert, contentDescription = null, tint = AppText)
+            }
+        } else com.music.spotui.ui.screens.AddButton(song = { song }, liked = isLiked, size = 22.dp) {
                     // Spotify library, per track (not the now-playing like state).
                     com.music.spotui.di.SongPlayer.setTrackSaved(song.spotifyTrackId, true)
         }
     }
+}
+
+/** A video's length as YouTube shows it: 3:20, or 1:02:05. */
+internal fun videoLength(ms: Int): String {
+    val s = ms / 1000
+    val h = s / 3600
+    return if (h > 0) "%d:%02d:%02d".format(h, s / 60 % 60, s % 60) else "%d:%02d".format(s / 60, s % 60)
 }
 
 @Composable

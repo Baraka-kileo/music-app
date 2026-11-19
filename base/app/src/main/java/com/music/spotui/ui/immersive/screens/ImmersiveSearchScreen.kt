@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -514,7 +515,7 @@ private fun LazyListScope.searchResults(
     section("videos", sectioned, title(R.string.search_filter_videos), videos.size) { range ->
         items(range.count(), key = { "video:${videos[range.first + it].id}:${range.first + it}" }) { n ->
             val song = videos[range.first + n]
-            SongResultRow(song, currentSongId, playing, onClick = { onSong(song) }, onMore = { onSongMore(song) })
+            VideoResultRow(song, current = song.id == currentSongId, onClick = { onSong(song) }, onMore = { onSongMore(song) })
             if (n < range.count() - 1) RowDivider()
         }
     }
@@ -624,6 +625,43 @@ private fun SongResultRow(
         )
     }
 }
+
+/**
+ * A music video of YouTube Music's Videos tab, as its app shows one: a wide 16:9 thumbnail,
+ * the title and channel, the length on the right, and the more button.
+ */
+@Composable
+private fun VideoResultRow(song: SongsModel, current: Boolean, onClick: () -> Unit, onMore: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Immersive.Page)
+            .immersiveClickable(onClick = onClick, onLongClick = onMore)
+            .padding(start = Immersive.Gutter, end = 4.dp, top = 8.dp, bottom = 8.dp),
+    ) {
+        ImmersiveCover(
+            song.coverUri,
+            Modifier.width(128.dp).aspectRatio(16f / 9f),
+            androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = song.title, style = Immersive.Body, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                fontWeight = FontWeight.SemiBold, color = if (current) Immersive.Accent else Immersive.Text,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(text = song.singer, style = Immersive.Subhead, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        if (song.durationMs > 0) {
+            Spacer(Modifier.width(8.dp))
+            Text(text = com.music.spotui.ui.screens.videoLength(song.durationMs), style = Immersive.Subhead, maxLines = 1)
+        }
+        ImmersiveMoreButton(onClick = onMore, tint = Immersive.Text, iconSize = 22.dp)
+    }
+}
+
 
 /** The best song for the query, promoted: a big cover, the title, and Play / more. */
 @Composable
