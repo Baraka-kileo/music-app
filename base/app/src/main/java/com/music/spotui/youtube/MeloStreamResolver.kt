@@ -2,6 +2,8 @@
 // Player resolution follows Resona, MIT, Copyright (c) 2026 Code.Saksham.
 package com.music.spotui.youtube
 import android.content.Context
+import app.myspoti.host.android.Logbook
+import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 import androidx.core.content.edit
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
@@ -36,9 +38,82 @@ internal object MeloStreamResolver {
 
     @Synchronized internal fun forgetStream(videoId: String) { streams.remove(videoId) }
 
-    /** Resolves the best audio-only format, trying each client until one hands back a usable address. */
+    /**
+     * Resolves the best audio-only format: each client in turn, and an address is only handed on once
+     * it has served audio bytes ([probe]). A client whose address is refused (it needs a token we do
+     * not have, or Google turns it away for this video) is skipped and the next one asked; when none
+     * gives a working address, NewPipe's extractor ([newPipeStream]) is the last resort. Before, the
+     * first address was handed to the player unchecked: a refused one played nothing, or stopped.
+     */
     internal fun stream(videoId: String, excluded: Set<String> = emptySet()): YouTubeStream {
         if (excluded.isEmpty()) cachedStream(videoId)?.let { return it }
+        val skip = excluded.toMutableSet()
+        var failure: Exception? = null
+        while (true) {
+            val candidate = try { streamOnce(videoId, skip) } catch (e: YouTubeFailure) { failure = failure ?: e; break }
+            if (probe(candidate)) {
+                synchronized(this) { streams[videoId] = candidate }
+                return candidate
+            }
+            Logbook.log("melo_youtube: ${candidate.client} address refused for $videoId, next client")
+            skip += candidate.client
+            failure = failure ?: YouTubeFailure("The ${candidate.client} address was refused.", "REFUSED")
+        }
+        newPipeStream(videoId)?.let { s ->
+            Logbook.log("melo_youtube: $videoId played through NewPipe (every client failed)")
+            synchronized(this) { streams[videoId] = s }
+            return s
+        }
+        throw (failure as? YouTubeFailure) ?: YouTubeFailure("No client could open this track.", "ALL_CLIENTS_FAILED")
+    }
+
+    private val prober = OkHttpClient.Builder().connectTimeout(5, TimeUnit.SECONDS).readTimeout(6, TimeUnit.SECONDS)
+        .callTimeout(8, TimeUnit.SECONDS).build()
+
+    /**
+     * Whether [s]'s address really serves audio: its first bytes, asked as the player will (its
+     * client's User-Agent). A 403, an error page served as a success, or no bytes at all: refused.
+     * A network failure is not the address's fault: it is let through for the player's own retries.
+     */
+    private fun probe(s: YouTubeStream): Boolean {
+        val request = Request.Builder().url(s.url).header("Range", "bytes=0-$PROBE_BYTES").header("User-Agent", s.userAgent).build()
+        return try {
+            prober.newCall(request).execute().use { r ->
+                val type = r.header("Content-Type").orEmpty()
+                r.code in 200..299 && (type.startsWith("audio/") || type.startsWith("video/") || type == "application/octet-stream") &&
+                    r.body?.source()?.request(1) == true
+            }
+        } catch (e: IOException) { true }
+    }
+
+    /**
+     * NewPipe's own reading of the video's page, when no client gave a working address: slower (it
+     * reads the whole watch page), so only as the last resort. The best M4A, else the best audio.
+     */
+    private fun newPipeStream(videoId: String): YouTubeStream? = runCatching {
+        val info = com.music.spotui.video.YouTubeSource.info("https://www.youtube.com/watch?v=$videoId", fresh = true)
+        val audio = info.audioStreams.filter { it.content.startsWith("http") }
+        val best = audio.filter { it.format == org.schabi.newpipe.extractor.MediaFormat.M4A }.maxByOrNull { it.averageBitrate }
+            ?: audio.maxByOrNull { it.averageBitrate } ?: return@runCatching null
+        val url = best.content
+        val expires = url.toHttpUrlOrNull()?.queryParameter("expire")?.toLongOrNull()?.times(1000) ?: (System.currentTimeMillis() + DEFAULT_LIFETIME_MS)
+        // The User-Agent of the client NewPipe asked as (googlevideo checks it); a web client's address
+        // wants a plain one (a browser's gets empty answers). The probe below tells if it holds.
+        val loc = org.schabi.newpipe.extractor.localization.Localization.DEFAULT
+        val agent = when {
+            YoutubeParsingHelper.isAndroidStreamingUrl(url) -> YoutubeParsingHelper.getAndroidUserAgent(loc)
+            YoutubeParsingHelper.isIosStreamingUrl(url) -> YoutubeParsingHelper.getIosUserAgent(loc)
+            YoutubeParsingHelper.isVisionOsStreamingUrl(url) -> YoutubeParsingHelper.getVisionOsUserAgent(loc)
+            else -> PLAIN_AGENT
+        }
+        val mime = best.format?.mimeType ?: "audio/mp4"
+        val candidate = YouTubeStream(videoId, url, agent, "NEWPIPE", url.toHttpUrlOrNull()?.queryParameter("clen")?.toLongOrNull() ?: -1L,
+            mime, best.averageBitrate * 1000L, 44_100, expires)
+        candidate.takeIf { probe(it) }
+    }.getOrNull()
+
+    /** One pass over the clients not in [excluded]: the first that answers with a playable format. */
+    private fun streamOnce(videoId: String, excluded: Set<String>): YouTubeStream {
         val clients = YouTubeClient.entries.filterNot { it.clientName in excluded }
         if (clients.isEmpty()) throw YouTubeFailure("No client could open this track.", "ALL_CLIENTS_EXCLUDED")
         val initial = visitorData
@@ -59,10 +134,8 @@ internal object MeloStreamResolver {
                 val url = format.url ?: decipher.playableUrl(format, js)
                 val expires = url.toHttpUrlOrNull()?.queryParameter("expire")?.toLongOrNull()?.times(1000)
                     ?: (System.currentTimeMillis() + DEFAULT_LIFETIME_MS)
-                val resolved = YouTubeStream(videoId, url, client.userAgent, client.clientName, format.contentLength,
+                return YouTubeStream(videoId, url, client.userAgent, client.clientName, format.contentLength,
                     format.mimeType, format.bitrate, format.sampleRate, expires)
-                synchronized(this) { streams[videoId] = resolved }
-                return resolved
             } catch (failure: Exception) { last = failure }
         }
         throw (last as? YouTubeFailure) ?: YouTubeFailure("No audio format could be opened.", "NO_AUDIO_FORMAT")
@@ -144,6 +217,8 @@ internal object MeloStreamResolver {
         return sts
     }
     private const val TIMESTAMP_KEPT_MS = 6 * 60 * 60_000L
+    private const val PROBE_BYTES = 4095
+    private const val PLAIN_AGENT = "okhttp/4.12.0"
 
     private fun signatureTimestamp(script: String): Int? =
         Regex("""(?:signatureTimestamp|sts)\s*[=:]\s*(\d{5,6})""").find(script)?.groupValues?.get(1)?.toIntOrNull()
