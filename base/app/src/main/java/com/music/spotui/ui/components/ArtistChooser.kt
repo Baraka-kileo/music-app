@@ -68,7 +68,7 @@ object ArtistChooser {
             // A YouTube Music song ("ytm_<video id>"): its artists are YouTube Music's own;
             // asked to Spotify, the id was no track and only the names (no page) were left.
             com.music.spotui.data.offline.OfflineTrackKey.youtubeId(trackId)
-                ?.let { com.music.spotui.di.YtmRuntime.account.library.track("ytmusic:track:$it").artists }
+                ?.let { com.music.spotui.di.YtmRuntime.account.metadata.track("ytmusic:track:$it").artists }
                 ?: MyspotiRuntime.api.catalog.track("spotify:track:$trackId").artists
         }.getOrNull()?.filter { it.name.isNotBlank() }?.takeIf { it.isNotEmpty() }
         if (found != null) synchronized(known) { known[trackId] = found }
