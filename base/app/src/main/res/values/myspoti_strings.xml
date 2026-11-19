@@ -864,4 +864,5 @@
     <string name="download_youtube_network">YouTube connection failed</string>
     <string name="download_youtube_validation">Downloaded audio could not be verified</string>
     <string name="download_youtube_transfer">YouTube audio transfer failed</string>
+    <string name="immersive_context_kind_playlist">Playlist</string>
 </resources>

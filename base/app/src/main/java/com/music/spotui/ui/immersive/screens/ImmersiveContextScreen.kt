@@ -816,8 +816,10 @@ private fun ContextHeader(
                     ImmersiveExplicitBadge(Immersive.TextSecondary)
                     Spacer(Modifier.width(6.dp))
                 }
+                // "Playlist · 1,434 songs · 77 hr 12 min": the kind first, then the count and length.
+                val kind = if (p.type == "playlist") stringResource(R.string.immersive_context_kind_playlist) else ""
                 Text(
-                    text = p.metaLine,
+                    text = listOf(kind, p.metaLine.replace(" • ", " · ")).filter { it.isNotBlank() }.joinToString(" · "),
                     style = Immersive.Caption.copy(fontWeight = FontWeight.Medium),
                     textAlign = TextAlign.Center,
                     maxLines = 1,
@@ -828,37 +830,56 @@ private fun ContextHeader(
 
         if (p.tracks.isNotEmpty()) {
             val thisPlaying = isThisContext && playing
-            Spacer(Modifier.height(18.dp))
-            // Each button at most 240 dp, the pair centred: on a large window they were 400 dp wide.
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = Immersive.Gutter),
-                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
-            ) {
-                ImmersiveButton(
-                    text = stringResource(if (thisPlaying) R.string.immersive_detail_pause else R.string.immersive_shell_play),
-                    icon = if (thisPlaying) com.music.spotui.ui.design.AppIcons.Pause else com.music.spotui.ui.design.AppIcons.PlayArrow,
-                    onClick = onPlay,
-                    modifier = Modifier.weight(1f, fill = false).widthIn(max = 240.dp).fillMaxWidth(),
-                )
-                ImmersiveButton(
-                    text = stringResource(R.string.immersive_shell_shuffle),
-                    icon = if (shuffled && smart) com.music.spotui.ui.design.AppIcons.AutoAwesome else com.music.spotui.ui.design.AppIcons.Shuffle,
-                    onClick = onShuffle,
-                    // Lit while this list plays shuffled (or smart-shuffled): a tap then plays another random song.
-                    filled = shuffled,
-                    modifier = Modifier.weight(1f, fill = false).widthIn(max = 240.dp).fillMaxWidth(),
-                )
-            }
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(20.dp))
             // An album of another provider is read only: Spotify can neither save nor download it.
             val onSpotify = !com.music.spotui.data.catalog.CatalogRuntime.isCatalogUri(p.uri)
-            if (onSpotify || p.uri.startsWith("ytmusic:")) Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                if ((onSpotify || youtubePlaylistSave) && p.type != "liked") ImmersiveCircleButton(
-                    icon = if (saved) com.music.spotui.ui.design.AppIcons.Favorite else com.music.spotui.ui.design.AppIcons.FavoriteBorder,
+            val canSave = (onSpotify || (p.uri.startsWith("ytmusic:") && youtubePlaylistSave)) && p.type != "liked"
+            // Shuffle, Play, Save: a round button each side of one wide white Play.
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Immersive.Gutter),
+                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ImmersiveCircleButton(
+                    icon = if (shuffled && smart) com.music.spotui.ui.design.AppIcons.AutoAwesome else com.music.spotui.ui.design.AppIcons.Shuffle,
+                    contentDescription = stringResource(R.string.immersive_shell_shuffle),
+                    onClick = onShuffle,
+                    // Lit while this list plays shuffled (or smart-shuffled): a tap then plays another random song.
+                    tint = if (shuffled) Immersive.Accent else Immersive.Text,
+                    size = 52.dp,
+                )
+                Row(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .widthIn(min = 150.dp, max = 220.dp)
+                        .fillMaxWidth()
+                        .immersiveClickable(onClick = onPlay)
+                        .height(52.dp)
+                        .clip(CircleShape)
+                        .background(Color.White),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        if (thisPlaying) com.music.spotui.ui.design.AppIcons.Pause else com.music.spotui.ui.design.AppIcons.PlayArrow,
+                        contentDescription = null, tint = Color.Black, modifier = Modifier.size(22.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        stringResource(if (thisPlaying) R.string.immersive_detail_pause else R.string.immersive_shell_play),
+                        color = Color.Black, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1,
+                    )
+                }
+                if (canSave) ImmersiveCircleButton(
+                    icon = if (saved) com.music.spotui.ui.design.AppIcons.Check else com.music.spotui.ui.design.AppIcons.Add,
                     contentDescription = stringResource(if (saved) R.string.immersive_detail_unsave else R.string.immersive_detail_save),
                     onClick = onToggleSaved,
                     tint = if (saved) Immersive.Accent else Immersive.Text,
-                )
+                    size = 52.dp,
+                ) else Spacer(Modifier.size(52.dp))
+            }
+            Spacer(Modifier.height(14.dp))
+            if (onSpotify || p.uri.startsWith("ytmusic:")) Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                 // The page's own songs, downloaded as a whole stay in step with the catalogue.
                 val ids = p.tracks.mapNotNull(com.music.spotui.data.offline.OfflineTrackKey::of).distinct()
                 // Songs with no matching recording count as settled: the list can still be removed.
