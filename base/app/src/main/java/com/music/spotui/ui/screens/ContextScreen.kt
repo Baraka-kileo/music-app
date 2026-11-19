@@ -475,7 +475,7 @@ class ContextViewModel(
                     runCatching { MyspotiRuntime.api.playlists.moveTracks(current.uri, listOf(move.uid), move.beforeUid) }.isSuccess
                 }
             }
-            val id = current.uri.substringAfterLast(':')
+            val id = current.uri.let { if (it.startsWith("spotify:")) it.substringAfterLast(':') else it }
             if (ok) withContext(Dispatchers.IO) {
                 // The songs kept for this playlist (same count, so reused as they were) are read again,
                 // and its copies on storage take the new order.

@@ -17,8 +17,8 @@ import kotlinx.coroutines.launch
  */
 object PagePrefetch {
     private const val COUNT = 4
-    /** Pages kept on storage: the prefetched ones plus a few the user opened since. */
-    const val KEEP = 8
+    /** Pages kept on storage: the prefetched ones plus the playlists the user opened lately. */
+    const val KEEP = 20
     private const val IDLE_MS = 20_000L
     private const val FRESH_MS = 30 * 60_000L
     private const val MIN_GAP_MS = 10 * 60_000L
@@ -46,8 +46,9 @@ object PagePrefetch {
         if (now - lastRun < MIN_GAP_MS) return
         lastRun = now
         val ids = entries.asSequence()
-            .filter { it.isPlaylist && it.uri.startsWith("spotify:playlist:") }
-            .map { it.uri.substringAfterLast(':') }
+            .filter { it.isPlaylist && (it.uri.startsWith("spotify:playlist:") || it.uri.startsWith("ytmusic:playlist:")) }
+            // The id the playlist page is opened with: Spotify's bare id, YouTube Music's whole uri.
+            .map { if (it.uri.startsWith("spotify:")) it.uri.substringAfterLast(':') else it.uri }
             .take(COUNT).toList()
         if (ids.isEmpty()) return
         scope.launch {
@@ -68,9 +69,16 @@ object PagePrefetch {
         }
     }
 
-    /** A page just read whole from the network: its copy on storage, when it has one, follows. */
+    /**
+     * A playlist just read whole from the network goes on storage, prefetched or not: opened
+     * again, after a restart too, it shows at once and the network refreshes it behind. Before,
+     * only the few prefetched ones were kept, so any other playlist (all YouTube Music ones)
+     * loaded page by page each time.
+     */
     fun refreshed(id: String, page: com.music.spotui.data.entity.ContextPageModel) {
-        if (!page.complete || page.tracks.size > MAX_TRACKS || ScreenCache.pageSavedAt(id) == null) return
+        if (!page.complete || page.tracks.isEmpty() || page.tracks.size > MAX_TRACKS) return
+        val first = ScreenCache.pageSavedAt(id) == null
         ScreenCache.page(id).write(page)
+        if (first) ScreenCache.prunePages(KEEP)
     }
 }
