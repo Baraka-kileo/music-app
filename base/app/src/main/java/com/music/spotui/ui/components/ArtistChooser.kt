@@ -93,7 +93,9 @@ object ArtistChooser {
         }
     }
 
-    internal fun routeOf(a: ArtistRef) = artistRoute(a.name, a.uri.substringAfterLast(':'))
+    // Spotify's artists by their bare id; any other catalog's (YouTube Music's) by its whole uri:
+    // its bare id was read as a Spotify one, and the artist page never loaded.
+    internal fun routeOf(a: ArtistRef) = artistRoute(a.name, if (a.uri.startsWith("spotify:")) a.uri.substringAfterLast(':') else a.uri)
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalGlideComposeApi::class)

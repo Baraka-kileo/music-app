@@ -915,7 +915,7 @@ private fun ContextContent(navController: NavController, vm: ContextViewModel, p
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.pressable(0.96f) {
                                     if (p.ownerUri.startsWith("spotify:artist:")) {
-                                        navController.navigate(artistRoute(p.ownerName.substringBefore(",").trim(), p.ownerUri.substringAfterLast(":")))
+                                        navController.navigate(artistRoute(p.ownerName.substringBefore(",").trim(), if (p.ownerUri.startsWith("spotify:")) p.ownerUri.substringAfterLast(":") else p.ownerUri))
                                     } else if (com.music.spotui.data.catalog.CatalogRuntime.isCatalogUri(p.ownerUri)) {
                                         // The artist of an album of another provider: its page, by its whole uri.
                                         navController.navigate(artistRoute(p.ownerName.substringBefore(",").trim(), p.ownerUri))

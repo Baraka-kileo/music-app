@@ -255,7 +255,7 @@ private fun SpotifyStatsBlock(navController: NavController) {
                             ImmersiveShelfCard(
                                 title = "${i + 1}. ${a.name}", subtitle = null,
                                 imageUrl = spotifyImageUrl(a.images.best(300)?.url), round = true,
-                                onClick = { navController.navigate(artistRoute(a.name, a.uri.substringAfterLast(':'))) },
+                                onClick = { navController.navigate(artistRoute(a.name, if (a.uri.startsWith("spotify:")) a.uri.substringAfterLast(':') else a.uri)) },
                                 modifier = Modifier.width(120.dp),
                             )
                         }

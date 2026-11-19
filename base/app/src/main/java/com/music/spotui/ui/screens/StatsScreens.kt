@@ -142,7 +142,7 @@ internal fun SpotifyStatsTab(navController: NavController) {
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     modifier = Modifier.width(120.dp).clip(RoundedCornerShape(8.dp))
-                                        .clickable { navController.navigate(artistRoute(a.name, a.uri.substringAfterLast(':'))) },
+                                        .clickable { navController.navigate(artistRoute(a.name, if (a.uri.startsWith("spotify:")) a.uri.substringAfterLast(':') else a.uri)) },
                                 ) {
                                     com.music.spotui.ui.components.ProfileAvatar(
                                         url = spotifyImageUrl(a.images.best(300)?.url), name = a.name, size = 120.dp)
